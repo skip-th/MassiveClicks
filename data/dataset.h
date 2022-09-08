@@ -20,6 +20,7 @@
 
 // User include.
 #include "../utils/definitions.h"
+#include "../utils/macros.cuh"
 #include "search.cuh"
 
 class Dataset {
