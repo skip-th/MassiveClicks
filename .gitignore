@@ -1,0 +1,35 @@
+# Ignore all files without an extension (binaries).
+*
+!*.*
+!*/
+
+# Exclude extensionless Makefiles from the ignore list.
+!Makefile
+!prun-openmpi
+
+# Specify files with extensions which should also be ignored.
+*.o
+*.a
+*.out
+*.pdf
+*.png
+*.jpg
+*.pdf
+*.txt
+*.pyc
+*.vscode
+
+# Special cases.
+!*/CMakeLists.txt
+Practice/**/*.txt
+*/__pycache__
+*/CMakeFiles
+*/CMakeCache.txt
+*.cmake
+!*/build/thesis/*.py
+*/build
+ParClick/**/Makefile
+*/YandexRelPredChallenge*
+*/backup
+*/measurement
+*/test

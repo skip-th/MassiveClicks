@@ -1,0 +1,281 @@
+/** Version 2:
+ *   Multi-GPU training of Click Models.
+ *
+ * Source file.
+ */
+
+// MPI include.
+#include <mpi.h>
+
+// System include.
+#include <chrono>
+#include <iostream>
+#include <map>
+#include <string>
+#include <cstddef>
+#include <iomanip>
+#include <cmath>
+
+// User include.
+#include "utils/definitions.h"
+#include "utils/macros.cuh"
+#include "utils/utility_functions.h"
+#include "parallel_em/parallel_em.cuh"
+#include "parallel_em/communicator.h"
+#include "data/dataset.h"
+#include "click_models/base.cuh"
+
+
+int main(int argc, char** argv) {
+    auto start_time = std::chrono::high_resolution_clock::now();
+
+    //-----------------------------------------------------------------------//
+    // Initialize MPI                                                        //
+    //-----------------------------------------------------------------------//
+
+    // Initialize MPI and get this node's rank and the number of nodes.
+    int n_nodes, node_id;
+    Communicate::initiate(argc, argv, n_nodes, node_id);
+
+    // Get number of GPU devices available on this node.
+    int n_devices{0};
+    int n_devices_network[n_nodes];
+    std::vector<std::vector<std::vector<int>>> network_properties(n_nodes); // Node, Device, [Architecture, Free memory].
+
+    // Get number of devices on this node and their compute capability.
+    get_number_devices(&n_devices);
+
+    // Communicate the number of devices to the root node.
+    Communicate::get_n_devices(n_devices, n_devices_network);
+
+    // Get the compute architecture and free memory of each device on this node.
+    int device_architecture[n_devices], free_memory[n_devices];
+    for (int device_id = 0; device_id < n_devices; device_id++) {
+        device_architecture[device_id] = get_compute_capability(device_id);
+
+        size_t fmem, tmem;
+        get_device_memory(device_id, fmem, tmem, 1e6);
+        free_memory[device_id] = fmem;
+    }
+
+    // Gather the compute architectures and free memory on the root node.
+    Communicate::gather_properties(node_id, n_nodes, n_devices, n_devices_network, network_properties, device_architecture, free_memory);
+
+
+    //-----------------------------------------------------------------------//
+    // Declare and retrieve input parameters                                 //
+    //-----------------------------------------------------------------------//
+
+    std::map<int, std::string> supported_click_models {
+        {0, "PBM"},
+        {1, "CCM"},
+        {2, "DBN"},
+        {3, "UBM"}
+    };
+
+    std::map<int, std::string> partitioning_types {
+        {0, "Round-Robin"},
+        {1, "Maximum Utilization"},
+        {2, "Resource-Aware Maximum Utilization"},
+    };
+
+    std::string raw_dataset_path{"YandexRelPredChallenge100k.txt"}; // "/var/scratch/pkhandel/yandex/YandexClicks.txt"
+    int n_iterations{50};
+    int max_sessions{40000};
+    int model_type{0};
+    int partitioning_type{0};
+    int job_id{0};
+    float test_share{0.2};
+    int total_n_devices{Utils::sum(n_devices_network, n_nodes)};
+
+    if (argc > 2) {
+        for (int i = 1; i < argc; ++i) {
+            if (std::string(argv[i]) == "--raw-path") {
+                raw_dataset_path = argv[i + 1];
+            }
+            else if (std::string(argv[i]) == "--itr") {
+                n_iterations = std::stoi(argv[i + 1]);
+            }
+            else if (std::string(argv[i]) == "--max-sessions") {
+                max_sessions = std::stoi(argv[i+1]);
+            }
+            else if (std::string(argv[i]) == "--model-type") {
+                model_type = std::stoi(argv[i+1]);
+            }
+            else if (std::string(argv[i]) == "--partition-type") {
+                partitioning_type = std::stoi(argv[i+1]);
+            }
+            else if (std::string(argv[i]) == "--test-share") {
+                test_share = std::stod(argv[i+1]);
+            }
+            else if (std::string(argv[i]) == "--job-id") {
+                job_id = std::stoi(argv[i+1]);
+            }
+            else if (std::string(argv[i]).rfind("-", 0) == 0) {
+                if (node_id == ROOT) {
+                    std::cout << "Did not recognize argument \"" <<
+                    std::string(argv[i]) << "\"" << std::endl;
+                }
+            }
+        }
+    }
+
+    // Show job information on the root node.
+    if (node_id == ROOT) {
+        std::cout << "Job ID: " << job_id <<
+        "\nNumber of machines: " << n_nodes <<
+        "\nNumber of devices in total: " << total_n_devices <<
+        "\nRaw data path: " << raw_dataset_path <<
+        "\nNumber of EM iterations: " << n_iterations <<
+        "\nShare of data used for testing: " << test_share * 100 << "%" <<
+        "\nMax number of sessions: " << max_sessions <<
+        "\nPartitioning type: " << partitioning_types[partitioning_type] <<
+        "\nModel type: " << supported_click_models[model_type] << std::endl << std::endl;
+
+        std::cout << "Node | Device | Arch | Free memory" << std::endl <<
+                     "-----+--------+------+------------" << std::endl;
+        for (int node_rank = 0; node_rank < n_nodes; node_rank++) {
+            for (int device_id = 0; device_id < n_devices_network[node_rank]; device_id++) {
+                std::cout << std::left << std::setw(5) << node_rank << "| " <<
+                std::left << std::setw(7) << device_id << "| " <<
+                std::left << std::setw(5) << network_properties[node_rank][device_id][0] << "| " <<
+                network_properties[node_rank][device_id][1] << std::endl;
+            }
+        }
+        std::cout << std::endl;
+    }
+
+
+    //-----------------------------------------------------------------------//
+    // Parse given click log dataset                                         //
+    //-----------------------------------------------------------------------//
+
+    auto preprocessing_start_time = std::chrono::high_resolution_clock::now();
+    auto parse_start_time = std::chrono::high_resolution_clock::now();
+
+    Dataset dataset;
+
+    if (node_id == ROOT) {
+        std::cout << "Parsing dataset." << std::endl;
+
+        parse_dataset(dataset, raw_dataset_path, max_sessions);
+
+        std::cout << "Found " << dataset.size_queries() << " queries sessions." << std::endl;
+    }
+
+    auto parse_stop_time = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> elapsed_parsing = parse_stop_time - parse_start_time;
+
+
+    //-----------------------------------------------------------------------//
+    // Partition parsed dataset                                              //
+    //-----------------------------------------------------------------------//
+
+    auto partitioning_start_time = std::chrono::high_resolution_clock::now();
+
+    if (node_id == ROOT) {
+        // Split the dataset into partitions. One for each device on each node.
+        dataset.make_splits(network_properties, test_share, partitioning_type);
+    }
+
+    auto partitioning_stop_time = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> elapsed_partitioning = partitioning_stop_time - partitioning_start_time;
+
+
+    //-----------------------------------------------------------------------//
+    // Send/Retrieve partitions                                              //
+    //-----------------------------------------------------------------------//
+
+    auto transfering_start_time = std::chrono::high_resolution_clock::now();
+
+    // Store the train/test splits for each device on each node.
+    std::vector<std::tuple<std::vector<SERP>, std::vector<SERP>, int>> device_partitions(n_devices); // Device ID -> [train set, test set, size qd pairs]
+    std::vector<std::unordered_map<int, std::unordered_map<int, int>>*> root_mapping(n_devices);
+
+    // Communicate the training sets for each device to their node.
+    Communicate::send_partitions(node_id, n_nodes, n_devices, total_n_devices, n_devices_network, dataset, device_partitions, root_mapping);
+
+    // Show information about the distributed partitions on the root node.
+    if (node_id == ROOT) {
+        std::cout << "\nNode | Device | Train queries | Test queries | QD-pairs" << std::endl <<
+            "-----+--------+---------------+--------------+---------" << std::endl;
+        for (int nid = 0; nid < n_nodes; nid++) {
+            for (int did = 0; did < n_devices_network[nid]; did++) {
+                if (nid == 0) {
+                    std::cout << std::left << std::setw(5) << nid << "| " <<
+                    std::left << std::setw(7) << did << "| " <<
+                    std::left << std::setw(14) << std::get<0>(device_partitions[did]).size() << "| " <<
+                    std::left << std::setw(13) << std::get<1>(device_partitions[did]).size() << "| " <<
+                    std::get<2>(device_partitions[did]) << std::endl;
+                }
+                else {
+                    std::cout << std::left << std::setw(5) << nid << "| " <<
+                    std::left << std::setw(7) << did << "| " <<
+                    std::left << std::setw(14) << dataset.size_train(nid, did) << "| " <<
+                    std::left << std::setw(13) << dataset.size_test(nid, did) << "| " <<
+                    dataset.size_qd(nid, did) << std::endl;
+                }
+            }
+        }
+    }
+
+    // Wait until printing is done.
+    Communicate::barrier();
+
+    auto transfering_stop_time = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> elapsed_transfering = transfering_stop_time - transfering_start_time;
+
+    auto preprocessing_stop_time = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> elapsed_preprocessing = preprocessing_stop_time - preprocessing_start_time;
+
+
+    //-----------------------------------------------------------------------//
+    // Run parallel generic EM algorithm on selected click model and dataset //
+    //-----------------------------------------------------------------------//
+
+    auto estimating_start_time = std::chrono::high_resolution_clock::now();
+
+    // Run click model parameter estimation computation using the generic EM
+    // algorithm.
+    em_parallel(model_type, node_id, n_nodes, n_devices_network, n_iterations,
+                device_partitions, root_mapping);
+
+    auto estimating_stop_time = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> elapsed_estimating = estimating_stop_time - estimating_start_time;
+
+
+    //-----------------------------------------------------------------------//
+    // Show metrics                                                          //
+    //-----------------------------------------------------------------------//
+
+    auto stop_time = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> elapsed = stop_time - start_time;
+
+    // Show timing metrics on the root node.
+    if (node_id == ROOT) {
+        int preproc_sz = 3, combined_sz = 2;
+        double timings_preproc[preproc_sz];
+        timings_preproc[0] = elapsed_parsing.count();
+        timings_preproc[1] = elapsed_partitioning.count();
+        timings_preproc[2] = elapsed_transfering.count();
+        double timings_combined[combined_sz];
+        timings_combined[0] = elapsed_preprocessing.count();
+        timings_combined[1] = elapsed_estimating.count();
+
+        double percent_preproc[preproc_sz], percent_combined[combined_sz];
+        Utils::percent_dist(timings_preproc, percent_preproc, preproc_sz);
+        Utils::percent_dist(timings_combined, percent_combined, combined_sz);
+
+        std::cout << std::endl << std::left << std::setw(27) << "Total pre-processing time: " << std::left << std::setw(7) << Utils::digit_len(elapsed_preprocessing.count(), 7) << " seconds, " << std::right << std::setw(3) << round(percent_combined[0] * 100) << " %" << std::endl;
+        std::cout << std::left << std::setw(27) << "  Parsing time: " << std::left << std::setw(7) << Utils::digit_len(elapsed_parsing.count(), 7) << " seconds, " << std::right << std::setw(3) << round(percent_preproc[0] * 100) << " %" << std::endl;
+        std::cout << std::left << std::setw(27) << "  Partitioning time: " << std::left << std::setw(7) << Utils::digit_len(elapsed_partitioning.count(), 7) << " seconds, " << std::right << std::setw(3) << round(percent_preproc[1] * 100) << " %" << std::endl;
+        std::cout << std::left << std::setw(27) << "  Communication time: " << std::left << std::setw(7) << Utils::digit_len(elapsed_transfering.count(), 7) << " seconds, " << std::right << std::setw(3) << round(percent_preproc[2] * 100) << " %" << std::endl;
+        std::cout << std::left << std::setw(27) << "Parameter estimation time: " << std::left << std::setw(7) << Utils::digit_len(elapsed_estimating.count(), 7) << " seconds, " << std::right << std::setw(3) << round(percent_combined[1] * 100) << " %" << std::endl;
+        std::cout << std::left << std::setw(27) << "Total elapsed time: " << std::left << std::setw(7) << Utils::digit_len(elapsed.count(), 7) << " seconds, 100 %" << std::endl << std::endl;
+    }
+
+    // End MPI communication.
+    Communicate::finalize();
+
+    return EXIT_SUCCESS;
+}
