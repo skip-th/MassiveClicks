@@ -110,7 +110,7 @@ HST void PBM_Host::init_examination_parameters(const std::tuple<std::vector<SERP
     // Allocate memory for the temporary examination parameters on the device.
     // These values are replaced at the start of each iteration, which means
     // they don't need to be initialized with a CUDA memory copy.
-    this->n_tmp_exams_dev = std::get<0>(partition).size() * MAX_SERP_LENGTH;
+    this->n_tmp_exams_dev = std::get<0>(partition).size() * this->n_exams_dev;
     this->tmp_examination_parameters.resize(this->n_tmp_exams_dev);
     CUDA_CHECK(cudaMalloc(&this->tmp_exam_param_dptr, this->n_tmp_exams_dev * sizeof(Param)));
 
@@ -196,7 +196,7 @@ HST void PBM_Host::update_parameters(int& gridSize, int& blockSize, SERP*& parti
 HST void PBM_Host::reset_parameters(void) {
     // Create a parameter initialized at 0.
     Param default_parameter;
-    default_parameter.set_values(1.0, 2.0);
+    default_parameter.set_values(PARAM_DEF_NUM, PARAM_DEF_DENOM);
 
     // Create an array of the right proportions with the empty parameters.
     std::vector<Param> cleared_examination_parameters(this->n_exams_dev, default_parameter);
@@ -277,17 +277,20 @@ HST void PBM_Host::get_parameters(std::vector<std::vector<Param>>& destination, 
  * type -> Parameters.
  */
 HST void PBM_Host::sync_parameters(std::vector<std::vector<std::vector<Param>>>& parameters) {
-    for (int r = 0; r < parameters[0][0].size(); r++) {
+    // printf("SYNCING: size of . is %f, size of [0] is %f, size of [0][0] is %f\n", parameters.size(), parameters[0].size(), parameters[0][0].size());
+    for (int rank = 0; rank < parameters[0][0].size(); rank++) {
+        // printf("SYNCING: %f < %f\n", rank, parameters[0][0].size());
         for (int param_type = 0; param_type < parameters[0].size(); param_type++) {
-            Param ex_org = parameters[0][param_type][r];
+            Param ex_org = parameters[0][param_type][rank];
+
             // Subtract the starting values of other partitions.
-            parameters[0][param_type][r].set_values(ex_org.numerator_val() - (parameters.size() - 1),
-                                                    ex_org.denominator_val() - 2 * (parameters.size() - 1));
+            parameters[0][param_type][rank].set_values(ex_org.numerator_val() - (parameters.size() - 1),
+                                                       ex_org.denominator_val() - 2 * (parameters.size() - 1));
 
             for (int device_id = 1; device_id < parameters.size(); device_id++) {
-                Param ex = parameters[device_id][param_type][r];
-                parameters[0][param_type][r].add_to_values(ex.numerator_val(),
-                                                           ex.denominator_val());
+                Param ex = parameters[device_id][param_type][rank];
+                parameters[0][param_type][rank].add_to_values(ex.numerator_val(),
+                                                              ex.denominator_val());
             }
         }
     }
@@ -469,7 +472,7 @@ DEV void PBM_Dev::set_parameters(Param**& parameter_ptr, int* parameter_sizes) {
  * parameters.
  */
 DEV void PBM_Dev::process_session(SERP& query_session, int& thread_index) {
-    int query_id = query_session.get_query();
+    // int query_id = query_session.get_query();
     for (int rank = 0; rank < MAX_SERP_LENGTH; rank++) {
         SearchResult sr = query_session[rank];
 

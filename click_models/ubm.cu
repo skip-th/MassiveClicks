@@ -101,7 +101,7 @@ HST void UBM_Host::init_examination_parameters(const std::tuple<std::vector<SERP
     default_parameter.set_values(PARAM_DEF_NUM, PARAM_DEF_DENOM);
 
     // Allocate memory for the examination parameters on the device.
-    this->n_exams_dev = MAX_SERP_LENGTH * MAX_SERP_LENGTH;
+    this->n_exams_dev = (MAX_SERP_LENGTH - 1) * MAX_SERP_LENGTH / 2 + MAX_SERP_LENGTH;
     this->examination_parameters.resize(this->n_exams_dev, default_parameter);
     CUDA_CHECK(cudaMalloc(&this->exam_param_dptr, this->n_exams_dev * sizeof(Param)));
     CUDA_CHECK(cudaMemcpy(this->exam_param_dptr, this->examination_parameters.data(),
@@ -111,10 +111,11 @@ HST void UBM_Host::init_examination_parameters(const std::tuple<std::vector<SERP
     // These values are replaced at the start of each iteration, which means
     // they don't need to be initialized with a CUDA memory copy.
     this->n_tmp_exams_dev = std::get<0>(partition).size() * this->n_exams_dev;
-    this->tmp_examination_parameters.resize(this->n_tmp_exams_dev, default_parameter);
+    // this->tmp_examination_parameters.resize(this->n_tmp_exams_dev, default_parameter);
+    this->tmp_examination_parameters.resize(this->n_tmp_exams_dev);
     CUDA_CHECK(cudaMalloc(&this->tmp_exam_param_dptr, this->n_tmp_exams_dev * sizeof(Param)));
-    CUDA_CHECK(cudaMemcpy(this->tmp_exam_param_dptr, this->tmp_examination_parameters.data(),
-                          this->n_tmp_exams_dev * sizeof(Param), cudaMemcpyHostToDevice));
+    // CUDA_CHECK(cudaMemcpy(this->tmp_exam_param_dptr, this->tmp_examination_parameters.data(),
+    //                       this->n_tmp_exams_dev * sizeof(Param), cudaMemcpyHostToDevice));
 
     // Store the number of allocated bytes.
     this->cm_memory_usage += this->n_exams_dev * sizeof(Param) + this->n_tmp_exams_dev * sizeof(Param);
@@ -183,7 +184,6 @@ HST void UBM_Host::get_device_references(Param**& param_refs, int*& param_sizes)
  */
 HST void UBM_Host::update_parameters(int& gridSize, int& blockSize, SERP*& partition, int& dataset_size) {
     Kernel::update<<<gridSize, blockSize>>>(partition, dataset_size, 0);
-    // Kernel::update<<<gridSize, blockSize>>>(partition, dataset_size, 1);
 }
 
 /**
@@ -199,7 +199,7 @@ HST void UBM_Host::update_parameters(int& gridSize, int& blockSize, SERP*& parti
 HST void UBM_Host::reset_parameters(void) {
     // Create a parameter initialized at 0.
     Param default_parameter;
-    default_parameter.set_values(1.0, 2.0);
+    default_parameter.set_values(PARAM_DEF_NUM, PARAM_DEF_DENOM);
 
     // Create an array of the right proportions with the empty parameters.
     std::vector<Param> cleared_examination_parameters(this->n_exams_dev, default_parameter);
@@ -280,18 +280,20 @@ HST void UBM_Host::get_parameters(std::vector<std::vector<Param>>& destination, 
  * type -> Parameters.
  */
 HST void UBM_Host::sync_parameters(std::vector<std::vector<std::vector<Param>>>& parameters) {
-    for (int r = 0; r < parameters[0][0].size(); r++) {
+    // printf("SYNCING: size of . is %f, size of [0] is %f, size of [0][0] is %f\n", parameters.size(), parameters[0].size(), parameters[0][0].size());
+    // printf("SYNCING: current rank is %f, current type is %f, ex_org = %f/%f\n", rank, param_type, ex_org.numerator_val(), ex_org.denominator_val());
+    for (int rank = 0; rank < parameters[0][0].size(); rank++) {
+        // printf("SYNCING: %f < %f\n", rank, parameters[0][0].size());
         for (int param_type = 0; param_type < parameters[0].size(); param_type++) {
-            Param ex_org = parameters[0][param_type][r];
-
+            Param ex_org = parameters[0][param_type][rank];
             // Subtract the starting values of other partitions.
-            parameters[0][param_type][r].set_values(ex_org.numerator_val() - (parameters.size() - 1),
-                                                    ex_org.denominator_val() - 2 * (parameters.size() - 1));
+            parameters[0][param_type][rank].set_values(ex_org.numerator_val() - (parameters.size() - 1),
+                                                       ex_org.denominator_val() - 2 * (parameters.size() - 1));
 
             for (int device_id = 1; device_id < parameters.size(); device_id++) {
-                Param ex = parameters[device_id][param_type][r];
-                parameters[0][param_type][r].add_to_values(ex.numerator_val(),
-                                                           ex.denominator_val());
+                Param ex = parameters[device_id][param_type][rank];
+                parameters[0][param_type][rank].add_to_values(ex.numerator_val(),
+                                                              ex.denominator_val());
             }
         }
     }
@@ -341,7 +343,8 @@ HST void UBM_Host::get_log_conditional_click_probs(SERP& query_session, std::vec
         float atr{(float) PARAM_DEF_NUM / (float) PARAM_DEF_DENOM};
         if (sr.get_param_index() != -1)
             atr = this->attractiveness_parameters[sr.get_param_index()].value();
-        float ex{this->examination_parameters[rank * MAX_SERP_LENGTH + prev_click_rank[rank]].value()};
+        // float ex{this->examination_parameters[rank * MAX_SERP_LENGTH + prev_click_rank[rank]].value()};
+        float ex{this->examination_parameters[rank * (rank + 1) / 2 + prev_click_rank[rank]].value()};
 
         // Calculate the click probability.
         float atr_mul_ex = atr * ex;
@@ -393,7 +396,8 @@ HST void UBM_Host::get_full_click_probs(SERP& query_session, std::vector<float> 
                 if (query_session[rank_between].get_param_index() != -1)
                     attr_val = this->attractiveness_parameters[query_session[rank_between].get_param_index()].value();
 
-                float exam_val{this->examination_parameters[rank_between * MAX_SERP_LENGTH + corrected_rank_prev_click].value()};
+                // float exam_val{this->examination_parameters[rank_between * MAX_SERP_LENGTH + corrected_rank_prev_click].value()};
+                float exam_val{this->examination_parameters[rank_between * (rank_between + 1) / 2 + corrected_rank_prev_click].value()};
 
                 no_click_between *= 1 - attr_val * exam_val;
             }
@@ -402,7 +406,8 @@ HST void UBM_Host::get_full_click_probs(SERP& query_session, std::vector<float> 
             float attr_val{(float) PARAM_DEF_NUM / (float) PARAM_DEF_DENOM};
             if (sr.get_param_index() != -1)
                 attr_val = this->attractiveness_parameters[query_session[rank].get_param_index()].value();
-            float exam_val{this->examination_parameters[rank * MAX_SERP_LENGTH + corrected_rank_prev_click].value()};
+            // float exam_val{this->examination_parameters[rank * MAX_SERP_LENGTH + corrected_rank_prev_click].value()};
+            float exam_val{this->examination_parameters[rank * (rank + 1) / 2 + corrected_rank_prev_click].value()};
             float temp{no_click_between * (attr_val * exam_val)};
 
             // Add to the click probability depending on whether a click between was found.
@@ -507,8 +512,10 @@ DEV void UBM_Dev::set_parameters(Param**& parameter_ptr, int* parameter_sizes) {
  * parameters.
  */
 DEV void UBM_Dev::process_session(SERP& query_session, int& thread_index) {
-    int query_id = query_session.get_query();
+    // int query_id = query_session.get_query();
     int prev_click_rank[MAX_SERP_LENGTH] = { 0 };
+    int max_index = MAX_SERP_LENGTH * (MAX_SERP_LENGTH - 1) / 2 + MAX_SERP_LENGTH;
+    // ! Apply the new indexing scheme on the PBM template.
     query_session.prev_clicked_rank(prev_click_rank);
 
     for (int rank = 0; rank < MAX_SERP_LENGTH; rank++) {
@@ -516,7 +523,12 @@ DEV void UBM_Dev::process_session(SERP& query_session, int& thread_index) {
 
         // Get the attractiveness and examination parameters.
         float atr{this->attractiveness_parameters[sr.get_param_index()].value()};
-        float ex{this->examination_parameters[prev_click_rank[rank] * MAX_SERP_LENGTH + rank].value()};
+        // float ex{this->examination_parameters[prev_click_rank[rank] * MAX_SERP_LENGTH + rank].value()};
+        float ex{this->examination_parameters[rank * (rank + 1) / 2 + prev_click_rank[rank]].value()};
+
+        // printf("(%d, %d) ESTIMATING atr: %lf/%lf = %lf, ex: %lf/%lf = %lf, prev_doc_rank = %d\n", query_id, sr.get_doc_id(),
+        //    this->attractiveness_parameters[sr.get_param_index()].numerator_val(), this->attractiveness_parameters[sr.get_param_index()].denominator_val(), atr,
+        //    this->examination_parameters[prev_click_rank[rank] * MAX_SERP_LENGTH + rank].numerator_val(), this->examination_parameters[prev_click_rank[rank] * MAX_SERP_LENGTH + rank].denominator_val(), ex, prev_click_rank[rank]);
 
         // Set the default values of the attractiveness and examination
         // parameters. These will be the parameter values in case the search
@@ -538,7 +550,27 @@ DEV void UBM_Dev::process_session(SERP& query_session, int& thread_index) {
 
         // Store the temporary attractiveness and examination parameters.
         this->tmp_attractiveness_parameters[thread_index * MAX_SERP_LENGTH + rank].set_values(new_numerator_atr, 1);
-        this->tmp_examination_parameters[MAX_SERP_LENGTH * (prev_click_rank[rank] * MAX_SERP_LENGTH + rank) + thread_index].set_values(new_numerator_ex, 1);
+        // this->tmp_examination_parameters[MAX_SERP_LENGTH * (prev_click_rank[rank] * MAX_SERP_LENGTH + rank) + thread_index].set_values(new_numerator_ex, 1);
+        // this->tmp_examination_parameters[prev_click_rank[rank] + MAX_SERP_LENGTH * (thread_index * MAX_SERP_LENGTH + rank)].set_values(new_numerator_ex, 1);
+        this->tmp_examination_parameters[thread_index * max_index + rank * (rank + 1) / 2 + prev_click_rank[rank]].set_values(new_numerator_ex, 1);
+
+        // thread_index
+        // -------------------------------------
+        // rank | prev_click_rank
+        // 0    [                            9 ]
+        // 1    [ 0,                         9 ]
+        // 2    [ 0, 1,                      9 ]
+        // 3    [ 0, 1, 2,                   9 ]
+        // 4    [ 0, 1, 2, 3,                9 ]
+        // 5    [ 0, 1, 2, 3, 4,             9 ]
+        // 6    [ 0, 1, 2, 3, 4, 5,          9 ]
+        // 7    [ 0, 1, 2, 3, 4, 5, 6,       9 ]
+        // 8    [ 0, 1, 2, 3, 4, 5, 6, 7,    9 ]
+        // 9    [ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 ]
+        //
+        // prev_click_rank[rank] + MAX_SERP_LENGTH * (thread_index * MAX_SERP_LENGTH + rank)
+        // Index result example:
+        //   index 324, 3 = thread_index, 2 = rank, 4 = prev_click_rank
     }
 }
 
@@ -571,14 +603,16 @@ DEV void UBM_Dev::update_parameters(SERP& query_session, int& thread_index, int&
  */
 DEV void UBM_Dev::update_examination_parameters(SERP& query_session, int& thread_index, int& block_index, int& partition_size) {
     // Initialize shared memory for this block's examination parameters at 0.
-    SHR float block_examination_num[MAX_SERP_LENGTH * MAX_SERP_LENGTH];
-    SHR float block_examination_denom[MAX_SERP_LENGTH * MAX_SERP_LENGTH];
-    for (int extended_rank = 0; extended_rank < (MAX_SERP_LENGTH * MAX_SERP_LENGTH); extended_rank++) {
+    int max_index = MAX_SERP_LENGTH * (MAX_SERP_LENGTH - 1) / 2 + MAX_SERP_LENGTH;
+    SHR float block_examination_num[MAX_SERP_LENGTH * (MAX_SERP_LENGTH - 1) / 2 + MAX_SERP_LENGTH];
+    SHR float block_examination_denom[MAX_SERP_LENGTH * (MAX_SERP_LENGTH - 1) / 2 + MAX_SERP_LENGTH];
+    for (int extended_rank = 0; extended_rank < (max_index); extended_rank++) {
         block_examination_num[extended_rank] = 0.f;
         block_examination_denom[extended_rank] = 0.f;
     }
     // Wait for all threads to finish initializing shared memory.
     __syncthreads();
+
 
     // Atomically add the values of the examination parameters of this thread's
     // query session to the shared examination parameters of this block.
@@ -586,35 +620,77 @@ DEV void UBM_Dev::update_examination_parameters(SERP& query_session, int& thread
     // to prevent all threads from atomically writing to the same rank at the
     // same time.
     if (thread_index < partition_size) {
-        for (int rank = 0; rank < MAX_SERP_LENGTH; rank++) {
-            for (int dr = 0; dr < MAX_SERP_LENGTH; dr++) {
-                SearchResult sr = query_session[rank];
+        // Use a combined rank which includes the prev_rank of each rank.
+        int combined_rank{0}, start_rank = block_index % max_index;
+        for (int offset = 0; offset < max_index; offset++) {
+            combined_rank = (start_rank + offset) % max_index;
 
-                // Atomically add the numerator and denominator values to shared memory.
-                Param tmp_ex = this->tmp_examination_parameters[MAX_SERP_LENGTH * (dr * MAX_SERP_LENGTH + rank) + thread_index];
-                // Check if the parameter's default value has been changed. If
-                // not, then the parameter won't be updated.
-                if (tmp_ex.numerator_val() != PARAM_DEF_NUM && tmp_ex.denominator_val() != PARAM_DEF_DENOM) {
-                    atomicAddArch(&block_examination_num[dr * MAX_SERP_LENGTH + rank], tmp_ex.numerator_val());
-                    atomicAddArch(&block_examination_denom[dr * MAX_SERP_LENGTH + rank], tmp_ex.denominator_val());
-                }
-            }
+            // Atomically add the numerator and denominator values to shared memory.
+            atomicAddArch(&block_examination_num[combined_rank], this->tmp_examination_parameters[thread_index * max_index + combined_rank].numerator_val());
+            atomicAddArch(&block_examination_denom[combined_rank], this->tmp_examination_parameters[thread_index * max_index + combined_rank].denominator_val()); // ! divide by 55? divide by 1 2 3 4 ...?
         }
     }
+
+    //     // Iterate over all ranks of a thread and all previous ranks associated
+    //     // with the current rank.
+    //     // int max_index = MAX_SERP_LENGTH * (MAX_SERP_LENGTH - 1) / 2 + MAX_SERP_LENGTH;
+    //     for (int rank = 0; rank < MAX_SERP_LENGTH; rank++) {
+    //         for (int prev_rank = 0; prev_rank < MAX_SERP_LENGTH; prev_rank++) {
+    //             // SearchResult sr = query_session[rank];
+
+    //             // Atomically add the numerator and denominator values to shared memory.
+    //             // Param tmp_ex = this->tmp_examination_parameters[MAX_SERP_LENGTH * (prev_rank * MAX_SERP_LENGTH + rank) + thread_index];
+    //             // Param tmp_ex = this->tmp_examination_parameters[prev_rank + MAX_SERP_LENGTH * (thread_index * MAX_SERP_LENGTH + rank)];
+    //             Param tmp_ex = this->tmp_examination_parameters[thread_index * max_index + rank * (rank + 1) / 2 + prev_rank];
+
+
+    //             // Check if the parameter's default value has been changed. If
+    //             // not, then the parameter won't be updated.
+    //             // if (tmp_ex.numerator_val() != PARAM_DEF_NUM && tmp_ex.denominator_val() != PARAM_DEF_DENOM) {
+    //                 atomicAddArch(&block_examination_num[rank * MAX_SERP_LENGTH + prev_rank], tmp_ex.numerator_val());
+    //                 atomicAddArch(&block_examination_denom[rank * MAX_SERP_LENGTH + prev_rank], tmp_ex.denominator_val());
+    //                 // atomicAddArch(&block_examination_num[prev_rank * MAX_SERP_LENGTH + rank], tmp_ex.numerator_val());
+    //                 // atomicAddArch(&block_examination_denom[prev_rank * MAX_SERP_LENGTH + rank], tmp_ex.denominator_val());
+    //             // }
+
+    //             // ! Current hypothesis:
+    //             // ! I am adding too many values. Ignoring elements containing
+    //             // ! the default parameter values, causes strange skips in the
+    //             // ! parameter values, but including them makes the
+    //             // ! denominators too high.
+    //         }
+    //     }
+    // }
+
+    // // Wait for all threads to finish writing to shared memory.
+    // __syncthreads();
+    // // Have only the first few threads of the block write the shared memory
+    // // results to global memory.
+    // if (block_index < MAX_SERP_LENGTH) {
+    //     for (int rank = 0; rank < MAX_SERP_LENGTH; rank++) {
+    //         // float denom = block_examination_denom[rank * MAX_SERP_LENGTH + block_index];
+    //         float denom = block_examination_denom[block_index * MAX_SERP_LENGTH + rank];
+
+    //         // Check if the parameter's default value has been changed. If not,
+    //         // then the parameter won't be updated.
+    //         // if (denom != 2.f) {
+    //             // this->examination_parameters[rank * MAX_SERP_LENGTH + block_index].atomic_add_to_values(
+    //             //     block_examination_num[rank * MAX_SERP_LENGTH + block_index], denom);
+    //             this->examination_parameters[block_index * MAX_SERP_LENGTH + rank].atomic_add_to_values(
+    //                 block_examination_num[block_index * MAX_SERP_LENGTH + rank], denom);
+    //         // }
+    //     }
+    // }
+
     // Wait for all threads to finish writing to shared memory.
     __syncthreads();
-
     // Have only the first few threads of the block write the shared memory
     // results to global memory.
     if (block_index < MAX_SERP_LENGTH) {
-        for (int dr = 0; dr < MAX_SERP_LENGTH; dr++) {
-            float denom = block_examination_denom[dr * MAX_SERP_LENGTH + block_index];
-            // Check if the parameter's default value has been changed. If not,
-            // then the parameter won't be updated.
-            if (denom != 0.f) {
-                this->examination_parameters[dr * MAX_SERP_LENGTH + block_index].atomic_add_to_values(
-                    block_examination_num[dr * MAX_SERP_LENGTH + block_index], denom);
-            }
+        for (int prev_rank = 0; prev_rank <= block_index; prev_rank++) {
+            // rank * (rank + 1) / 2 + prev_click_rank[rank]
+            int index = block_index * (block_index + 1) / 2 + prev_rank;
+            this->examination_parameters[index].atomic_add_to_values(block_examination_num[index], block_examination_denom[index]);
         }
     }
 }
