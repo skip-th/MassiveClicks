@@ -5,13 +5,12 @@ training click models using a CPU, which incorporates one or multiple GPUs in
 the training process. The following click models are supported:
 
 1. *Position-based Model (PBM)*.
-2. *User Browsing Model (UBM)*. (unfinished)
-3. *Click Chain Model (CCN)*. (unfinished)
+2. *User Browsing Model (UBM)*.
+3. *Click Chain Model (CCM)*. (unfinished)
 4. *Dynamic Bayesian Network Model (DBN)*. (unfinished)
 
 ## TODO
 
-- Implement UBM.
 - Implement CCM.
 - Implement DBN.
 - Retrieve distributed parameters and combine them on the root node into a complete click model.

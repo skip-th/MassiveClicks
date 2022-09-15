@@ -598,7 +598,6 @@ DEV void UBM_Dev::update_examination_parameters(SERP& query_session, int& thread
     // Wait for all threads to finish initializing shared memory.
     __syncthreads();
 
-
     // Atomically add the values of the examination parameters of this thread's
     // query session to the shared examination parameters of this block.
     // Start every thread in this block at different query session ranks
