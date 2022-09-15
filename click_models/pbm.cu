@@ -39,14 +39,14 @@ HST void PBM_Host::say_hello() {
     std::cout << "Host-side PBM says hello!" << std::endl;
 }
 
-/**
- * @brief Get the click probability of a search result.
- *
- * @param qd_parameter_index The query-document pair parameter index of the
- * search result.
- * @param rank The document rank of the search result.
- * @return float The click probability.
- */
+// /**
+//  * @brief Get the click probability of a search result.
+//  *
+//  * @param qd_parameter_index The query-document pair parameter index of the
+//  * search result.
+//  * @param rank The document rank of the search result.
+//  * @return float The click probability.
+//  */
 // HST float PBM_Host::get_click_probability(int& qd_parameter_index, int& rank) {
 //     return this->attractiveness_parameters[qd_parameter_index].value() * this->examination_parameters[rank].value();
 // }
@@ -277,9 +277,7 @@ HST void PBM_Host::get_parameters(std::vector<std::vector<Param>>& destination, 
  * type -> Parameters.
  */
 HST void PBM_Host::sync_parameters(std::vector<std::vector<std::vector<Param>>>& parameters) {
-    // printf("SYNCING: size of . is %f, size of [0] is %f, size of [0][0] is %f\n", parameters.size(), parameters[0].size(), parameters[0][0].size());
     for (int rank = 0; rank < parameters[0][0].size(); rank++) {
-        // printf("SYNCING: %f < %f\n", rank, parameters[0][0].size());
         for (int param_type = 0; param_type < parameters[0].size(); param_type++) {
             Param ex_org = parameters[0][param_type][rank];
 
