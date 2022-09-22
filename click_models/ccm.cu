@@ -39,14 +39,14 @@ HST void CCM_Host::say_hello() {
     std::cout << "Host-side CCM says hello!" << std::endl;
 }
 
-/**
- * @brief Get the click probability of a search result.
- *
- * @param qd_parameter_index The query-document pair parameter index of the
- * search result.
- * @param rank The document rank of the search result.
- * @return float The click probability.
- */
+// /**
+//  * @brief Get the click probability of a search result.
+//  *
+//  * @param qd_parameter_index The query-document pair parameter index of the
+//  * search result.
+//  * @param rank The document rank of the search result.
+//  * @return float The click probability.
+//  */
 // HST float CCM_Host::get_click_probability(int& qd_parameter_index, int& rank) {
 //     return this->attractiveness_parameters[qd_parameter_index].value() * this->examination_parameters[rank].value();
 // }
@@ -326,10 +326,29 @@ HST void CCM_Host::set_parameters(std::vector<std::vector<Param>>& source, int p
  * the document at each rank in the query session.
  */
 HST void CCM_Host::get_log_conditional_click_probs(SERP& query_session, std::vector<float>& log_click_probs) {
+    float atr, tau_1, tau_2, tau_3;
+    float ex{1.f}, click_prob;
+
     for (int rank = 0; rank < MAX_SERP_LENGTH; rank++) {
         SearchResult sr = query_session[rank];
 
-        // TODO
+        atr = (float) PARAM_DEF_NUM / (float) PARAM_DEF_DENOM;
+        if (sr.get_param_index() != -1)
+            atr = this->attractiveness_parameters[sr.get_param_index()].value();
+        tau_1 = this->tau_parameters[0].value();
+        tau_2 = this->tau_parameters[1].value();
+        tau_3 = this->tau_parameters[2].value();
+
+        if (sr.get_click() == 1) {
+            click_prob = atr * ex;
+            ex = tau_2 * (1 - atr) + tau_3 * atr;
+        }
+        else {
+            click_prob = 1 - atr * ex;
+            ex *= tau_1 * (1 - atr) / click_prob;
+        }
+
+        log_click_probs.push_back(std::log(click_prob));
     }
 }
 
@@ -343,12 +362,34 @@ HST void CCM_Host::get_log_conditional_click_probs(SERP& query_session, std::vec
  * for the document at each rank in the query session.
  */
 HST void CCM_Host::get_full_click_probs(SERP& query_session, std::vector<float> &full_click_probs) {
+    float atr, tau_1, tau_2, tau_3;
+    float ex{1.f}, click_prob, atr_mul_ex;
+
     // Go through all ranks of the query session.
     for (int rank = 0; rank < MAX_SERP_LENGTH; rank++) {
         // Retrieve the search result at the current rank.
         SearchResult sr = query_session[rank];
 
-        // TODO
+        atr = (float) PARAM_DEF_NUM / (float) PARAM_DEF_DENOM;
+        if (sr.get_param_index() != -1)
+            atr = this->attractiveness_parameters[sr.get_param_index()].value();
+        tau_1 = this->tau_parameters[0].value();
+        tau_2 = this->tau_parameters[1].value();
+        tau_3 = this->tau_parameters[2].value();
+
+        // Calculate the click probability.
+        float atr_mul_ex = atr * ex;
+
+        // Calculate the full click probability.
+        int click{sr.get_click()};
+        if (click == 1) {
+            full_click_probs.push_back(atr_mul_ex);
+        }
+        else {
+            full_click_probs.push_back(1 - atr_mul_ex);
+        }
+
+        ex *= (1 - atr) * tau_1 + atr * ((1 - atr) * tau_2 + atr * tau_3);
     }
 }
 

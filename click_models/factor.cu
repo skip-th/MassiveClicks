@@ -74,6 +74,7 @@ DEV float CCMFactor::compute(int x, int y, int z) {
         }
     }
     else if (this->rank + 1 < MAX_SERP_LENGTH) {
+        // log_prob += std::accumulate(tail_clicks.begin(), tail_clicks.end(), 0.0, [](const double base, decltype(*begin(tail_clicks))& element){return base + std::log(element.second);});
         for (int sub_rank = 0; sub_rank < MAX_SERP_LENGTH; sub_rank++) {
             log_prob += __logf(this->click_probs[this->rank + 1][sub_rank]);
         }
