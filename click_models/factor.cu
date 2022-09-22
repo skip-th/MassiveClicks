@@ -4,6 +4,19 @@
 
 #include "factor.cuh"
 
+/**
+ * @brief Set the necessary arguments to compute phi.
+ *
+ * @param click_probs The current click probabilities for this SERP.
+ * @param exam_probs The current examination probabilities for this SERP.
+ * @param click The click on the current document.
+ * @param last_click_rank The rank of the last clicked document in this SERP.
+ * @param rank The rank of this document.
+ * @param attr The attractiveness of this query-document pair.
+ * @param tau_1 The first continuation parameter.
+ * @param tau_2 The second continuation parameter.
+ * @param tau_3 The third continuation parameter.
+ */
 DEV CCMFactor::CCMFactor(float (&click_probs)[MAX_SERP_LENGTH][MAX_SERP_LENGTH], float (&exam_probs)[MAX_SERP_LENGTH + 1], int click, int last_click_rank, int rank, float attr, float tau_1, float tau_2, float tau_3) {
     this->click_probs = click_probs;
     this->exam_probs = exam_probs;
@@ -16,10 +29,17 @@ DEV CCMFactor::CCMFactor(float (&click_probs)[MAX_SERP_LENGTH][MAX_SERP_LENGTH],
     this->tau_3 = tau_3;
 }
 
+/**
+ * @brief Compute the phi function.
+ *
+ * @param x The x input value for the summation.
+ * @param y The y input value for the summation.
+ * @param z The z input value for the summation.
+ */
 DEV float CCMFactor::compute(int x, int y, int z) {
     float log_prob = 0.f;
 
-    if (this->click == 0) {
+    if (this->click == 0) { // Use tau 1 in case the document has not been clicked.
         if (y == 1) {
             return 0.f;
         }
@@ -27,7 +47,7 @@ DEV float CCMFactor::compute(int x, int y, int z) {
         log_prob += __logf(1 - this->attr);
 
         if (x == 1) {
-            if ( z == 1) {
+            if (z == 1) {
                 log_prob += __logf(this->tau_1);
             }
             else {
@@ -38,7 +58,7 @@ DEV float CCMFactor::compute(int x, int y, int z) {
             return 0.f;
         }
     }
-    else {
+    else { // Use tau 2 or 3 in case the document has been clicked.
         if (x == 0) {
             return 0.f;
         }
@@ -74,7 +94,6 @@ DEV float CCMFactor::compute(int x, int y, int z) {
         }
     }
     else if (this->rank + 1 < MAX_SERP_LENGTH) {
-        // log_prob += std::accumulate(tail_clicks.begin(), tail_clicks.end(), 0.0, [](const double base, decltype(*begin(tail_clicks))& element){return base + std::log(element.second);});
         for (int sub_rank = 0; sub_rank < MAX_SERP_LENGTH; sub_rank++) {
             log_prob += __logf(this->click_probs[this->rank + 1][sub_rank]);
         }

@@ -18,3 +18,5 @@ the training process. The following click models are supported:
 - Perform parallel sum reduction using CUDA Thrust.
 - Combine ClickModel_Host and _Dev.
 - Change ClickModel_Host to _Hst.
+- Remove parameter reference functions.
+- Remove parameter_type argument from update kernel.

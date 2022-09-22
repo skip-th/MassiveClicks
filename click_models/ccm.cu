@@ -81,9 +81,14 @@ HST void CCM_Host::init_attractiveness_parameters(const std::tuple<std::vector<S
     // Allocate memory for the temporary attractiveness parameters on the device.
     // These values are replaced at the start of each iteration, which means
     // they don't need to be initialized with a CUDA memory copy.
+    // this->n_tmp_attr_dev = std::get<0>(partition).size() * MAX_SERP_LENGTH;
+    // this->tmp_attractiveness_parameters.resize(this->n_tmp_attr_dev);
+    // CUDA_CHECK(cudaMalloc(&this->tmp_attr_param_dptr, this->n_tmp_attr_dev * sizeof(Param)));
     this->n_tmp_attr_dev = std::get<0>(partition).size() * MAX_SERP_LENGTH;
-    this->tmp_attractiveness_parameters.resize(this->n_tmp_attr_dev);
+    this->tmp_attractiveness_parameters.resize(this->n_tmp_attr_dev, default_parameter);
     CUDA_CHECK(cudaMalloc(&this->tmp_attr_param_dptr, this->n_tmp_attr_dev * sizeof(Param)));
+    // CUDA_CHECK(cudaMemcpy(this->tmp_attr_param_dptr, this->tmp_attractiveness_parameters.data(),
+    //                       this->n_tmp_attr_dev * sizeof(Param), cudaMemcpyHostToDevice));
 
     // Store the number of allocated bytes.
     this->cm_memory_usage += this->n_attr_dev * sizeof(Param) + this->n_tmp_attr_dev * sizeof(Param);
@@ -113,6 +118,8 @@ HST void CCM_Host::init_tau_parameters(const std::tuple<std::vector<SERP>, std::
     this->n_tmp_tau_dev = std::get<0>(partition).size() * this->n_tau_dev;
     this->tmp_tau_parameters.resize(this->n_tmp_tau_dev);
     CUDA_CHECK(cudaMalloc(&this->tmp_tau_param_dptr, this->n_tmp_tau_dev * sizeof(Param)));
+    // CUDA_CHECK(cudaMemcpy(this->tmp_tau_param_dptr, this->tmp_tau_parameters.data(),
+    //                       this->n_tmp_tau_dev * sizeof(Param), cudaMemcpyHostToDevice));
 
     // Store the number of allocated bytes.
     this->cm_memory_usage += this->n_tau_dev * sizeof(Param) + this->n_tmp_tau_dev * sizeof(Param);
@@ -201,10 +208,14 @@ HST void CCM_Host::reset_parameters(void) {
     // Create an array of the right proportions with the empty parameters.
     std::vector<Param> cleared_attractiveness_parameters(this->n_attr_dev, default_parameter);
     std::vector<Param> cleared_tau_parameters(this->n_attr_dev, default_parameter);
+    // std::vector<Param> cleared_tmp_attractiveness_parameters(this->n_tmp_attr_dev, default_parameter);
+    // std::vector<Param> cleared_tmp_tau_parameters(this->n_tmp_tau_dev, default_parameter);
 
     // Copy the cleared array to the device.
     CUDA_CHECK(cudaMemcpy(this->attr_param_dptr, cleared_attractiveness_parameters.data(), this->n_attr_dev * sizeof(Param), cudaMemcpyHostToDevice));
     CUDA_CHECK(cudaMemcpy(this->tau_param_dptr, cleared_tau_parameters.data(), this->n_tau_dev * sizeof(Param), cudaMemcpyHostToDevice));
+    // CUDA_CHECK(cudaMemcpy(this->tmp_attr_param_dptr, cleared_tmp_attractiveness_parameters.data(), this->n_tmp_attr_dev * sizeof(Param), cudaMemcpyHostToDevice));
+    // CUDA_CHECK(cudaMemcpy(this->tmp_tau_param_dptr, cleared_tmp_tau_parameters.data(), this->n_tmp_tau_dev * sizeof(Param), cudaMemcpyHostToDevice));
 }
 
 /**
@@ -363,7 +374,7 @@ HST void CCM_Host::get_log_conditional_click_probs(SERP& query_session, std::vec
  */
 HST void CCM_Host::get_full_click_probs(SERP& query_session, std::vector<float> &full_click_probs) {
     float atr, tau_1, tau_2, tau_3;
-    float ex{1.f}, click_prob, atr_mul_ex;
+    float ex{1.f}, atr_mul_ex;
 
     // Go through all ranks of the query session.
     for (int rank = 0; rank < MAX_SERP_LENGTH; rank++) {
@@ -378,7 +389,7 @@ HST void CCM_Host::get_full_click_probs(SERP& query_session, std::vector<float> 
         tau_3 = this->tau_parameters[2].value();
 
         // Calculate the click probability.
-        float atr_mul_ex = atr * ex;
+        atr_mul_ex = atr * ex;
 
         // Calculate the full click probability.
         int click{sr.get_click()};
@@ -477,8 +488,6 @@ DEV void CCM_Dev::set_parameters(Param**& parameter_ptr, int* parameter_sizes) {
  * parameters.
  */
 DEV void CCM_Dev::process_session(SERP& query_session, int& thread_index) {
-    // int prev_click_rank[MAX_SERP_LENGTH] = { MAX_SERP_LENGTH - 1 };
-    // query_session.prev_clicked_rank(prev_click_rank);
     int last_click_rank = query_session.last_click_rank();
     float click_probs[MAX_SERP_LENGTH][MAX_SERP_LENGTH];
     float exam_probs[MAX_SERP_LENGTH + 1];
@@ -492,11 +501,10 @@ DEV void CCM_Dev::process_session(SERP& query_session, int& thread_index) {
 }
 
 DEV void CCM_Dev::compute_exam_car(int& thread_index, SERP& query_session, float (&exam)[MAX_SERP_LENGTH + 1], float (&car)[MAX_SERP_LENGTH + 1]) {
-    exam[0] = 1;
+    // Set the default examination value for the first rank.
+    exam[0] = 1.f;
 
-    float attr_val, new_attr_val, tau_1, new_tau_1, tau_2, new_tau_2,
-            tau_3, new_tau_3, ex_value, new_ex_value;
-    float temp, new_temp, car_val;
+    float attr_val, tau_1, tau_2, tau_3, ex_value, temp, car_val;
 
     float car_helper[MAX_SERP_LENGTH][2];
 
@@ -504,33 +512,25 @@ DEV void CCM_Dev::compute_exam_car(int& thread_index, SERP& query_session, float
         SearchResult sr = query_session[rank];
 
         attr_val = this->attractiveness_parameters[sr.get_param_index()].value();
-        new_attr_val = this->tmp_attractiveness_parameters[thread_index * MAX_SERP_LENGTH + rank].value();
-
         tau_1 = this->tau_parameters[0].value();
-        new_tau_1 = this->tmp_tau_parameters[thread_index * 3 + 0].value();
-
         tau_2 = this->tau_parameters[1].value();
-        new_tau_2 = this->tmp_tau_parameters[thread_index * 3 + 1].value();
-
         tau_3 = this->tau_parameters[2].value();
-        new_tau_3 = this->tmp_tau_parameters[thread_index * 3 + 2].value();
-
         ex_value = exam[rank];
 
         temp = (1 - attr_val) * tau_1;
-        new_temp = (1 - new_attr_val) * new_tau_1;
 
+        // Calculate epsilon for the next rank.
         ex_value *= temp + attr_val * ((1 - attr_val) * tau_2 + attr_val * tau_3);
-        new_ex_value *= new_temp + new_attr_val * ((1 - new_attr_val) * new_tau_2 + new_attr_val * new_tau_3);
 
         car_helper[rank][0] = attr_val;
         car_helper[rank][1] = temp;
 
+        // Set the examination value for the next rank.
         rank += 1;
         exam[rank] = ex_value;
     }
 
-    for (int car_itr = MAX_SERP_LENGTH; car_itr > 0; --car_itr) {
+    for (int car_itr = MAX_SERP_LENGTH - 1; car_itr >= 0; car_itr--) {
         car_val = car[car_itr + 1];
         car[car_itr] = car_helper[car_itr][0] + car_helper[car_itr][1] * car_val;
     }
@@ -559,16 +559,13 @@ DEV void CCM_Dev::compute_ccm_attr(int& thread_index, SERP& query_session, int& 
             numerator_update += ((1 - exam_val) * attr_val) / ( 1 - exam_val * car_val);
         }
 
-        if (click == 1 and rank == last_click_rank) {
-            car_val = car[rank+1];
-            numerator_update += attr_val /
-                                (1 -
-                                 (this->tau_parameters[1].value() * ( 1 - attr_val)
-                                  + this->tau_parameters[2].value() * attr_val)
-                                 * car_val);
+        if (click == 1 && rank == last_click_rank) {
+            car_val = car[rank + 1];
+            numerator_update += attr_val / (1 - (this->tau_parameters[1].value() * ( 1 - attr_val) + this->tau_parameters[2].value() * attr_val) * car_val);
         }
 
         this->tmp_attractiveness_parameters[thread_index * MAX_SERP_LENGTH + rank].set_values(numerator_update, denominator_update);
+        // this->tmp_attractiveness_parameters[thread_index * MAX_SERP_LENGTH + rank].add_to_values(numerator_update, denominator_update);
     }
 }
 
@@ -603,12 +600,14 @@ DEV void CCM_Dev::get_tail_clicks(int& thread_index, SERP& query_session, float 
             if (start_rank == 0) {
                 exam_probs[ses_itr + 1] = exam_val;
             }
+
+            ses_itr++;
         }
     }
 }
 
 DEV void CCM_Dev::compute_taus(int& thread_index, SERP& query_session, int& last_click_rank, float (&click_probs)[MAX_SERP_LENGTH][MAX_SERP_LENGTH], float (&exam_probs)[MAX_SERP_LENGTH + 1]) {
-    float factor_values[8] = {0.f};
+    float factor_values[8] = { 0.f };
 
     for (int rank = 0; rank < MAX_SERP_LENGTH; rank++){
         SearchResult sr = query_session[rank];
@@ -623,7 +622,7 @@ DEV void CCM_Dev::compute_taus(int& thread_index, SERP& query_session, int& last
         float factor_result = 0.f;
         float factor_sum = 0.f;
 
-        for (int fct_itr{0}; fct_itr < 8; fct_itr++){
+        for (int fct_itr{0}; fct_itr < 8; fct_itr++) {
             factor_result = factor_func.compute(this->factor_inputs[fct_itr][0],
                                                 this->factor_inputs[fct_itr][1],
                                                 this->factor_inputs[fct_itr][2]);
@@ -644,19 +643,22 @@ DEV void CCM_Dev::compute_taus(int& thread_index, SERP& query_session, int& last
 DEV void CCM_Dev::compute_tau_1(int& thread_index, float (&factor_values)[8], float& factor_sum) {
     double numerator_update{(factor_values[5] + factor_values[7]) / factor_sum};
     double denominator_update{numerator_update + ((factor_values[4] + factor_values[6]) / factor_sum)};
-    this->tmp_tau_parameters[thread_index * 3 + 0].add_to_values(numerator_update, denominator_update);
+    // this->tmp_tau_parameters[thread_index * 3 + 0].add_to_values(numerator_update, denominator_update);
+    this->tmp_tau_parameters[thread_index * 3 + 0].set_values(numerator_update, denominator_update);
 }
 
 DEV void CCM_Dev::compute_tau_2(int& thread_index, float (&factor_values)[8], float& factor_sum) {
     double numerator_update{factor_values[5] / factor_sum};
     double denominator_update{numerator_update + ((factor_values[4]) / factor_sum)};
-    this->tmp_tau_parameters[thread_index * 3 + 1].add_to_values(numerator_update, denominator_update);
+    // this->tmp_tau_parameters[thread_index * 3 + 1].add_to_values(numerator_update, denominator_update);
+    this->tmp_tau_parameters[thread_index * 3 + 1].set_values(numerator_update, denominator_update);
 }
 
 DEV void CCM_Dev::compute_tau_3(int& thread_index, float (&factor_values)[8], float& factor_sum) {
     double numerator_update{factor_values[7] / factor_sum};
     double denominator_update{numerator_update + ((factor_values[6]) / factor_sum)};
-    this->tmp_tau_parameters[thread_index * 3 + 2].add_to_values(numerator_update, denominator_update);
+    // this->tmp_tau_parameters[thread_index * 3 + 2].add_to_values(numerator_update, denominator_update);
+    this->tmp_tau_parameters[thread_index * 3 + 2].set_values(numerator_update, denominator_update);
 }
 
 
@@ -692,8 +694,8 @@ DEV void CCM_Dev::update_tau_parameters(SERP& query_session, int& thread_index, 
     SHR float block_continuation_num[3];
     SHR float block_continuation_denom;
     block_continuation_denom = 0.f;
-    for (int rank = 0; rank < MAX_SERP_LENGTH; rank++) {
-        block_continuation_num[rank] = 0.f;
+    for (int tau_num = 0; tau_num < 3; tau_num++) {
+        block_continuation_num[tau_num] = 0.f;
     }
     // Wait for all threads to finish initializing shared memory.
     __syncthreads();
@@ -710,7 +712,7 @@ DEV void CCM_Dev::update_tau_parameters(SERP& query_session, int& thread_index, 
 
             // Atomically add the numerator and denominator values to shared memory.
             atomicAddArch(&block_continuation_num[tau_num], this->tmp_tau_parameters[thread_index * 3 + tau_num].numerator_val());
-            atomicAddArch(&block_continuation_denom, 1.f / MAX_SERP_LENGTH);
+            atomicAddArch(&block_continuation_denom, 1.f / 3);
         }
     }
     // Wait for all threads to finish writing to shared memory.
@@ -733,7 +735,9 @@ DEV void CCM_Dev::update_attractiveness_parameters(SERP& query_session, int& thr
     for (int rank = 0; rank < MAX_SERP_LENGTH; rank++) {
         SearchResult sr = query_session[rank];
         this->attractiveness_parameters[sr.get_param_index()].atomic_add_to_values(
+            // this->tmp_attractiveness_parameters[thread_index * MAX_SERP_LENGTH + rank].numerator_val(),
+            // 1.f);
             this->tmp_attractiveness_parameters[thread_index * MAX_SERP_LENGTH + rank].numerator_val(),
-            1.f);
+            this->tmp_attractiveness_parameters[thread_index * MAX_SERP_LENGTH + rank].denominator_val());
     }
 }
