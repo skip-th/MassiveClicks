@@ -160,7 +160,7 @@ int main(int argc, char** argv) {
 
         parse_dataset(dataset, raw_dataset_path, max_sessions);
 
-        std::cout << "Found " << dataset.size_queries() << " queries sessions." << std::endl;
+        std::cout << "Found " << dataset.size_queries() << " query sessions." << std::endl;
     }
 
     auto parse_stop_time = std::chrono::high_resolution_clock::now();
@@ -198,7 +198,7 @@ int main(int argc, char** argv) {
     // Show information about the distributed partitions on the root node.
     if (node_id == ROOT) {
         std::cout << "\nNode | Device | Train queries | Test queries | QD-pairs" << std::endl <<
-            "-----+--------+---------------+--------------+---------" << std::endl;
+                       "-----+--------+---------------+--------------+---------" << std::endl;
         for (int nid = 0; nid < n_nodes; nid++) {
             for (int did = 0; did < n_devices_network[nid]; did++) {
                 if (nid == 0) {

@@ -327,11 +327,11 @@ HST void DBN_Host::sync_parameters(std::vector<std::vector<std::vector<Param>>>&
     for (int r = 0; r < parameters[0][0].size(); r++) {
         for (int param_type = 0; param_type < parameters[0].size(); param_type++) {
             // Use the first sub-array to combine the results in.
-            Param ex_org = parameters[0][param_type][r];
+            Param base = parameters[0][param_type][r];
 
             // Subtract the starting values of other partitions.
-            parameters[0][param_type][r].set_values(ex_org.numerator_val() - (parameters.size() - 1),
-                                                    ex_org.denominator_val() - 2 * (parameters.size() - 1));
+            parameters[0][param_type][r].set_values(base.numerator_val() - (parameters.size() - 1),
+                                                    base.denominator_val() - 2 * (parameters.size() - 1));
 
             for (int device_id = 1; device_id < parameters.size(); device_id++) {
                 Param ex = parameters[device_id][param_type][r];

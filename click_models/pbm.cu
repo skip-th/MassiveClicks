@@ -279,11 +279,11 @@ HST void PBM_Host::get_parameters(std::vector<std::vector<Param>>& destination, 
 HST void PBM_Host::sync_parameters(std::vector<std::vector<std::vector<Param>>>& parameters) {
     for (int rank = 0; rank < parameters[0][0].size(); rank++) {
         for (int param_type = 0; param_type < parameters[0].size(); param_type++) {
-            Param ex_org = parameters[0][param_type][rank];
+            Param base = parameters[0][param_type][rank];
 
             // Subtract the starting values of other partitions.
-            parameters[0][param_type][rank].set_values(ex_org.numerator_val() - (parameters.size() - 1),
-                                                       ex_org.denominator_val() - 2 * (parameters.size() - 1));
+            parameters[0][param_type][rank].set_values(base.numerator_val() - (parameters.size() - 1),
+                                                       base.denominator_val() - 2 * (parameters.size() - 1));
 
             for (int device_id = 1; device_id < parameters.size(); device_id++) {
                 Param ex = parameters[device_id][param_type][rank];
@@ -471,6 +471,7 @@ DEV void PBM_Dev::set_parameters(Param**& parameter_ptr, int* parameter_sizes) {
  */
 DEV void PBM_Dev::process_session(SERP& query_session, int& thread_index) {
     // int query_id = query_session.get_query();
+    // printf("%d\n", query_session.get_query());
     for (int rank = 0; rank < MAX_SERP_LENGTH; rank++) {
         SearchResult sr = query_session[rank];
 

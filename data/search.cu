@@ -180,8 +180,9 @@ SearchResult& SERP::access_sr(const int& rank) {
 int SERP::last_click_rank(void) {
     int last_click_rank = MAX_SERP_LENGTH; // TODO: No -1?
 
-    for (int rank = MAX_SERP_LENGTH; rank > 0; --rank) {
-        // If the current rank has been clicked. Save it for the next ranks.
+    for (int rank = MAX_SERP_LENGTH - 1; rank >= 0; --rank) {
+        // If the current rank has been clicked, the preceding ranks don't need
+        // to be checked.
         if (this->session[rank].get_click() == 1) {
             last_click_rank = rank;
             break;

@@ -16,7 +16,7 @@ private:
     float (*exam_probs);
 public:
     DEV CCMFactor(float (&click_probs)[MAX_SERP_LENGTH][MAX_SERP_LENGTH], float (&exam_probs)[MAX_SERP_LENGTH + 1], int click, int last_click_rank, int rank, float attr, float tau_1, float tau_2, float tau_3);
-    DEV float compute(int x, int y, int z);
+    DEV float compute(int x, int y, int z, int qid, int did);
 };
 
 

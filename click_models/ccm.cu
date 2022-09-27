@@ -290,11 +290,11 @@ HST void CCM_Host::get_parameters(std::vector<std::vector<Param>>& destination, 
 HST void CCM_Host::sync_parameters(std::vector<std::vector<std::vector<Param>>>& parameters) {
     for (int r = 0; r < parameters[0][0].size(); r++) {
         for (int param_type = 0; param_type < parameters[0].size(); param_type++) {
-            Param ex_org = parameters[0][param_type][r];
+            Param base = parameters[0][param_type][r];
 
             // Subtract the starting values of other partitions.
-            parameters[0][param_type][r].set_values(ex_org.numerator_val() - (parameters.size() - 1),
-                                                    ex_org.denominator_val() - 2 * (parameters.size() - 1));
+            parameters[0][param_type][r].set_values(base.numerator_val() - (parameters.size() - 1),
+                                                    base.denominator_val() - 2 * (parameters.size() - 1));
 
             for (int device_id = 1; device_id < parameters.size(); device_id++) {
                 Param ex = parameters[device_id][param_type][r];
@@ -358,6 +358,8 @@ HST void CCM_Host::get_log_conditional_click_probs(SERP& query_session, std::vec
             click_prob = 1 - atr * ex;
             ex *= tau_1 * (1 - atr) / click_prob;
         }
+        // printf("%d, %d] atr = %f, ex = %f, tau 1 = %f, tau 2 = %f, tau 3 = %f, click_prob = %f\n",
+        //     query_session.get_query(), sr.get_doc_id(), atr, ex, tau_1, tau_2, tau_3, std::log(click_prob));
 
         log_click_probs.push_back(std::log(click_prob));
     }
@@ -390,6 +392,8 @@ HST void CCM_Host::get_full_click_probs(SERP& query_session, std::vector<float> 
 
         // Calculate the click probability.
         atr_mul_ex = atr * ex;
+        // printf("%d, %d] atr = %f, ex = %f, tau 1 = %f, tau 2 = %f, tau 3 = %f, atr_mul_ex = %f\n",
+        //     query_session.get_query(), sr.get_doc_id(), atr, ex, tau_1, tau_2, tau_3, atr_mul_ex);
 
         // Calculate the full click probability.
         int click{sr.get_click()};
@@ -488,16 +492,68 @@ DEV void CCM_Dev::set_parameters(Param**& parameter_ptr, int* parameter_sizes) {
  * parameters.
  */
 DEV void CCM_Dev::process_session(SERP& query_session, int& thread_index) {
+    // for (int rank = 0; rank < MAX_SERP_LENGTH; rank++) {
+    //     printf("%d, %d] attr = %f / %f = %f\n", query_session.get_query(), query_session[rank].get_doc_id(),
+    //         this->attractiveness_parameters[query_session[rank].get_param_index()].numerator_val(),
+    //         this->attractiveness_parameters[query_session[rank].get_param_index()].denominator_val(),
+    //         this->attractiveness_parameters[query_session[rank].get_param_index()].value());
+    // }
     int last_click_rank = query_session.last_click_rank();
-    float click_probs[MAX_SERP_LENGTH][MAX_SERP_LENGTH];
+    float click_probs[MAX_SERP_LENGTH][MAX_SERP_LENGTH] = { 0.f };
     float exam_probs[MAX_SERP_LENGTH + 1];
     float exam[MAX_SERP_LENGTH + 1];
     float car[MAX_SERP_LENGTH + 1] = { 0.f };
+
+    // this->tmp_tau_parameters[thread_index * 3 + 0].set_values(this->tau_parameters[0].numerator_val(), this->tau_parameters[0].denominator_val());
+    // this->tmp_tau_parameters[thread_index * 3 + 1].set_values(this->tau_parameters[1].numerator_val(), this->tau_parameters[1].denominator_val());
+    // this->tmp_tau_parameters[thread_index * 3 + 2].set_values(this->tau_parameters[2].numerator_val(), this->tau_parameters[2].denominator_val());
+    // this->tmp_tau_parameters[thread_index * 3 + 0].set_values(PARAM_DEF_NUM, PARAM_DEF_DENOM);
+    // this->tmp_tau_parameters[thread_index * 3 + 1].set_values(PARAM_DEF_NUM, PARAM_DEF_DENOM);
+    // this->tmp_tau_parameters[thread_index * 3 + 2].set_values(PARAM_DEF_NUM, PARAM_DEF_DENOM);
+    this->tmp_tau_parameters[thread_index * 3 + 0].set_values(0.f, 0.f);
+    this->tmp_tau_parameters[thread_index * 3 + 1].set_values(0.f, 0.f);
+    this->tmp_tau_parameters[thread_index * 3 + 2].set_values(0.f, 0.f);
 
     this->compute_exam_car(thread_index, query_session, exam, car);
     this->compute_ccm_attr(thread_index, query_session, last_click_rank, exam, car);
     this->get_tail_clicks(thread_index, query_session, click_probs, exam_probs);
     this->compute_taus(thread_index, query_session, last_click_rank, click_probs, exam_probs);
+
+    // for (int rank = 0; rank < MAX_SERP_LENGTH; rank++) {
+    //     float click_probs_sum = 0.f;
+    //     for (int srank = 0; srank < MAX_SERP_LENGTH - rank - 1; srank++) {
+    //         click_probs_sum += click_probs[rank][srank];
+    //     }
+    //     printf("%d, %d] lcr = %d, atr = %f, exam[%d] = %f, exam_probs[%d] = %f, car[%d] = %f, click_probs = %f\n",
+    //         query_session.get_query(), query_session[rank].get_doc_id(), last_click_rank, this->tmp_attractiveness_parameters[thread_index * MAX_SERP_LENGTH + rank].value(), rank, exam[rank], rank, exam_probs[rank], rank, car[rank], click_probs_sum);
+    // }
+
+    // printf("%d\n", query_session.get_query());
+
+    // printf("%d] last_click_rank = %d\n", query_session.get_query(), last_click_rank);
+    // for (int i = 0; i < MAX_SERP_LENGTH + 1; i++) {
+    //     printf("%d] exam[%d] = %f\n", query_session.get_query(), i, exam[i]);
+    // }
+    // for (int i = 0; i < MAX_SERP_LENGTH + 1; i++) {
+    //     printf("%d] exam_probs[%d] = %f\n", query_session.get_query(), i, exam_probs[i]);
+    // }
+    // for (int i = 0; i < MAX_SERP_LENGTH + 1; i++) {
+    //     printf("%d] car[%d] = %f\n", query_session.get_query(), i, car[i]);
+    // }
+    // for (int i = 0; i < MAX_SERP_LENGTH; i++) {
+    //     for (int j = 0; j < MAX_SERP_LENGTH - j - 1; j++) {
+    //         printf("%d, %d] click_probs[%d][%d] = %f\n", query_session.get_query(), query_session[i].get_doc_id(), i, j, click_probs[i][j]);
+    //     }
+    // }
+    // for (int i = 0; i < 3; i++) {
+    //     printf("%d] old tau[%d] = %f\n", query_session.get_query(), i, this->tau_parameters[i].value());
+    // }
+
+    // for (int rank = 0; rank < MAX_SERP_LENGTH; rank++) {
+    //     for (int i = 0; i < 3; i++) {
+    //         printf("%d, %d] new tau[%d] = %f\n", query_session.get_query(), query_session[rank].get_doc_id(), i, this->tmp_tau_parameters[thread_index * 3 + i].value());
+    //     }
+    // }
 }
 
 DEV void CCM_Dev::compute_exam_car(int& thread_index, SERP& query_session, float (&exam)[MAX_SERP_LENGTH + 1], float (&car)[MAX_SERP_LENGTH + 1]) {
@@ -525,13 +581,26 @@ DEV void CCM_Dev::compute_exam_car(int& thread_index, SERP& query_session, float
         car_helper[rank][0] = attr_val;
         car_helper[rank][1] = temp;
 
+        // if (query_session.get_query() == 1421 && sr.get_doc_id() == 12596) {
+        //     printf("1) attr = %f, ex = %f,  exam[%d] = %f, tau 1 = %f, tau 2 = %f, tau 3 = %f, temp = %f\n", attr_val, ex_value, rank, exam[rank], tau_1, tau_2, tau_3, temp);
+        // }
+
         // Set the examination value for the next rank.
         rank += 1;
         exam[rank] = ex_value;
     }
 
-    for (int car_itr = MAX_SERP_LENGTH - 1; car_itr >= 0; car_itr--) {
+    // car = {0};
+    for (int car_itr = MAX_SERP_LENGTH - 1; car_itr > -1; car_itr--) {
         car_val = car[car_itr + 1];
+
+        // if (query_session.get_query() == 1421 && query_session[car_itr].get_doc_id() == 12596) {
+        //     printf("2) %f = car[%d], %f = car[%d + 1], car[%d] = %f + %f * %f = %f\n",
+        //         car[car_itr], car_itr,
+        //         car[car_itr + 1], car_itr,
+        //         car_itr, car_helper[car_itr][0], car_helper[car_itr][1], car_val, car_helper[car_itr][0] + car_helper[car_itr][1] * car_val);
+        // }
+
         car[car_itr] = car_helper[car_itr][0] + car_helper[car_itr][1] * car_val;
     }
 }
@@ -543,6 +612,10 @@ DEV void CCM_Dev::compute_ccm_attr(int& thread_index, SERP& query_session, int& 
     for (int rank = 0; rank < MAX_SERP_LENGTH; rank++) {
         SearchResult sr = query_session[rank];
         int click = sr.get_click();
+
+        // int printed = 0;
+        // printf("%d, %d] exam[%d] = %f\n", query_session.get_query(), sr.get_doc_id(), rank, exam[rank]);
+        // printf("%d, %d] car[%d] = %f, car[%d + 1] = %f\n", query_session.get_query(), sr.get_doc_id(), rank, car[rank], rank, car[rank + 1]);
 
         numerator_update = 0.f;
         denominator_update = 1.f;
@@ -556,15 +629,41 @@ DEV void CCM_Dev::compute_ccm_attr(int& thread_index, SERP& query_session, int& 
         }
         else if (rank >= last_click_rank) {
             car_val = car[rank];
-            numerator_update += ((1 - exam_val) * attr_val) / ( 1 - exam_val * car_val);
+            numerator_update += ((1 - exam_val) * attr_val) / (1 - exam_val * car_val);
+
+            // if (query_session.get_query() == 1421 && sr.get_doc_id() == 12596) {
+            //     printed = 1;
+            //     printf("%d, %d] click = %d, attr = %f, exam = %f, car[ %d ](%d == 1 && %d >= %d || %d == 1 && %d == %d) = %f, new attr = %f / %f = %f\n",
+            //         query_session.get_query(), sr.get_doc_id(), click, attr_val, exam_val, rank, click, rank, last_click_rank, click, rank, last_click_rank,
+            //         car_val, numerator_update, denominator_update, numerator_update/denominator_update);
+            // }
         }
 
         if (click == 1 && rank == last_click_rank) {
             car_val = car[rank + 1];
-            numerator_update += attr_val / (1 - (this->tau_parameters[1].value() * ( 1 - attr_val) + this->tau_parameters[2].value() * attr_val) * car_val);
+            numerator_update += attr_val / (1 - (this->tau_parameters[1].value() * (1 - attr_val) + this->tau_parameters[2].value() * attr_val) * car_val);
+
+            // if (query_session.get_query() == 1421 && sr.get_doc_id() == 12596) {
+            //     printed = 1;
+            //     printf("%d, %d] click = %d, attr = %f, exam = %f, car[%d + 1](%d == 1 && %d >= %d || %d == 1 && %d == %d) = %f, new attr = %f / %f = %f\n",
+            //         query_session.get_query(), sr.get_doc_id(), click, attr_val, exam_val, rank, click, rank, last_click_rank, click, rank, last_click_rank,
+            //         car_val, numerator_update, denominator_update, numerator_update/denominator_update);
+            // }
         }
 
         this->tmp_attractiveness_parameters[thread_index * MAX_SERP_LENGTH + rank].set_values(numerator_update, denominator_update);
+
+
+        // if (query_session.get_query() == 1421 && sr.get_doc_id() == 12596 && printed == 0) {
+        //     printed = 1;
+        //     printf("%d, %d] click = %d, attr = %f, exam = %f, car[def](%d == 1 && %d >= %d || %d == 1 && %d == %d) = %f, new attr = %f / %f = %f\n",
+        //         query_session.get_query(), sr.get_doc_id(), click, attr_val, exam_val, click, rank, last_click_rank, click, rank, last_click_rank,
+        //         car_val, numerator_update, denominator_update, numerator_update/denominator_update);
+        // }
+
+        // printf("%d, %d] attr = %f / %f = %f ?= (%f / %f = %f)\n", query_session.get_query(), sr.get_doc_id(),
+        //     numerator_update, denominator_update, numerator_update/denominator_update,
+        //     this->tmp_attractiveness_parameters[thread_index * MAX_SERP_LENGTH + rank].numerator_val(), this->tmp_attractiveness_parameters[thread_index * MAX_SERP_LENGTH + rank].denominator_val(), this->tmp_attractiveness_parameters[thread_index * MAX_SERP_LENGTH + rank].value());
         // this->tmp_attractiveness_parameters[thread_index * MAX_SERP_LENGTH + rank].add_to_values(numerator_update, denominator_update);
     }
 }
@@ -596,6 +695,7 @@ DEV void CCM_Dev::get_tail_clicks(int& thread_index, SERP& query_session, float 
             }
 
             click_probs[start_rank][ses_itr] = click_prob;
+            // printf("%d, %d] click_probs[%d][%d] = %f\n", query_session.get_query(), tmp_sr.get_doc_id(), start_rank, ses_itr, click_prob);
 
             if (start_rank == 0) {
                 exam_probs[ses_itr + 1] = exam_val;
@@ -612,6 +712,19 @@ DEV void CCM_Dev::compute_taus(int& thread_index, SERP& query_session, int& last
     for (int rank = 0; rank < MAX_SERP_LENGTH; rank++){
         SearchResult sr = query_session[rank];
 
+        // double exam_probs_sum = 0.f;
+        // double click_probs_sum = 0.f;
+        // for (int i = 0; i < MAX_SERP_LENGTH; i++) {
+        //     for (int j = 0; j < MAX_SERP_LENGTH - rank - 1; j++) {
+        //         click_probs_sum += click_probs[i][j];
+        //     }
+        // }
+        // for (int i = 0; i < MAX_SERP_LENGTH + 1; i++) {
+        //     exam_probs_sum += exam_probs[i];
+        // }
+        // printf("%d, %d] factor init: click_probs sum = %f, exam_probs sum = %f, click = %d, last_click_rank = %d, rank = %d, attr = %f, tau 1 = %f, tau 2 = %f, tau 3 = %f\n", query_session.get_query(), sr.get_doc_id(), click_probs_sum, exam_probs_sum, sr.get_click(), last_click_rank, rank, this->attractiveness_parameters[sr.get_param_index()].value(), this->tau_parameters[0].value(), this->tau_parameters[1].value(), this->tau_parameters[2].value());
+
+        // Send the initialization values to the phi function.
         CCMFactor factor_func(click_probs, exam_probs, sr.get_click(),
                               last_click_rank, rank,
                               this->attractiveness_parameters[sr.get_param_index()].value(),
@@ -619,23 +732,71 @@ DEV void CCM_Dev::compute_taus(int& thread_index, SERP& query_session, int& last
                               this->tau_parameters[1].value(),
                               this->tau_parameters[2].value());
 
+        // ! Current bug hypothesis
+        // ! All the previous results are correct, except that this version seems to take a line too many to be used for testing. This causes the seemingly missing lines in the result comparison.
+        // ! All input values for factor_func above seem to be correct, however according to the print statements below somehow the first couple of iterations are skipped with click_ and exam_probs. black magic
+        // ! Either the fault lies with wrong input values from click_ and/or exam_probs, or there are wrong calculations in factor.cu, because the input is correct (except for click_/exam_) but the
+        // ! new tau output isn't. These are the only parameters that differ.
+
+        // printf("%d, %d] click = %d, last_click_rank = %d, rank = %d, attr = %f, tau 1 = %f, tau 2 = %f, tau 3 = %f\n", query_session.get_query(), sr.get_doc_id(), sr.get_click(), last_click_rank, rank, this->attractiveness_parameters[sr.get_param_index()].value(), this->tau_parameters[0].value(), this->tau_parameters[1].value(), this->tau_parameters[2].value());
+        // for (int i = 0; i < MAX_SERP_LENGTH; i++) {
+        //     for (int j = 0; j < MAX_SERP_LENGTH; j++) {
+        //         printf("%d, %d] click_probs[%d][%d] = %f\n", query_session.get_query(), sr.get_doc_id(), i, j, click_probs[i][j]);
+        //     }
+        // }
+        // for (int j = 0; j < MAX_SERP_LENGTH; j++) {
+        //     printf("%d, %d] click_probs[%d][%d] = %f\n", query_session.get_query(), sr.get_doc_id(), 0, j, click_probs[0][j]);
+        // }
+        // if (query_session.get_query() == sr.get_doc_id()) {
+        //     printf("found 0 0 !\n");
+        //     for (int i = 0; i < MAX_SERP_LENGTH; i++) {
+        //         for (int j = 0; j < MAX_SERP_LENGTH; j++) {
+        //             printf("%d, %d] click_probs[%d][%d] = %f\n", query_session.get_query(), sr.get_doc_id(), i, j, click_probs[i][j]);
+        //         }
+        //     }
+        // }
+        // for (int j = 0; j < MAX_SERP_LENGTH + 1; j++) {
+        //     printf("%d, %d] exam_probs[%d] = %f\n", query_session.get_query(), sr.get_doc_id(), j, exam_probs[j]);
+        // }
+
         float factor_result = 0.f;
         float factor_sum = 0.f;
 
+        // Compute phi for all possible input values.
         for (int fct_itr{0}; fct_itr < 8; fct_itr++) {
             factor_result = factor_func.compute(this->factor_inputs[fct_itr][0],
                                                 this->factor_inputs[fct_itr][1],
-                                                this->factor_inputs[fct_itr][2]);
+                                                this->factor_inputs[fct_itr][2], query_session.get_query(), sr.get_doc_id());
+                                                // this->factor_inputs[fct_itr][2]);
             factor_values[fct_itr] = factor_result;
+            // printf("%d, %d] factor(%d, %d, %d) = %f\n", query_session.get_query(), sr.get_doc_id(), this->factor_inputs[fct_itr][0], this->factor_inputs[fct_itr][1], this->factor_inputs[fct_itr][2], factor_values[fct_itr]);
             factor_sum += factor_result;
         }
 
+
         if (sr.get_click() == 0) {
             this->compute_tau_1(thread_index, factor_values, factor_sum);
+            // double numerator_update{(factor_values[5] + factor_values[7]) / factor_sum};
+            // double denominator_update{numerator_update + ((factor_values[4] + factor_values[6]) / factor_sum)};
+            // printf("%d, %d] new tau[%d] = %f / %f = %f (fv[5] = %f, fv[7] = %f, fv[4] = %f, fv[6] = %f, sum = %f)\n", query_session.get_query(), query_session[rank].get_doc_id(), 0, numerator_update, denominator_update, numerator_update/denominator_update, factor_values[5], factor_values[7], factor_values[4], factor_values[6], factor_sum);
+            // printf("%d, %d] thread %d at index %d new tau[%d] = %f / %f = %f\n", query_session.get_query(), query_session[rank].get_doc_id(), thread_index, thread_index * 3 + 0, 0, numerator_update, denominator_update, numerator_update/denominator_update);
+
+            // printf("%d, %d] new tau[%d] = ((%f + %f) / %f) / (%f + ((%f + %f) / %f)) = %f\n",
+            //        query_session.get_query(), query_session[rank].get_doc_id(), 0,
+            //        factor_values[5], factor_values[7], factor_sum, numerator_update, factor_values[4], factor_values[6], factor_sum,
+            //        numerator_update/denominator_update);
         }
         else {
             this->compute_tau_2(thread_index, factor_values, factor_sum);
+            // double numerator_update{factor_values[5] / factor_sum};
+            // double denominator_update{numerator_update + ((factor_values[4]) / factor_sum)};
+            // printf("%d, %d] new tau[%d] = %f / %f = %f (fv[5] = %f, fv[4] = %f, sum = %f)\n", query_session.get_query(), query_session[rank].get_doc_id(), 1, numerator_update, denominator_update, numerator_update/denominator_update, factor_values[5], factor_values[4], factor_sum);
+            // printf("%d, %d] thread %d at index %d new tau[%d] = %f / %f = %f\n", query_session.get_query(), query_session[rank].get_doc_id(), thread_index, thread_index * 3 + 1, 1, numerator_update, denominator_update, numerator_update/denominator_update);
             this->compute_tau_3(thread_index, factor_values, factor_sum);
+            // double numerator_update2{factor_values[7] / factor_sum};
+            // double denominator_update2{numerator_update + ((factor_values[6]) / factor_sum)};
+            // printf("%d, %d] new tau[%d] = %f / %f = %f (fv[7] = %f, fv[6] = %f, sum = %f)\n", query_session.get_query(), query_session[rank].get_doc_id(), 2, numerator_update2, denominator_update2, numerator_update2/denominator_update2, factor_values[7], factor_values[6], factor_sum);
+            // printf("%d, %d] thread %d at index %d new tau[%d] = %f / %f = %f\n", query_session.get_query(), query_session[rank].get_doc_id(), thread_index, thread_index * 3 + 2, 2, numerator_update2, denominator_update2, numerator_update2/denominator_update2);
         }
     }
 }
@@ -643,22 +804,22 @@ DEV void CCM_Dev::compute_taus(int& thread_index, SERP& query_session, int& last
 DEV void CCM_Dev::compute_tau_1(int& thread_index, float (&factor_values)[8], float& factor_sum) {
     double numerator_update{(factor_values[5] + factor_values[7]) / factor_sum};
     double denominator_update{numerator_update + ((factor_values[4] + factor_values[6]) / factor_sum)};
-    // this->tmp_tau_parameters[thread_index * 3 + 0].add_to_values(numerator_update, denominator_update);
-    this->tmp_tau_parameters[thread_index * 3 + 0].set_values(numerator_update, denominator_update);
+    this->tmp_tau_parameters[thread_index * 3 + 0].add_to_values(numerator_update, denominator_update);
+    // this->tmp_tau_parameters[thread_index * 3 + 0].set_values(numerator_update, denominator_update);
 }
 
 DEV void CCM_Dev::compute_tau_2(int& thread_index, float (&factor_values)[8], float& factor_sum) {
     double numerator_update{factor_values[5] / factor_sum};
     double denominator_update{numerator_update + ((factor_values[4]) / factor_sum)};
-    // this->tmp_tau_parameters[thread_index * 3 + 1].add_to_values(numerator_update, denominator_update);
-    this->tmp_tau_parameters[thread_index * 3 + 1].set_values(numerator_update, denominator_update);
+    this->tmp_tau_parameters[thread_index * 3 + 1].add_to_values(numerator_update, denominator_update);
+    // this->tmp_tau_parameters[thread_index * 3 + 1].set_values(numerator_update, denominator_update);
 }
 
 DEV void CCM_Dev::compute_tau_3(int& thread_index, float (&factor_values)[8], float& factor_sum) {
     double numerator_update{factor_values[7] / factor_sum};
     double denominator_update{numerator_update + ((factor_values[6]) / factor_sum)};
-    // this->tmp_tau_parameters[thread_index * 3 + 2].add_to_values(numerator_update, denominator_update);
-    this->tmp_tau_parameters[thread_index * 3 + 2].set_values(numerator_update, denominator_update);
+    this->tmp_tau_parameters[thread_index * 3 + 2].add_to_values(numerator_update, denominator_update);
+    // this->tmp_tau_parameters[thread_index * 3 + 2].set_values(numerator_update, denominator_update);
 }
 
 
@@ -692,10 +853,12 @@ DEV void CCM_Dev::update_parameters(SERP& query_session, int& thread_index, int&
 DEV void CCM_Dev::update_tau_parameters(SERP& query_session, int& thread_index, int& block_index, int& partition_size) {
     // Initialize shared memory for this block's continuation parameters at 0.
     SHR float block_continuation_num[3];
-    SHR float block_continuation_denom;
-    block_continuation_denom = 0.f;
+    SHR float block_continuation_denom[3];
+    // SHR float block_continuation_denom;
+    // block_continuation_denom = 0.f;
     for (int tau_num = 0; tau_num < 3; tau_num++) {
         block_continuation_num[tau_num] = 0.f;
+        block_continuation_denom[tau_num] = 0.f;
     }
     // Wait for all threads to finish initializing shared memory.
     __syncthreads();
@@ -710,9 +873,17 @@ DEV void CCM_Dev::update_tau_parameters(SERP& query_session, int& thread_index, 
         for (int offset = 0; offset < 3; offset++) {
             tau_num = (start_rank + offset) % 3;
 
-            // Atomically add the numerator and denominator values to shared memory.
+            // Param tmp_tau = this->tmp_tau_parameters[thread_index * 3 + tau_num];
+            // printf("%d] (thread = %d) Currently appending index %d to tau %d = %f / %f = %f\n", query_session.get_query(), thread_index, thread_index * 3 + tau_num, tau_num, tmp_tau.numerator_val(), tmp_tau.denominator_val(), tmp_tau.value());
+            // if (!(tmp_tau.numerator_val() == 0.f && tmp_tau.denominator_val() == 0.f)) {
             atomicAddArch(&block_continuation_num[tau_num], this->tmp_tau_parameters[thread_index * 3 + tau_num].numerator_val());
-            atomicAddArch(&block_continuation_denom, 1.f / 3);
+            atomicAddArch(&block_continuation_denom[tau_num], this->tmp_tau_parameters[thread_index * 3 + tau_num].denominator_val());
+            // }
+            // atomicAddArch(&block_continuation_num[tau_num], this->tmp_tau_parameters[thread_index * 3 + tau_num].numerator_val());
+            // atomicAddArch(&block_continuation_denom[tau_num], this->tmp_tau_parameters[thread_index * 3 + tau_num].denominator_val());
+
+            // Atomically add the numerator and denominator values to shared memory.
+            // atomicAddArch(&block_continuation_denom, 1.f / 3);
         }
     }
     // Wait for all threads to finish writing to shared memory.
@@ -720,8 +891,15 @@ DEV void CCM_Dev::update_tau_parameters(SERP& query_session, int& thread_index, 
     // Have only the first few threads of the block write the shared memory
     // results to global memory.
     if (block_index < 3) {
-        this->tau_parameters[block_index].atomic_add_to_values(block_continuation_num[block_index], block_continuation_denom);
+        this->tau_parameters[block_index].add_to_values(block_continuation_num[block_index], block_continuation_denom[block_index]);
+        // this->tau_parameters[block_index].add_to_values(block_continuation_num[block_index], block_continuation_denom);
     }
+
+    // __syncthreads(); if (block_index == 0) {
+        // printf("%d] new tau[0] = %f / %f = %f\n", thread_index, this->tau_parameters[0].numerator_val(), this->tau_parameters[0].denominator_val(), this->tau_parameters[0].value());
+        // printf("%d] new tau[1] = %f / %f = %f\n", thread_index, this->tau_parameters[1].numerator_val(), this->tau_parameters[1].denominator_val(), this->tau_parameters[1].value());
+        // printf("%d] new tau[2] = %f / %f = %f\n", thread_index, this->tau_parameters[2].numerator_val(), this->tau_parameters[2].denominator_val(), this->tau_parameters[2].value());
+    // }
 }
 
 /**
@@ -739,5 +917,10 @@ DEV void CCM_Dev::update_attractiveness_parameters(SERP& query_session, int& thr
             // 1.f);
             this->tmp_attractiveness_parameters[thread_index * MAX_SERP_LENGTH + rank].numerator_val(),
             this->tmp_attractiveness_parameters[thread_index * MAX_SERP_LENGTH + rank].denominator_val());
+        // printf("%d, %d] attr = %f / %f = %f\n", query_session.get_query(), sr.get_doc_id(), this->attractiveness_parameters[sr.get_param_index()].numerator_val(), this->attractiveness_parameters[sr.get_param_index()].denominator_val(), this->attractiveness_parameters[sr.get_param_index()].value());
+        // printf("%d, %d] attr = %f / %f = %f\n", query_session.get_query(), sr.get_doc_id(),
+        //     this->attractiveness_parameters[thread_index * MAX_SERP_LENGTH + rank].numerator_val(),
+        //     this->attractiveness_parameters[thread_index * MAX_SERP_LENGTH + rank].denominator_val(),
+        //     this->attractiveness_parameters[thread_index * MAX_SERP_LENGTH + rank].value());
     }
 }

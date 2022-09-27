@@ -475,7 +475,7 @@ void parse_dataset(Dataset &dataset, const std::string& raw_dataset_path, int ma
             // If this line contains any other number of elements, then the
             // associated action type is unknown.
             else {
-                std::cout << "InValid data: " << line << std::endl;
+                std::cout << "\nInValid data: " << line << std::endl;
             }
 
             session_id_prev = session_id_curr;
