@@ -276,6 +276,15 @@ void em_parallel(const int model_type, const int node_id, const int n_nodes, con
         // Add the received public parameters.
         cm_hosts[0]->sync_parameters(network_parameters);
 
+        // ! //////////////////////////////////////////////////////////////////
+        // for (auto i : network_parameters[0]) {
+        //     int cnt = 0;
+        //     for (Param param : i) {
+        //         printf("%d] %f / %f = %f\n", cnt, param.numerator_val(), param.denominator_val(), param.value());
+        //     }
+        // }
+        // ! //////////////////////////////////////////////////////////////////
+
         // Move all types of synchronized public parameters back to each device.
         for (int device_id = 0; device_id < n_devices; device_id++) {
             cm_hosts[device_id]->set_parameters(network_parameters[0], PUBLIC);

@@ -178,7 +178,7 @@ SearchResult& SERP::access_sr(const int& rank) {
  * @return int The rank of the last clicked document.
  */
 int SERP::last_click_rank(void) {
-    int last_click_rank = MAX_SERP_LENGTH; // TODO: No -1?
+    int last_click_rank = MAX_SERP_LENGTH;
 
     for (int rank = MAX_SERP_LENGTH - 1; rank >= 0; --rank) {
         // If the current rank has been clicked, the preceding ranks don't need

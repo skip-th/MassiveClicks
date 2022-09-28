@@ -519,6 +519,9 @@ DEV void CCM_Dev::process_session(SERP& query_session, int& thread_index) {
     this->get_tail_clicks(thread_index, query_session, click_probs, exam_probs);
     this->compute_taus(thread_index, query_session, last_click_rank, click_probs, exam_probs);
 
+    // ! Check the number of sessions assigned to the GPU (does it overlap somewhere?). There seem to be a quite a few sessions missing when looking at the tau.
+    // ! The number of missing sessions is random which probably also causes the random results.
+
     // for (int rank = 0; rank < MAX_SERP_LENGTH; rank++) {
     //     float click_probs_sum = 0.f;
     //     for (int srank = 0; srank < MAX_SERP_LENGTH - rank - 1; srank++) {
@@ -582,7 +585,8 @@ DEV void CCM_Dev::compute_exam_car(int& thread_index, SERP& query_session, float
         car_helper[rank][1] = temp;
 
         // if (query_session.get_query() == 1421 && sr.get_doc_id() == 12596) {
-        //     printf("1) attr = %f, ex = %f,  exam[%d] = %f, tau 1 = %f, tau 2 = %f, tau 3 = %f, temp = %f\n", attr_val, ex_value, rank, exam[rank], tau_1, tau_2, tau_3, temp);
+        //     // printf("1) attr = %f, ex = %f,  exam[%d] = %f, tau 1 = %f, tau 2 = %f, tau 3 = %f, temp = %f\n", attr_val, ex_value, rank, exam[rank], tau_1, tau_2, tau_3, temp);
+        //     printf("1) car_helper[%d][1] = %f = (1 - %f) * %f \n", rank, temp, attr_val, tau_1);
         // }
 
         // Set the examination value for the next rank.
@@ -732,11 +736,11 @@ DEV void CCM_Dev::compute_taus(int& thread_index, SERP& query_session, int& last
                               this->tau_parameters[1].value(),
                               this->tau_parameters[2].value());
 
-        // ! Current bug hypothesis
-        // ! All the previous results are correct, except that this version seems to take a line too many to be used for testing. This causes the seemingly missing lines in the result comparison.
-        // ! All input values for factor_func above seem to be correct, however according to the print statements below somehow the first couple of iterations are skipped with click_ and exam_probs. black magic
-        // ! Either the fault lies with wrong input values from click_ and/or exam_probs, or there are wrong calculations in factor.cu, because the input is correct (except for click_/exam_) but the
-        // ! new tau output isn't. These are the only parameters that differ.
+        // // ! Current bug hypothesis
+        // // ! All the previous results are correct, except that this version seems to take a line too many to be used for testing. This causes the seemingly missing lines in the result comparison.
+        // // ! All input values for factor_func above seem to be correct, however according to the print statements below somehow the first couple of iterations are skipped with click_ and exam_probs. black magic
+        // // ! Either the fault lies with wrong input values from click_ and/or exam_probs, or there are wrong calculations in factor.cu, because the input is correct (except for click_/exam_) but the
+        // // ! new tau output isn't. These are the only parameters that differ.
 
         // printf("%d, %d] click = %d, last_click_rank = %d, rank = %d, attr = %f, tau 1 = %f, tau 2 = %f, tau 3 = %f\n", query_session.get_query(), sr.get_doc_id(), sr.get_click(), last_click_rank, rank, this->attractiveness_parameters[sr.get_param_index()].value(), this->tau_parameters[0].value(), this->tau_parameters[1].value(), this->tau_parameters[2].value());
         // for (int i = 0; i < MAX_SERP_LENGTH; i++) {
@@ -776,9 +780,12 @@ DEV void CCM_Dev::compute_taus(int& thread_index, SERP& query_session, int& last
 
         if (sr.get_click() == 0) {
             this->compute_tau_1(thread_index, factor_values, factor_sum);
-            // double numerator_update{(factor_values[5] + factor_values[7]) / factor_sum};
-            // double denominator_update{numerator_update + ((factor_values[4] + factor_values[6]) / factor_sum)};
-            // printf("%d, %d] new tau[%d] = %f / %f = %f (fv[5] = %f, fv[7] = %f, fv[4] = %f, fv[6] = %f, sum = %f)\n", query_session.get_query(), query_session[rank].get_doc_id(), 0, numerator_update, denominator_update, numerator_update/denominator_update, factor_values[5], factor_values[7], factor_values[4], factor_values[6], factor_sum);
+
+            // if (query_session.get_query() == 1421 && sr.get_doc_id() == 12596) {
+            //     double numerator_update{(factor_values[5] + factor_values[7]) / factor_sum};
+            //     double denominator_update{numerator_update + ((factor_values[4] + factor_values[6]) / factor_sum)};
+            //     printf("%d, %d] new tau[%d] = %f / %f = %f (fv[5] = %f, fv[7] = %f, fv[4] = %f, fv[6] = %f, sum = %f)\n", query_session.get_query(), query_session[rank].get_doc_id(), 0, numerator_update, denominator_update, numerator_update/denominator_update, factor_values[5], factor_values[7], factor_values[4], factor_values[6], factor_sum);
+            // }
             // printf("%d, %d] thread %d at index %d new tau[%d] = %f / %f = %f\n", query_session.get_query(), query_session[rank].get_doc_id(), thread_index, thread_index * 3 + 0, 0, numerator_update, denominator_update, numerator_update/denominator_update);
 
             // printf("%d, %d] new tau[%d] = ((%f + %f) / %f) / (%f + ((%f + %f) / %f)) = %f\n",
@@ -788,14 +795,21 @@ DEV void CCM_Dev::compute_taus(int& thread_index, SERP& query_session, int& last
         }
         else {
             this->compute_tau_2(thread_index, factor_values, factor_sum);
-            // double numerator_update{factor_values[5] / factor_sum};
-            // double denominator_update{numerator_update + ((factor_values[4]) / factor_sum)};
-            // printf("%d, %d] new tau[%d] = %f / %f = %f (fv[5] = %f, fv[4] = %f, sum = %f)\n", query_session.get_query(), query_session[rank].get_doc_id(), 1, numerator_update, denominator_update, numerator_update/denominator_update, factor_values[5], factor_values[4], factor_sum);
+
+            // if (query_session.get_query() == 1421 && sr.get_doc_id() == 12596) {
+            //     double numerator_update{factor_values[5] / factor_sum};
+            //     double denominator_update{numerator_update + ((factor_values[4]) / factor_sum)};
+            //     printf("%d, %d] new tau[%d] = %f / %f = %f (fv[5] = %f, fv[4] = %f, sum = %f)\n", query_session.get_query(), query_session[rank].get_doc_id(), 1, numerator_update, denominator_update, numerator_update/denominator_update, factor_values[5], factor_values[4], factor_sum);
+            // }
             // printf("%d, %d] thread %d at index %d new tau[%d] = %f / %f = %f\n", query_session.get_query(), query_session[rank].get_doc_id(), thread_index, thread_index * 3 + 1, 1, numerator_update, denominator_update, numerator_update/denominator_update);
+
             this->compute_tau_3(thread_index, factor_values, factor_sum);
-            // double numerator_update2{factor_values[7] / factor_sum};
-            // double denominator_update2{numerator_update + ((factor_values[6]) / factor_sum)};
-            // printf("%d, %d] new tau[%d] = %f / %f = %f (fv[7] = %f, fv[6] = %f, sum = %f)\n", query_session.get_query(), query_session[rank].get_doc_id(), 2, numerator_update2, denominator_update2, numerator_update2/denominator_update2, factor_values[7], factor_values[6], factor_sum);
+
+            // if (query_session.get_query() == 1421 && sr.get_doc_id() == 12596) {
+            //     double numerator_update2{factor_values[7] / factor_sum};
+            //     double denominator_update2{numerator_update2 + ((factor_values[6]) / factor_sum)};
+            //     printf("%d, %d] new tau[%d] = %f / %f = %f (fv[7] = %f, fv[6] = %f, sum = %f)\n", query_session.get_query(), query_session[rank].get_doc_id(), 2, numerator_update2, denominator_update2, numerator_update2/denominator_update2, factor_values[7], factor_values[6], factor_sum);
+            // }
             // printf("%d, %d] thread %d at index %d new tau[%d] = %f / %f = %f\n", query_session.get_query(), query_session[rank].get_doc_id(), thread_index, thread_index * 3 + 2, 2, numerator_update2, denominator_update2, numerator_update2/denominator_update2);
         }
     }
@@ -891,14 +905,14 @@ DEV void CCM_Dev::update_tau_parameters(SERP& query_session, int& thread_index, 
     // Have only the first few threads of the block write the shared memory
     // results to global memory.
     if (block_index < 3) {
-        this->tau_parameters[block_index].add_to_values(block_continuation_num[block_index], block_continuation_denom[block_index]);
+        this->tau_parameters[block_index].atomic_add_to_values(block_continuation_num[block_index], block_continuation_denom[block_index]);
         // this->tau_parameters[block_index].add_to_values(block_continuation_num[block_index], block_continuation_denom);
     }
 
-    // __syncthreads(); if (block_index == 0) {
-        // printf("%d] new tau[0] = %f / %f = %f\n", thread_index, this->tau_parameters[0].numerator_val(), this->tau_parameters[0].denominator_val(), this->tau_parameters[0].value());
-        // printf("%d] new tau[1] = %f / %f = %f\n", thread_index, this->tau_parameters[1].numerator_val(), this->tau_parameters[1].denominator_val(), this->tau_parameters[1].value());
-        // printf("%d] new tau[2] = %f / %f = %f\n", thread_index, this->tau_parameters[2].numerator_val(), this->tau_parameters[2].denominator_val(), this->tau_parameters[2].value());
+    // __syncthreads(); if (thread_index == 0) {
+    //     printf("%d] new tau[0] = %f / %f = %f\n", thread_index, this->tau_parameters[0].numerator_val(), this->tau_parameters[0].denominator_val(), this->tau_parameters[0].value());
+    //     printf("%d] new tau[1] = %f / %f = %f\n", thread_index, this->tau_parameters[1].numerator_val(), this->tau_parameters[1].denominator_val(), this->tau_parameters[1].value());
+    //     printf("%d] new tau[2] = %f / %f = %f\n", thread_index, this->tau_parameters[2].numerator_val(), this->tau_parameters[2].denominator_val(), this->tau_parameters[2].value());
     // }
 }
 

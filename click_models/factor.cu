@@ -207,8 +207,8 @@ DEV float DBNFactor::compute(int x, int y, int z) {
         }
     }
     else if (this->rank + 1 < MAX_SERP_LENGTH) {
-        for (int sub_rank = 0; sub_rank < MAX_SERP_LENGTH; sub_rank++) {
-            log_prob += __logf(this->click_probs[this->rank + 1][sub_rank]);
+        for (int res_itr = 0; res_itr < MAX_SERP_LENGTH - this->rank - 1; res_itr++) {
+            log_prob += __logf(this->click_probs[this->rank + 1][res_itr]);
         }
     }
 
