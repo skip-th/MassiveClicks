@@ -30,7 +30,6 @@ public:
     // Functions are virtual, so they can be overloaded by a derived class, like PBM_Host.
     HST virtual ClickModel_Host* clone() = 0;
     HST virtual void say_hello() = 0;
-    // HST virtual float get_click_probability(int& qd_parameter_index, int& rank) = 0;
     HST virtual size_t get_memory_usage(void) = 0;
     HST virtual void init_parameters(const std::tuple<std::vector<SERP>, std::vector<SERP>, int>& partition, int n_devices) = 0;
     HST virtual void get_device_references(Param**& param_refs, int*& param_sizes) = 0;

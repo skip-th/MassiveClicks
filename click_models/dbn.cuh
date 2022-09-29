@@ -25,7 +25,6 @@ public:
     HST DBN_Host(DBN_Host const &dbn);
     HST DBN_Host* clone() override;
     HST void say_hello() override;
-    // HST float get_click_probability(int& qd_parameter_index, int& rank) override;
     HST size_t get_memory_usage(void) override;
     HST void init_parameters(const std::tuple<std::vector<SERP>, std::vector<SERP>, int>& partition, const int n_devices) override;
     HST void get_device_references(Param**& param_refs, int*& param_sizes) override;

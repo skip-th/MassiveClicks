@@ -10,6 +10,13 @@
 // System include.
 #include <string>
 #include <iostream>
+#include <thrust/iterator/counting_iterator.h>
+#include <thrust/iterator/transform_iterator.h>
+#include <thrust/iterator/permutation_iterator.h>
+#include <thrust/functional.h>
+#include <thrust/fill.h>
+#include <thrust/device_vector.h>
+#include <thrust/copy.h>
 
 // User include.
 #include "../utils/definitions.h"
