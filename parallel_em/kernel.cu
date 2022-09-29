@@ -59,12 +59,12 @@ namespace Kernel {
      * @param partition_size The size of the partition containin the dataset.
      * @param parameter_type The type of parameter being updated.
      */
-    GLB void update(SERP* partition, int partition_size, int parameter_type) {
+    GLB void update(SERP* partition, int partition_size) {
         // Calculate the starting index within the query session array for this thread.
         int thread_index = blockDim.x * blockIdx.x + threadIdx.x; // Global index.
         int block_index = threadIdx.x; // Local index (local to thread block).
 
         // Estimate click model examination parameters.
-        cm_dev->update_parameters(partition[thread_index], thread_index, block_index, parameter_type, partition_size);
+        cm_dev->update_parameters(partition[thread_index], thread_index, block_index, partition_size);
     }
 }

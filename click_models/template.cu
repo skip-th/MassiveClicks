@@ -12,30 +12,30 @@
 // Host-side TMP click model functions.                                      //
 //---------------------------------------------------------------------------//
 
-HST TMP_Host::TMP_Host() = default;
+HST TMP_Hst::TMP_Hst() = default;
 
 /**
  * @brief Constructs a TMP click model object for the host.
  *
  * @param tmp
- * @returns TMP_Host The TMP click model object.
+ * @returns TMP_Hst The TMP click model object.
  */
-HST TMP_Host::TMP_Host(TMP_Host const &tmp) {
+HST TMP_Hst::TMP_Hst(TMP_Hst const &tmp) {
 }
 
 /**
  * @brief Creates a new TMP click model object.
  *
- * @return TMP_Host* The TMP click model object.
+ * @return TMP_Hst* The TMP click model object.
  */
-HST TMP_Host* TMP_Host::clone() {
-    return new TMP_Host(*this);
+HST TMP_Hst* TMP_Hst::clone() {
+    return new TMP_Hst(*this);
 }
 
 /**
  * @brief Print a message.
  */
-HST void TMP_Host::say_hello() {
+HST void TMP_Hst::say_hello() {
     std::cout << "Host-side TMP says hello!" << std::endl;
 }
 
@@ -47,7 +47,7 @@ HST void TMP_Host::say_hello() {
  * @param rank The document rank of the search result.
  * @return float The click probability.
  */
-// HST float TMP_Host::get_click_probability(int& qd_parameter_index, int& rank) {
+// HST float TMP_Hst::get_click_probability(int& qd_parameter_index, int& rank) {
 //     return this->attractiveness_parameters[qd_parameter_index].value() * this->examination_parameters[rank].value();
 // }
 
@@ -56,7 +56,7 @@ HST void TMP_Host::say_hello() {
  *
  * @return size_t The used memory.
  */
-HST size_t TMP_Host::get_memory_usage(void) {
+HST size_t TMP_Hst::get_memory_usage(void) {
     return this->cm_memory_usage;
 }
 
@@ -67,7 +67,7 @@ HST size_t TMP_Host::get_memory_usage(void) {
  * query-document pairs in the training set.
  * @param n_devices The number of devices on this node.
  */
-HST void TMP_Host::init_attractiveness_parameters(const std::tuple<std::vector<SERP>, std::vector<SERP>, int>& partition, int n_devices) {
+HST void TMP_Hst::init_attractiveness_parameters(const std::tuple<std::vector<SERP>, std::vector<SERP>, int>& partition, int n_devices) {
     Param default_parameter;
     default_parameter.set_values(PARAM_DEF_NUM, PARAM_DEF_DENOM);
 
@@ -96,7 +96,7 @@ HST void TMP_Host::init_attractiveness_parameters(const std::tuple<std::vector<S
  * query-document pairs in the training set.
  * @param n_devices The number of devices on this node.
  */
-HST void TMP_Host::init_examination_parameters(const std::tuple<std::vector<SERP>, std::vector<SERP>, int>& partition, int n_devices) {
+HST void TMP_Hst::init_examination_parameters(const std::tuple<std::vector<SERP>, std::vector<SERP>, int>& partition, int n_devices) {
     Param default_parameter;
     default_parameter.set_values(PARAM_DEF_NUM, PARAM_DEF_DENOM);
 
@@ -125,7 +125,7 @@ HST void TMP_Host::init_examination_parameters(const std::tuple<std::vector<SERP
  * query-document pairs in the training set.
  * @param n_devices The number of devices on this node.
  */
-HST void TMP_Host::init_example_parameters(const std::tuple<std::vector<SERP>, std::vector<SERP>, int>& partition, int n_devices) {
+HST void TMP_Hst::init_example_parameters(const std::tuple<std::vector<SERP>, std::vector<SERP>, int>& partition, int n_devices) {
     Param default_parameter;
     default_parameter.set_values(PARAM_DEF_NUM, PARAM_DEF_DENOM);
 
@@ -155,7 +155,7 @@ HST void TMP_Host::init_example_parameters(const std::tuple<std::vector<SERP>, s
  * query-document pairs in the training set.
  * @param n_devices The number of devices on this node.
  */
-HST void TMP_Host::init_parameters(const std::tuple<std::vector<SERP>, std::vector<SERP>, int>& partition, int n_devices) {
+HST void TMP_Hst::init_parameters(const std::tuple<std::vector<SERP>, std::vector<SERP>, int>& partition, int n_devices) {
     this->init_attractiveness_parameters(partition, n_devices);
     this->init_examination_parameters(partition, n_devices);
     this->init_example_parameters(partition, n_devices);
@@ -168,7 +168,7 @@ HST void TMP_Host::init_parameters(const std::tuple<std::vector<SERP>, std::vect
  * parameters in memory.
  * @param param_sizes The size of each of the memory allocations on the device.
  */
-HST void TMP_Host::get_device_references(Param**& param_refs, int*& param_sizes) {
+HST void TMP_Hst::get_device_references(Param**& param_refs, int*& param_sizes) {
     int n_references = 6;
 
     // Create a temporary array to store the device references.
@@ -213,8 +213,8 @@ HST void TMP_Host::get_device_references(Param**& param_refs, int*& param_sizes)
  * @param partition The dataset allocated on the GPU.
  * @param dataset_size The size of the allocated dataset.
  */
-HST void TMP_Host::update_parameters(int& gridSize, int& blockSize, SERP*& partition, int& dataset_size) {
-    Kernel::update<<<gridSize, blockSize>>>(partition, dataset_size, 0);
+HST void TMP_Hst::update_parameters(int& gridSize, int& blockSize, SERP*& partition, int& dataset_size) {
+    Kernel::update<<<gridSize, blockSize>>>(partition, dataset_size);
 }
 
 /**
@@ -227,7 +227,7 @@ HST void TMP_Host::update_parameters(int& gridSize, int& blockSize, SERP*& parti
  * The second time would still give a valid result but would slow down the
  * converging of the parameters.
  */
-HST void TMP_Host::reset_parameters(void) {
+HST void TMP_Hst::reset_parameters(void) {
     // Create a parameter initialized at 0.
     Param default_parameter;
     default_parameter.set_values(1.0, 2.0);
@@ -252,7 +252,7 @@ HST void TMP_Host::reset_parameters(void) {
  * @param transfer_direction The direction in which the transfer will happen.
  * (H2D or D2H).
  */
-HST void TMP_Host::transfer_parameters(int parameter_type, int transfer_direction) {
+HST void TMP_Hst::transfer_parameters(int parameter_type, int transfer_direction) {
     // Public parameters.
     if (parameter_type == PUBLIC || parameter_type == ALL) {
         if (transfer_direction == D2H) { // Transfer from device to host.
@@ -304,7 +304,7 @@ HST void TMP_Host::transfer_parameters(int parameter_type, int transfer_directio
  * @param parameter_type The type of parameters which will be retrieved
  * (PUBLIC, PRIVATE, or ALL).
  */
-HST void TMP_Host::get_parameters(std::vector<std::vector<Param>>& destination, int parameter_type) {
+HST void TMP_Hst::get_parameters(std::vector<std::vector<Param>>& destination, int parameter_type) {
     // Add the parameters to a generic vector which can represent  multiple
     // retrieved parameter types.
     if (parameter_type == PUBLIC) {
@@ -333,7 +333,7 @@ HST void TMP_Host::get_parameters(std::vector<std::vector<Param>>& destination, 
  * combined. The vector is structured as follows: Node/Device ID -> Parameter
  * type -> Parameters.
  */
-HST void TMP_Host::sync_parameters(std::vector<std::vector<std::vector<Param>>>& parameters) {
+HST void TMP_Hst::sync_parameters(std::vector<std::vector<std::vector<Param>>>& parameters) {
     for (int r = 0; r < parameters[0][0].size(); r++) {
         for (int param_type = 0; param_type < parameters[0].size(); param_type++) {
             Param ex_org = parameters[0][param_type][r];
@@ -358,7 +358,7 @@ HST void TMP_Host::sync_parameters(std::vector<std::vector<std::vector<Param>>>&
  * @param parameter_type The type of the given parameters. (PUBLIC, PRIVATE, or
  * ALL).
  */
-HST void TMP_Host::set_parameters(std::vector<std::vector<Param>>& source, int parameter_type) {
+HST void TMP_Hst::set_parameters(std::vector<std::vector<Param>>& source, int parameter_type) {
     // Set the parameters of this click model.
     if (parameter_type == PUBLIC) {
         this->examination_parameters = source[0];
@@ -384,7 +384,7 @@ HST void TMP_Host::set_parameters(std::vector<std::vector<Param>>& source, int p
  * @param log_click_probs The vector which will store the log-likelihood for
  * the document at each rank in the query session.
  */
-HST void TMP_Host::get_log_conditional_click_probs(SERP& query_session, std::vector<float>& log_click_probs) {
+HST void TMP_Hst::get_log_conditional_click_probs(SERP& query_session, std::vector<float>& log_click_probs) {
     for (int rank = 0; rank < MAX_SERP_LENGTH; rank++) {
         SearchResult sr = query_session[rank];
 
@@ -419,7 +419,7 @@ HST void TMP_Host::get_log_conditional_click_probs(SERP& query_session, std::vec
  * @param full_click_probs The vector which will store the click probability
  * for the document at each rank in the query session.
  */
-HST void TMP_Host::get_full_click_probs(SERP& query_session, std::vector<float> &full_click_probs) {
+HST void TMP_Hst::get_full_click_probs(SERP& query_session, std::vector<float> &full_click_probs) {
     // Go through all ranks of the query session.
     for (int rank = 0; rank < MAX_SERP_LENGTH; rank++) {
         // Retrieve the search result at the current rank.
@@ -451,7 +451,7 @@ HST void TMP_Host::get_full_click_probs(SERP& query_session, std::vector<float> 
  * @brief Frees the memory allocated to the parameters of this click model on
  * the GPU device.
  */
-HST void TMP_Host::destroy_parameters(void) {
+HST void TMP_Hst::destroy_parameters(void) {
     // Free origin and temporary attractiveness containers.
     CUDA_CHECK(cudaFree(this->attr_param_dptr));
     CUDA_CHECK(cudaFree(this->tmp_attr_param_dptr));
@@ -581,7 +581,7 @@ DEV void TMP_Dev::process_session(SERP& query_session, int& thread_index) {
  * @param parameter_type The type of parameter to update.
  * @param partition_size The size of the dataset.
  */
-DEV void TMP_Dev::update_parameters(SERP& query_session, int& thread_index, int& block_index, int& parameter_type, int& partition_size) {
+DEV void TMP_Dev::update_parameters(SERP& query_session, int& thread_index, int& block_index, int& partition_size) {
     this->update_examination_parameters(query_session, thread_index, block_index, partition_size);
     this->update_example_parameters(query_session, thread_index);
 

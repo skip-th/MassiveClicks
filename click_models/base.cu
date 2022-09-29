@@ -15,33 +15,33 @@
  * @brief Create a click model object for the host.
  *
  * @param model_type The type of click model (e.g. 0 = PBM).
- * @return ClickModel_Host* The click model object of a given model type.
+ * @return ClickModel_Hst* The click model object of a given model type.
  */
-HST ClickModel_Host* create_cm_host(const int model_type) {
-    ClickModel_Host *cm_temp;
+HST ClickModel_Hst* create_cm_host(const int model_type) {
+    ClickModel_Hst *cm_temp;
     switch (model_type) {
         case 0:{
-            PBM_Host pbm_model;
+            PBM_Hst pbm_model;
             cm_temp = &pbm_model;
             break;
         }
         case 1:{
-            CCM_Host ccm_model;
+            CCM_Hst ccm_model;
             cm_temp = &ccm_model;
             break;
         }
         case 2:{
-            DBN_Host dbn_model;
+            DBN_Hst dbn_model;
             cm_temp = &dbn_model;
             break;
         }
         case 3:{
-            UBM_Host ubm_model;
+            UBM_Hst ubm_model;
             cm_temp = &ubm_model;
             break;
         }
         default: {
-            PBM_Host pbm_is_default;
+            PBM_Hst pbm_is_default;
             cm_temp = &pbm_is_default;
             break;
         }

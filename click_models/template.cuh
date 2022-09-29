@@ -18,11 +18,11 @@
 // Host-side click model functions.                                          //
 //---------------------------------------------------------------------------//
 
-class TMP_Host: public ClickModel_Host {
+class TMP_Hst: public ClickModel_Hst {
 public:
-    HST TMP_Host();
-    HST TMP_Host(TMP_Host const &tmp);
-    HST TMP_Host* clone() override;
+    HST TMP_Hst();
+    HST TMP_Hst(TMP_Hst const &tmp);
+    HST TMP_Hst* clone() override;
     HST void say_hello() override;
     HST size_t get_memory_usage(void) override;
     HST void init_parameters(const std::tuple<std::vector<SERP>, std::vector<SERP>, int>& partition, const int n_devices) override;
@@ -84,7 +84,7 @@ public:
     DEV TMP_Dev* clone() override;
     DEV void set_parameters(Param**& parameter_ptr, int* parameter_sizes) override;
     DEV void process_session(SERP& query_session, int& thread_index) override;
-    DEV void update_parameters(SERP& query_session, int& thread_index, int& block_index, int& parameter_type, int& partition_size) override;
+    DEV void update_parameters(SERP& query_session, int& thread_index, int& block_index, int& partition_size) override;
 
 private:
     DEV void update_examination_parameters(SERP& query_session, int& thread_index, int& block_index, int& partition_size);

@@ -12,30 +12,30 @@
 // Host-side PBM click model functions.                                      //
 //---------------------------------------------------------------------------//
 
-HST PBM_Host::PBM_Host() = default;
+HST PBM_Hst::PBM_Hst() = default;
 
 /**
  * @brief Constructs a PBM click model object for the host.
  *
  * @param pbm
- * @returns PBM_Host The PBM click model object.
+ * @returns PBM_Hst The PBM click model object.
  */
-HST PBM_Host::PBM_Host(PBM_Host const &pbm) {
+HST PBM_Hst::PBM_Hst(PBM_Hst const &pbm) {
 }
 
 /**
  * @brief Creates a new PBM click model object.
  *
- * @return PBM_Host* The PBM click model object.
+ * @return PBM_Hst* The PBM click model object.
  */
-HST PBM_Host* PBM_Host::clone() {
-    return new PBM_Host(*this);
+HST PBM_Hst* PBM_Hst::clone() {
+    return new PBM_Hst(*this);
 }
 
 /**
  * @brief Print a message.
  */
-HST void PBM_Host::say_hello() {
+HST void PBM_Hst::say_hello() {
     std::cout << "Host-side PBM says hello!" << std::endl;
 }
 
@@ -44,7 +44,7 @@ HST void PBM_Host::say_hello() {
  *
  * @return size_t The used memory.
  */
-HST size_t PBM_Host::get_memory_usage(void) {
+HST size_t PBM_Hst::get_memory_usage(void) {
     return this->cm_memory_usage;
 }
 
@@ -55,7 +55,7 @@ HST size_t PBM_Host::get_memory_usage(void) {
  * query-document pairs in the training set.
  * @param n_devices The number of devices on this node.
  */
-HST void PBM_Host::init_attractiveness_parameters(const std::tuple<std::vector<SERP>, std::vector<SERP>, int>& partition, int n_devices) {
+HST void PBM_Hst::init_attractiveness_parameters(const std::tuple<std::vector<SERP>, std::vector<SERP>, int>& partition, int n_devices) {
     Param default_parameter;
     default_parameter.set_values(PARAM_DEF_NUM, PARAM_DEF_DENOM);
 
@@ -84,7 +84,7 @@ HST void PBM_Host::init_attractiveness_parameters(const std::tuple<std::vector<S
  * query-document pairs in the training set.
  * @param n_devices The number of devices on this node.
  */
-HST void PBM_Host::init_examination_parameters(const std::tuple<std::vector<SERP>, std::vector<SERP>, int>& partition, int n_devices) {
+HST void PBM_Hst::init_examination_parameters(const std::tuple<std::vector<SERP>, std::vector<SERP>, int>& partition, int n_devices) {
     Param default_parameter;
     default_parameter.set_values(PARAM_DEF_NUM, PARAM_DEF_DENOM);
 
@@ -114,7 +114,7 @@ HST void PBM_Host::init_examination_parameters(const std::tuple<std::vector<SERP
  * query-document pairs in the training set.
  * @param n_devices The number of devices on this node.
  */
-HST void PBM_Host::init_parameters(const std::tuple<std::vector<SERP>, std::vector<SERP>, int>& partition, int n_devices) {
+HST void PBM_Hst::init_parameters(const std::tuple<std::vector<SERP>, std::vector<SERP>, int>& partition, int n_devices) {
     this->init_attractiveness_parameters(partition, n_devices);
     this->init_examination_parameters(partition, n_devices);
 }
@@ -126,7 +126,7 @@ HST void PBM_Host::init_parameters(const std::tuple<std::vector<SERP>, std::vect
  * parameters in memory.
  * @param param_sizes The size of each of the memory allocations on the device.
  */
-HST void PBM_Host::get_device_references(Param**& param_refs, int*& param_sizes) {
+HST void PBM_Hst::get_device_references(Param**& param_refs, int*& param_sizes) {
     int n_references = 4;
 
     // Create a temporary array to store the device references.
@@ -167,8 +167,8 @@ HST void PBM_Host::get_device_references(Param**& param_refs, int*& param_sizes)
  * @param partition The dataset allocated on the GPU.
  * @param dataset_size The size of the allocated dataset.
  */
-HST void PBM_Host::update_parameters(int& gridSize, int& blockSize, SERP*& partition, int& dataset_size) {
-    Kernel::update<<<gridSize, blockSize>>>(partition, dataset_size, 0);
+HST void PBM_Hst::update_parameters(int& gridSize, int& blockSize, SERP*& partition, int& dataset_size) {
+    Kernel::update<<<gridSize, blockSize>>>(partition, dataset_size);
 }
 
 /**
@@ -181,7 +181,7 @@ HST void PBM_Host::update_parameters(int& gridSize, int& blockSize, SERP*& parti
  * The second time would still give a valid result but would slow down the
  * converging of the parameters.
  */
-HST void PBM_Host::reset_parameters(void) {
+HST void PBM_Hst::reset_parameters(void) {
     // Create a parameter initialized at 0.
     Param default_parameter;
     default_parameter.set_values(PARAM_DEF_NUM, PARAM_DEF_DENOM);
@@ -204,7 +204,7 @@ HST void PBM_Host::reset_parameters(void) {
  * @param transfer_direction The direction in which the transfer will happen.
  * (H2D or D2H).
  */
-HST void PBM_Host::transfer_parameters(int parameter_type, int transfer_direction) {
+HST void PBM_Hst::transfer_parameters(int parameter_type, int transfer_direction) {
     // Public parameters.
     if (parameter_type == PUBLIC || parameter_type == ALL) {
         if (transfer_direction == D2H) { // Transfer from device to host.
@@ -238,7 +238,7 @@ HST void PBM_Host::transfer_parameters(int parameter_type, int transfer_directio
  * @param parameter_type The type of parameters which will be retrieved
  * (PUBLIC, PRIVATE, or ALL).
  */
-HST void PBM_Host::get_parameters(std::vector<std::vector<Param>>& destination, int parameter_type) {
+HST void PBM_Hst::get_parameters(std::vector<std::vector<Param>>& destination, int parameter_type) {
     // Add the parameters to a generic vector which can represent  multiple
     // retrieved parameter types.
     if (parameter_type == PUBLIC) {
@@ -264,7 +264,7 @@ HST void PBM_Host::get_parameters(std::vector<std::vector<Param>>& destination, 
  * combined. The vector is structured as follows: Node/Device ID -> Parameter
  * type -> Parameters.
  */
-HST void PBM_Host::sync_parameters(std::vector<std::vector<std::vector<Param>>>& parameters) {
+HST void PBM_Hst::sync_parameters(std::vector<std::vector<std::vector<Param>>>& parameters) {
     for (int rank = 0; rank < parameters[0][0].size(); rank++) {
         for (int param_type = 0; param_type < parameters[0].size(); param_type++) {
             Param base = parameters[0][param_type][rank];
@@ -290,7 +290,7 @@ HST void PBM_Host::sync_parameters(std::vector<std::vector<std::vector<Param>>>&
  * @param parameter_type The type of the given parameters. (PUBLIC, PRIVATE, or
  * ALL).
  */
-HST void PBM_Host::set_parameters(std::vector<std::vector<Param>>& source, int parameter_type) {
+HST void PBM_Hst::set_parameters(std::vector<std::vector<Param>>& source, int parameter_type) {
     // Set the parameters of this click model.
     if (parameter_type == PUBLIC) {
         this->examination_parameters = source[0];
@@ -313,7 +313,7 @@ HST void PBM_Host::set_parameters(std::vector<std::vector<Param>>& source, int p
  * @param log_click_probs The vector which will store the log-likelihood for
  * the document at each rank in the query session.
  */
-HST void PBM_Host::get_log_conditional_click_probs(SERP& query_session, std::vector<float>& log_click_probs) {
+HST void PBM_Hst::get_log_conditional_click_probs(SERP& query_session, std::vector<float>& log_click_probs) {
     for (int rank = 0; rank < MAX_SERP_LENGTH; rank++) {
         SearchResult sr = query_session[rank];
 
@@ -348,7 +348,7 @@ HST void PBM_Host::get_log_conditional_click_probs(SERP& query_session, std::vec
  * @param full_click_probs The vector which will store the click probability
  * for the document at each rank in the query session.
  */
-HST void PBM_Host::get_full_click_probs(SERP& query_session, std::vector<float> &full_click_probs) {
+HST void PBM_Hst::get_full_click_probs(SERP& query_session, std::vector<float> &full_click_probs) {
     // Go through all ranks of the query session.
     for (int rank = 0; rank < MAX_SERP_LENGTH; rank++) {
         // Retrieve the search result at the current rank.
@@ -380,7 +380,7 @@ HST void PBM_Host::get_full_click_probs(SERP& query_session, std::vector<float> 
  * @brief Frees the memory allocated to the parameters of this click model on
  * the GPU device.
  */
-HST void PBM_Host::destroy_parameters(void) {
+HST void PBM_Hst::destroy_parameters(void) {
     // Free origin and temporary attractiveness containers.
     CUDA_CHECK(cudaFree(this->attr_param_dptr));
     CUDA_CHECK(cudaFree(this->tmp_attr_param_dptr));
@@ -501,7 +501,7 @@ DEV void PBM_Dev::process_session(SERP& query_session, int& thread_index) {
  * @param parameter_type The type of parameter to update.
  * @param partition_size The size of the dataset.
  */
-DEV void PBM_Dev::update_parameters(SERP& query_session, int& thread_index, int& block_index, int& parameter_type, int& partition_size) {
+DEV void PBM_Dev::update_parameters(SERP& query_session, int& thread_index, int& block_index, int& partition_size) {
     this->update_examination_parameters(query_session, thread_index, block_index, partition_size);
 
     if (thread_index < partition_size) {

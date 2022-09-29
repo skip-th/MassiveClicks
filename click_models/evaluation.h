@@ -23,9 +23,9 @@
 class LogLikelihood {
 private:
     std::vector<float> llh_values;
-    ClickModel_Host* cm;
+    ClickModel_Hst* cm;
 public:
-    explicit LogLikelihood(ClickModel_Host* cm);
+    explicit LogLikelihood(ClickModel_Hst* cm);
     float evaluate(std::vector<SERP>& testing_queries);
 };
 
@@ -36,7 +36,7 @@ public:
     float task_size{0};
     Perplexity() = default;
     Perplexity(Perplexity const &ppl_obj);
-    void evaluate(ClickModel_Host* cm, std::vector<SERP>& testing_queries);
+    void evaluate(ClickModel_Hst* cm, std::vector<SERP>& testing_queries);
     void import(std::array<float, MAX_SERP_LENGTH>& task_rank_perplexities, float& task_size);
 };
 

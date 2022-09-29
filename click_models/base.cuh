@@ -25,10 +25,10 @@
 // Host-side click model functions.                                          //
 //---------------------------------------------------------------------------//
 
-class ClickModel_Host {
+class ClickModel_Hst {
 public:
     // Functions are virtual, so they can be overloaded by a derived class, like PBM_Host.
-    HST virtual ClickModel_Host* clone() = 0;
+    HST virtual ClickModel_Hst* clone() = 0;
     HST virtual void say_hello() = 0;
     HST virtual size_t get_memory_usage(void) = 0;
     HST virtual void init_parameters(const std::tuple<std::vector<SERP>, std::vector<SERP>, int>& partition, int n_devices) = 0;
@@ -58,10 +58,10 @@ public:
     DEV virtual void say_hello() = 0;
     DEV virtual void set_parameters(Param**& parameter_ptr, int* parameter_sizes) = 0;
     DEV virtual void process_session(SERP& query_session, int& thread_index) = 0;
-    DEV virtual void update_parameters(SERP& query_session, int& thread_index, int& block_index, int& parameter_type, int& partition_size) = 0;
+    DEV virtual void update_parameters(SERP& query_session, int& thread_index, int& block_index, int& partition_size) = 0;
 };
 
-HST ClickModel_Host* create_cm_host(int model_type);
+HST ClickModel_Hst* create_cm_host(int model_type);
 DEV ClickModel_Dev* create_cm_dev(int model_type);
 
 // Pointer to the device-side click model for all available devices on this node.
