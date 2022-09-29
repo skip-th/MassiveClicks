@@ -1,6 +1,9 @@
-//
-// Created by Pooya Khandel on 09/09/2021.
-//
+/** Click model factor.
+ * Pooya Khandel's ParClick is used as a reference implementation.
+ *
+ * factor.cuh:
+ *  - Defines the functions for processing the phi formula of CCM and DBN.
+ */
 
 #ifndef CLICK_MODEL_FACTOR_H
 #define CLICK_MODEL_FACTOR_H
@@ -16,7 +19,7 @@ private:
     float (*exam_probs);
 public:
     DEV CCMFactor(float (&click_probs)[MAX_SERP_LENGTH][MAX_SERP_LENGTH], float (&exam_probs)[MAX_SERP_LENGTH + 1], int click, int last_click_rank, int rank, float attr, float tau_1, float tau_2, float tau_3);
-    DEV float compute(int x, int y, int z, int qid, int did);
+    DEV float compute(int x, int y, int z);
 };
 
 

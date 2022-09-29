@@ -1,4 +1,4 @@
-/** First implementation of a CM parameter.
+/** CM parameter.
  * Pooya Khandel's ParClick is used as a reference implementation.
  *
  * param.cuh:

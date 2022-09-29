@@ -1,11 +1,14 @@
-//
-// Created by Pooya Khandel on 09/09/2021.
-//
+/** Click model factor.
+ * Pooya Khandel's ParClick is used as a reference implementation.
+ *
+ * factor.cu:
+ *  - Defines the functions for processing the phi formula of CCM and DBN.
+ */
 
 #include "factor.cuh"
 
 /**
- * @brief Set the necessary arguments to compute phi.
+ * @brief Set the necessary arguments to compute phi for CCM.
  *
  * @param click_probs The current click probabilities for this SERP.
  * @param exam_probs The current examination probabilities for this SERP.
@@ -30,13 +33,13 @@ DEV CCMFactor::CCMFactor(float (&click_probs)[MAX_SERP_LENGTH][MAX_SERP_LENGTH],
 }
 
 /**
- * @brief Compute the phi function.
+ * @brief Compute the phi function for CCM.
  *
  * @param x The x input value for phi.
  * @param y The y input value for phi.
  * @param z The z input value for phi.
  */
-DEV float CCMFactor::compute(int x, int y, int z, int qid, int did) {
+DEV float CCMFactor::compute(int x, int y, int z) {
     float log_prob = 0.f;
 
     if (this->click == 0) { // Use tau 1 in case the document has not been clicked.
@@ -111,6 +114,18 @@ DEV float CCMFactor::compute(int x, int y, int z, int qid, int did) {
     return __expf(log_prob);
 }
 
+/**
+ * @brief Set the necessary arguments to compute phi for DBN.
+ *
+ * @param click_probs The current click probabilities for this SERP.
+ * @param exam_probs The current examination probabilities for this SERP.
+ * @param click The click on the current document.
+ * @param last_click_rank The rank of the last clicked document in this SERP.
+ * @param rank The rank of this document.
+ * @param attr The attractiveness of this query-document pair.
+ * @param sat The satisfaction with this query-document pair.
+ * @param gamma The continuation parameter.
+ */
 DEV DBNFactor::DBNFactor(float (&click_probs)[MAX_SERP_LENGTH][MAX_SERP_LENGTH], float (&exam_probs)[MAX_SERP_LENGTH + 1], int click,
                      int last_click_rank, int rank, float attr, float sat, float gamma) {
     this->click_probs = click_probs;
@@ -123,6 +138,13 @@ DEV DBNFactor::DBNFactor(float (&click_probs)[MAX_SERP_LENGTH][MAX_SERP_LENGTH],
     this->sat = sat;
 }
 
+/**
+ * @brief Compute the phi function for DBN.
+ *
+ * @param x The x input value for phi.
+ * @param y The y input value for phi.
+ * @param z The z input value for phi.
+ */
 DEV float DBNFactor::compute(int x, int y, int z) {
     float log_prob = 0.f;
 

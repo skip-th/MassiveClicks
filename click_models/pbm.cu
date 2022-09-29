@@ -1,4 +1,4 @@
-/** First implementation of a PBM.
+/** PBM click model.
  * Pooya Khandel's ParClick is used as a reference implementation.
  *
  * pbm.cu:
@@ -38,18 +38,6 @@ HST PBM_Host* PBM_Host::clone() {
 HST void PBM_Host::say_hello() {
     std::cout << "Host-side PBM says hello!" << std::endl;
 }
-
-// /**
-//  * @brief Get the click probability of a search result.
-//  *
-//  * @param qd_parameter_index The query-document pair parameter index of the
-//  * search result.
-//  * @param rank The document rank of the search result.
-//  * @return float The click probability.
-//  */
-// HST float PBM_Host::get_click_probability(int& qd_parameter_index, int& rank) {
-//     return this->attractiveness_parameters[qd_parameter_index].value() * this->examination_parameters[rank].value();
-// }
 
 /**
  * @brief Get the amount of device memory allocated to this click model.

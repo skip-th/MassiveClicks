@@ -1,4 +1,4 @@
-/** First implementation of the definitions.
+/** Program global definitions.
  *
  * definitions.h:
  *  - Defines the defintions used throughout the program.

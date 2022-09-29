@@ -1,4 +1,4 @@
-/** First implementation of a DBN.
+/** DBN click model.
  * Pooya Khandel's ParClick is used as a reference implementation.
  *
  * dbn.cu:
@@ -38,18 +38,6 @@ HST DBN_Host* DBN_Host::clone() {
 HST void DBN_Host::say_hello() {
     std::cout << "Host-side DBN says hello!" << std::endl;
 }
-
-/**
- * @brief Get the click probability of a search result.
- *
- * @param qd_parameter_index The query-document pair parameter index of the
- * search result.
- * @param rank The document rank of the search result.
- * @return float The click probability.
- */
-// HST float DBN_Host::get_click_probability(int& qd_parameter_index, int& rank) {
-//     return this->attractiveness_parameters[qd_parameter_index].value() * this->examination_parameters[rank].value();
-// }
 
 /**
  * @brief Get the amount of device memory allocated to this click model.
@@ -554,6 +542,20 @@ DEV void DBN_Dev::process_session(SERP& query_session, int& thread_index) {
     this->compute_gamma(thread_index, query_session, last_click_rank, click_probs, exam_probs);
 }
 
+/**
+ * @brief Compute the examination parameter for every rank of this query
+ * session. The examination parameter can be re-computed every iteration using
+ * the values from attractiveness, satisfaction, and continuation parameters
+ * from the previous iteration.
+ *
+ * @param thread_index The index of the thread which will be estimating the
+ * parameters.
+ * @param query_session The query session which will be used to estimate the
+ * DBN parameters.
+ * @param exam The examination parameters for every rank. The first rank is
+ * always examined (1).
+ * @param car
+ */
 DEV void DBN_Dev::compute_exam_car(int& thread_index, SERP& query_session, float (&exam)[MAX_SERP_LENGTH + 1], float (&car)[MAX_SERP_LENGTH + 1]) {
     // Set the default examination value for the first rank.
     exam[0] = 1.f;
@@ -586,6 +588,20 @@ DEV void DBN_Dev::compute_exam_car(int& thread_index, SERP& query_session, float
     }
 }
 
+/**
+ * @brief Compute the attractiveness parameter for every rank of this query
+ * session.
+ *
+ * @param thread_index The index of the thread which will be estimating the
+ * parameters.
+ * @param query_session The query session which will be used to estimate the
+ * DBN parameters.
+ * @param last_click_rank The last rank of this query sessions which has been
+ * clicked.
+ * @param exam The examination parameters for every rank. The first rank is
+ * always examined (1).
+ * @param car
+ */
 DEV void DBN_Dev::compute_dbn_attr(int& thread_index, SERP& query_session, int& last_click_rank, float (&exam)[MAX_SERP_LENGTH + 1], float (&car)[MAX_SERP_LENGTH + 1]) {
     float numerator_update, denominator_update;
     float exam_val, attr_val,  car_val;
@@ -611,6 +627,18 @@ DEV void DBN_Dev::compute_dbn_attr(int& thread_index, SERP& query_session, int& 
     }
 }
 
+/**
+ * @brief Compute the satisfaction parameter for every rank of this query
+ * session.
+ *
+ * @param thread_index The index of the thread which will be estimating the
+ * parameters.
+ * @param query_session The query session which will be used to estimate the
+ * DBN parameters.
+ * @param last_click_rank The last rank of this query sessions which has been
+ * clicked.
+ * @param car
+ */
 DEV void DBN_Dev::compute_dbn_sat(int& thread_index, SERP& query_session, int& last_click_rank, float (&car)[MAX_SERP_LENGTH + 1]) {
     float numerator_update, denominator_update;
     float gamma_val, sat_val, car_val;
@@ -640,6 +668,17 @@ DEV void DBN_Dev::compute_dbn_sat(int& thread_index, SERP& query_session, int& l
     }
 }
 
+/**
+ * @brief Compute the click probabilities of a rank given the clicks on the
+ * preceding ranks.
+ *
+ * @param thread_index The index of the thread which will be estimating the
+ * parameters.
+ * @param query_session The query session which will be used to estimate the
+ * DBN parameters.
+ * @param click_probs The probabilty of a click occurring on a rank.
+ * @param exam_probs The probability of a rank being examined.
+ */
 DEV void DBN_Dev::get_tail_clicks(int& thread_index, SERP& query_session, float (&click_probs)[MAX_SERP_LENGTH][MAX_SERP_LENGTH], float (&exam_probs)[MAX_SERP_LENGTH + 1]) {
     exam_probs[0] = 1.f;
     float exam_val, gamma_val, click_prob;
@@ -675,6 +714,18 @@ DEV void DBN_Dev::get_tail_clicks(int& thread_index, SERP& query_session, float 
     }
 }
 
+/**
+ * @brief Compute the continuation parameter gamma.
+ *
+ * @param thread_index The index of the thread which will be estimating the
+ * parameters.
+ * @param query_session The query session which will be used to estimate the
+ * DBN parameters.
+ * @param last_click_rank The last rank of this query sessions which has been
+ * clicked.
+ * @param click_probs The probabilty of a click occurring on a rank.
+ * @param exam_probs The probability of a rank being examined.
+ */
 DEV void DBN_Dev::compute_gamma(int& thread_index, SERP& query_session, int& last_click_rank, float (&click_probs)[MAX_SERP_LENGTH][MAX_SERP_LENGTH], float (&exam_probs)[MAX_SERP_LENGTH + 1]) {
     float factor_values[8] = { 0.f };
 

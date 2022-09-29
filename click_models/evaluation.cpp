@@ -1,4 +1,4 @@
-/** First implementation of the model evaluation.
+/** Click model evaluation.
  * Pooya Khandel's ParClick is used as a reference implementation.
  *
  * evaluation.cpp:

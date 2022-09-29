@@ -1,4 +1,4 @@
-/** First implementation of a DBN.
+/** DBN click model.
  * Pooya Khandel's ParClick is used as a reference implementation.
  *
  * dbn.cuh:

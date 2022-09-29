@@ -1,4 +1,4 @@
-/** First implementation of several utility functions.
+/** Several utility functions.
  *
  * utility_functions.cpp:
  *  - Defines several utility functions.

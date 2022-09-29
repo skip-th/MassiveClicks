@@ -1,4 +1,4 @@
-/** First implementation of several utility functions.
+/** Several utility functions.
  *
  * utility_functions.h:
  *  - Defines several utility functions.

@@ -1,4 +1,4 @@
-/** First implementation of a PBM.
+/** PBM click model.
  * Pooya Khandel's ParClick is used as a reference implementation.
  *
  * pbm.cuh:

@@ -41,7 +41,7 @@ namespace Kernel {
      */
     GLB void em_training(SERP* partition, const int partition_size) {
         // Calculate the starting index within the query session array for this thread.
-        int thread_index = blockDim.x * blockIdx.x + threadIdx.x;
+        int thread_index = blockDim.x * blockIdx.x + threadIdx.x; // Global index.
 
         // End this thread if it can't be assigned a query session.
         if (thread_index >= partition_size)

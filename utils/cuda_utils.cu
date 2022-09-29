@@ -1,4 +1,4 @@
-/** First implementation of CUDA utility functions.
+/** CUDA utility functions.
  *
  * cuda_utils.cu:
  *  - Defines several utility functions to prevent code duplication.

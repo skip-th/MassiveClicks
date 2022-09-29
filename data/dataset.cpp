@@ -1,4 +1,4 @@
-/** Improved implementation of the dataset class.
+/** Click model dataset class.
  * Pooya Khandel's ParClick is used as a reference implementation.
  *
  * dataset.cpp:

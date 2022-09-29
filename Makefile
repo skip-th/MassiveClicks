@@ -8,7 +8,7 @@ SCHEDULE = prun
 NODES = 2
 DEVICES = 2
 PROG = gpucmt
-VERSION = v3
+VERSION = v4
 CU_OPT = -arch=sm_50 \
 	-gencode=arch=compute_50,code=sm_50 \
 	-gencode=arch=compute_52,code=sm_52 \

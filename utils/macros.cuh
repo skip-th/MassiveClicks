@@ -1,4 +1,4 @@
-/** First implementation of CUDA and MPI macro's.
+/** CUDA and MPI macro's.
  *
  * macros.cuh:
  *  - Defines the CUDA and MPI error handling macro's.

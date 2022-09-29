@@ -1,4 +1,4 @@
-/** First implementation of CUDA and MPI macro's.
+/** CUDA and MPI macro's.
  *
  * macros.cpp:
  *  - Defines the MPI abort functions, used to cleanly abort an MPI process.

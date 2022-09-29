@@ -1,4 +1,4 @@
-/** First implementation of parsing a given dataset.
+/** Click model session classes.
  * Pooya Khandel's ParClick is used as a reference implementation.
  *
  * session.cpp:

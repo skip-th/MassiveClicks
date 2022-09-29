@@ -1,4 +1,4 @@
-/** First implementation of a CCM.
+/** CCM click model.
  * Pooya Khandel's ParClick is used as a reference implementation.
  *
  * ccm.cuh:

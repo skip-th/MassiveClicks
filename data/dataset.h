@@ -1,4 +1,4 @@
-/** Improved implementation of parsing a given dataset.
+/** Click model dataset class.
  * Pooya Khandel's ParClick is used as a reference implementation.
  *
  * dataset.h:

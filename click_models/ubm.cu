@@ -1,4 +1,4 @@
-/** First implementation of a UBM.
+/** UBM click model.
  * Pooya Khandel's ParClick is used as a reference implementation.
  *
  * ubm.cu:
@@ -38,18 +38,6 @@ HST UBM_Host* UBM_Host::clone() {
 HST void UBM_Host::say_hello() {
     std::cout << "Host-side UBM says hello!" << std::endl;
 }
-
-// /**
-//  * @brief Get the click probability of a search result.
-//  *
-//  * @param qd_parameter_index The query-document pair parameter index of the
-//  * search result.
-//  * @param rank The document rank of the search result.
-//  * @return float The click probability.
-//  */
-// HST float UBM_Host::get_click_probability(int& qd_parameter_index, int& rank) {
-//     return this->attractiveness_parameters[qd_parameter_index].value() * this->examination_parameters[rank].value();
-// }
 
 /**
  * @brief Get the amount of device memory allocated to this click model.
@@ -337,7 +325,6 @@ HST void UBM_Host::get_log_conditional_click_probs(SERP& query_session, std::vec
         float atr{(float) PARAM_DEF_NUM / (float) PARAM_DEF_DENOM};
         if (sr.get_param_index() != -1)
             atr = this->attractiveness_parameters[sr.get_param_index()].value();
-        // float ex{this->examination_parameters[rank * MAX_SERP_LENGTH + prev_click_rank[rank]].value()};
         float ex{this->examination_parameters[rank * (rank + 1) / 2 + prev_click_rank[rank]].value()};
 
         // Calculate the click probability.

@@ -1,4 +1,4 @@
-/** First implementation of a CCM.
+/** CCM click model.
  * Pooya Khandel's ParClick is used as a reference implementation.
  *
  * ccm.cu:
@@ -39,18 +39,6 @@ HST void CCM_Host::say_hello() {
     std::cout << "Host-side CCM says hello!" << std::endl;
 }
 
-// /**
-//  * @brief Get the click probability of a search result.
-//  *
-//  * @param qd_parameter_index The query-document pair parameter index of the
-//  * search result.
-//  * @param rank The document rank of the search result.
-//  * @return float The click probability.
-//  */
-// HST float CCM_Host::get_click_probability(int& qd_parameter_index, int& rank) {
-//     return this->attractiveness_parameters[qd_parameter_index].value() * this->examination_parameters[rank].value();
-// }
-
 /**
  * @brief Get the amount of device memory allocated to this click model.
  *
@@ -81,14 +69,9 @@ HST void CCM_Host::init_attractiveness_parameters(const std::tuple<std::vector<S
     // Allocate memory for the temporary attractiveness parameters on the device.
     // These values are replaced at the start of each iteration, which means
     // they don't need to be initialized with a CUDA memory copy.
-    // this->n_tmp_attr_dev = std::get<0>(partition).size() * MAX_SERP_LENGTH;
-    // this->tmp_attractiveness_parameters.resize(this->n_tmp_attr_dev);
-    // CUDA_CHECK(cudaMalloc(&this->tmp_attr_param_dptr, this->n_tmp_attr_dev * sizeof(Param)));
     this->n_tmp_attr_dev = std::get<0>(partition).size() * MAX_SERP_LENGTH;
     this->tmp_attractiveness_parameters.resize(this->n_tmp_attr_dev, default_parameter);
     CUDA_CHECK(cudaMalloc(&this->tmp_attr_param_dptr, this->n_tmp_attr_dev * sizeof(Param)));
-    // CUDA_CHECK(cudaMemcpy(this->tmp_attr_param_dptr, this->tmp_attractiveness_parameters.data(),
-    //                       this->n_tmp_attr_dev * sizeof(Param), cudaMemcpyHostToDevice));
 
     // Store the number of allocated bytes.
     this->cm_memory_usage += this->n_attr_dev * sizeof(Param) + this->n_tmp_attr_dev * sizeof(Param);
@@ -118,8 +101,6 @@ HST void CCM_Host::init_tau_parameters(const std::tuple<std::vector<SERP>, std::
     this->n_tmp_tau_dev = std::get<0>(partition).size() * this->n_tau_dev;
     this->tmp_tau_parameters.resize(this->n_tmp_tau_dev);
     CUDA_CHECK(cudaMalloc(&this->tmp_tau_param_dptr, this->n_tmp_tau_dev * sizeof(Param)));
-    // CUDA_CHECK(cudaMemcpy(this->tmp_tau_param_dptr, this->tmp_tau_parameters.data(),
-    //                       this->n_tmp_tau_dev * sizeof(Param), cudaMemcpyHostToDevice));
 
     // Store the number of allocated bytes.
     this->cm_memory_usage += this->n_tau_dev * sizeof(Param) + this->n_tmp_tau_dev * sizeof(Param);
@@ -208,14 +189,10 @@ HST void CCM_Host::reset_parameters(void) {
     // Create an array of the right proportions with the empty parameters.
     std::vector<Param> cleared_attractiveness_parameters(this->n_attr_dev, default_parameter);
     std::vector<Param> cleared_tau_parameters(this->n_tau_dev, default_parameter);
-    // std::vector<Param> cleared_tmp_attractiveness_parameters(this->n_tmp_attr_dev, default_parameter);
-    // std::vector<Param> cleared_tmp_tau_parameters(this->n_tmp_tau_dev, default_parameter);
 
     // Copy the cleared array to the device.
     CUDA_CHECK(cudaMemcpy(this->attr_param_dptr, cleared_attractiveness_parameters.data(), this->n_attr_dev * sizeof(Param), cudaMemcpyHostToDevice));
     CUDA_CHECK(cudaMemcpy(this->tau_param_dptr, cleared_tau_parameters.data(), this->n_tau_dev * sizeof(Param), cudaMemcpyHostToDevice));
-    // CUDA_CHECK(cudaMemcpy(this->tmp_attr_param_dptr, cleared_tmp_attractiveness_parameters.data(), this->n_tmp_attr_dev * sizeof(Param), cudaMemcpyHostToDevice));
-    // CUDA_CHECK(cudaMemcpy(this->tmp_tau_param_dptr, cleared_tmp_tau_parameters.data(), this->n_tmp_tau_dev * sizeof(Param), cudaMemcpyHostToDevice));
 }
 
 /**
@@ -358,8 +335,6 @@ HST void CCM_Host::get_log_conditional_click_probs(SERP& query_session, std::vec
             click_prob = 1 - atr * ex;
             ex *= tau_1 * (1 - atr) / click_prob;
         }
-        // printf("%d, %d] atr = %f, ex = %f, tau 1 = %f, tau 2 = %f, tau 3 = %f, click_prob = %f\n",
-        //     query_session.get_query(), sr.get_doc_id(), atr, ex, tau_1, tau_2, tau_3, std::log(click_prob));
 
         log_click_probs.push_back(std::log(click_prob));
     }
@@ -392,8 +367,6 @@ HST void CCM_Host::get_full_click_probs(SERP& query_session, std::vector<float> 
 
         // Calculate the click probability.
         atr_mul_ex = atr * ex;
-        // printf("%d, %d] atr = %f, ex = %f, tau 1 = %f, tau 2 = %f, tau 3 = %f, atr_mul_ex = %f\n",
-        //     query_session.get_query(), sr.get_doc_id(), atr, ex, tau_1, tau_2, tau_3, atr_mul_ex);
 
         // Calculate the full click probability.
         if (sr.get_click() == 1) {
@@ -491,24 +464,12 @@ DEV void CCM_Dev::set_parameters(Param**& parameter_ptr, int* parameter_sizes) {
  * parameters.
  */
 DEV void CCM_Dev::process_session(SERP& query_session, int& thread_index) {
-    // for (int rank = 0; rank < MAX_SERP_LENGTH; rank++) {
-    //     printf("%d, %d] attr = %f / %f = %f\n", query_session.get_query(), query_session[rank].get_doc_id(),
-    //         this->attractiveness_parameters[query_session[rank].get_param_index()].numerator_val(),
-    //         this->attractiveness_parameters[query_session[rank].get_param_index()].denominator_val(),
-    //         this->attractiveness_parameters[query_session[rank].get_param_index()].value());
-    // }
     int last_click_rank = query_session.last_click_rank();
     float click_probs[MAX_SERP_LENGTH][MAX_SERP_LENGTH] = { 0.f };
     float exam_probs[MAX_SERP_LENGTH + 1];
     float exam[MAX_SERP_LENGTH + 1];
     float car[MAX_SERP_LENGTH + 1] = { 0.f };
 
-    // this->tmp_tau_parameters[thread_index * 3 + 0].set_values(this->tau_parameters[0].numerator_val(), this->tau_parameters[0].denominator_val());
-    // this->tmp_tau_parameters[thread_index * 3 + 1].set_values(this->tau_parameters[1].numerator_val(), this->tau_parameters[1].denominator_val());
-    // this->tmp_tau_parameters[thread_index * 3 + 2].set_values(this->tau_parameters[2].numerator_val(), this->tau_parameters[2].denominator_val());
-    // this->tmp_tau_parameters[thread_index * 3 + 0].set_values(PARAM_DEF_NUM, PARAM_DEF_DENOM);
-    // this->tmp_tau_parameters[thread_index * 3 + 1].set_values(PARAM_DEF_NUM, PARAM_DEF_DENOM);
-    // this->tmp_tau_parameters[thread_index * 3 + 2].set_values(PARAM_DEF_NUM, PARAM_DEF_DENOM);
     this->tmp_tau_parameters[thread_index * 3 + 0].set_values(0.f, 0.f);
     this->tmp_tau_parameters[thread_index * 3 + 1].set_values(0.f, 0.f);
     this->tmp_tau_parameters[thread_index * 3 + 2].set_values(0.f, 0.f);
@@ -517,47 +478,22 @@ DEV void CCM_Dev::process_session(SERP& query_session, int& thread_index) {
     this->compute_ccm_attr(thread_index, query_session, last_click_rank, exam, car);
     this->get_tail_clicks(thread_index, query_session, click_probs, exam_probs);
     this->compute_taus(thread_index, query_session, last_click_rank, click_probs, exam_probs);
-
-    // ! Check the number of sessions assigned to the GPU (does it overlap somewhere?). There seem to be a quite a few sessions missing when looking at the tau.
-    // ! The number of missing sessions is random which probably also causes the random results.
-
-    // for (int rank = 0; rank < MAX_SERP_LENGTH; rank++) {
-    //     float click_probs_sum = 0.f;
-    //     for (int srank = 0; srank < MAX_SERP_LENGTH - rank - 1; srank++) {
-    //         click_probs_sum += click_probs[rank][srank];
-    //     }
-    //     printf("%d, %d] lcr = %d, atr = %f, exam[%d] = %f, exam_probs[%d] = %f, car[%d] = %f, click_probs = %f\n",
-    //         query_session.get_query(), query_session[rank].get_doc_id(), last_click_rank, this->tmp_attractiveness_parameters[thread_index * MAX_SERP_LENGTH + rank].value(), rank, exam[rank], rank, exam_probs[rank], rank, car[rank], click_probs_sum);
-    // }
-
-    // printf("%d\n", query_session.get_query());
-
-    // printf("%d] last_click_rank = %d\n", query_session.get_query(), last_click_rank);
-    // for (int i = 0; i < MAX_SERP_LENGTH + 1; i++) {
-    //     printf("%d] exam[%d] = %f\n", query_session.get_query(), i, exam[i]);
-    // }
-    // for (int i = 0; i < MAX_SERP_LENGTH + 1; i++) {
-    //     printf("%d] exam_probs[%d] = %f\n", query_session.get_query(), i, exam_probs[i]);
-    // }
-    // for (int i = 0; i < MAX_SERP_LENGTH + 1; i++) {
-    //     printf("%d] car[%d] = %f\n", query_session.get_query(), i, car[i]);
-    // }
-    // for (int i = 0; i < MAX_SERP_LENGTH; i++) {
-    //     for (int j = 0; j < MAX_SERP_LENGTH - j - 1; j++) {
-    //         printf("%d, %d] click_probs[%d][%d] = %f\n", query_session.get_query(), query_session[i].get_doc_id(), i, j, click_probs[i][j]);
-    //     }
-    // }
-    // for (int i = 0; i < 3; i++) {
-    //     printf("%d] old tau[%d] = %f\n", query_session.get_query(), i, this->tau_parameters[i].value());
-    // }
-
-    // for (int rank = 0; rank < MAX_SERP_LENGTH; rank++) {
-    //     for (int i = 0; i < 3; i++) {
-    //         printf("%d, %d] new tau[%d] = %f\n", query_session.get_query(), query_session[rank].get_doc_id(), i, this->tmp_tau_parameters[thread_index * 3 + i].value());
-    //     }
-    // }
 }
 
+/**
+ * @brief Compute the examination parameter for every rank of this query
+ * session. The examination parameter can be re-computed every iteration using
+ * the values from attractiveness, satisfaction, and continuation parameters
+ * from the previous iteration.
+ *
+ * @param thread_index The index of the thread which will be estimating the
+ * parameters.
+ * @param query_session The query session which will be used to estimate the
+ * DBN parameters.
+ * @param exam The examination parameters for every rank. The first rank is
+ * always examined (1).
+ * @param car
+ */
 DEV void CCM_Dev::compute_exam_car(int& thread_index, SERP& query_session, float (&exam)[MAX_SERP_LENGTH + 1], float (&car)[MAX_SERP_LENGTH + 1]) {
     // Set the default examination value for the first rank.
     exam[0] = 1.f;
@@ -594,6 +530,20 @@ DEV void CCM_Dev::compute_exam_car(int& thread_index, SERP& query_session, float
     }
 }
 
+/**
+ * @brief Compute the attractiveness parameter for every rank of this query
+ * session.
+ *
+ * @param thread_index The index of the thread which will be estimating the
+ * parameters.
+ * @param query_session The query session which will be used to estimate the
+ * DBN parameters.
+ * @param last_click_rank The last rank of this query sessions which has been
+ * clicked.
+ * @param exam The examination parameters for every rank. The first rank is
+ * always examined (1).
+ * @param car
+ */
 DEV void CCM_Dev::compute_ccm_attr(int& thread_index, SERP& query_session, int& last_click_rank, float (&exam)[MAX_SERP_LENGTH + 1], float (&car)[MAX_SERP_LENGTH + 1]) {
     float numerator_update, denominator_update;
     float attr_val, exam_val, car_val;
@@ -626,6 +576,17 @@ DEV void CCM_Dev::compute_ccm_attr(int& thread_index, SERP& query_session, int& 
     }
 }
 
+/**
+ * @brief Compute the click probabilities of a rank given the clicks on the
+ * preceding ranks.
+ *
+ * @param thread_index The index of the thread which will be estimating the
+ * parameters.
+ * @param query_session The query session which will be used to estimate the
+ * DBN parameters.
+ * @param click_probs The probabilty of a click occurring on a rank.
+ * @param exam_probs The probability of a rank being examined.
+ */
 DEV void CCM_Dev::get_tail_clicks(int& thread_index, SERP& query_session, float (&click_probs)[MAX_SERP_LENGTH][MAX_SERP_LENGTH], float (&exam_probs)[MAX_SERP_LENGTH + 1]) {
     exam_probs[0] = 1.f;
     float tau_1, tau_2, tau_3;
@@ -663,6 +624,18 @@ DEV void CCM_Dev::get_tail_clicks(int& thread_index, SERP& query_session, float 
     }
 }
 
+/**
+ * @brief Compute the continuation parameters tau 1, tau 2, and tau 3.
+ *
+ * @param thread_index The index of the thread which will be estimating the
+ * parameters.
+ * @param query_session The query session which will be used to estimate the
+ * DBN parameters.
+ * @param last_click_rank The last rank of this query sessions which has been
+ * clicked.
+ * @param click_probs The probabilty of a click occurring on a rank.
+ * @param exam_probs The probability of a rank being examined.
+ */
 DEV void CCM_Dev::compute_taus(int& thread_index, SERP& query_session, int& last_click_rank, float (&click_probs)[MAX_SERP_LENGTH][MAX_SERP_LENGTH], float (&exam_probs)[MAX_SERP_LENGTH + 1]) {
     float factor_values[8] = { 0.f };
 
@@ -684,8 +657,7 @@ DEV void CCM_Dev::compute_taus(int& thread_index, SERP& query_session, int& last
         for (int fct_itr{0}; fct_itr < 8; fct_itr++) {
             factor_result = factor_func.compute(this->factor_inputs[fct_itr][0],
                                                 this->factor_inputs[fct_itr][1],
-                                                this->factor_inputs[fct_itr][2], query_session.get_query(), sr.get_doc_id()); // ! remove this from factor.cu in ccm and dbn
-                                                // this->factor_inputs[fct_itr][2]);
+                                                this->factor_inputs[fct_itr][2]);
             factor_values[fct_itr] = factor_result;
             factor_sum += factor_result;
         }

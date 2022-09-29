@@ -1,7 +1,12 @@
-/** Version 2:
- *   Multi-GPU training of Click Models.
+/**
+ * Multi-GPU training of EM-based Click Models.
+ * Currently supported click models are PBM, UBM, CCM, and DBN.
  *
- * Source file.
+ * main.cpp:
+ *  - Source file.
+ *  - Initialize MPI.
+ *  - Parse dataset.
+ *  - Train EM-based click model.
  */
 
 // MPI include.
