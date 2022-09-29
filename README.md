@@ -6,12 +6,11 @@ the training process. The following click models are supported:
 
 1. *Position-based Model (PBM)*.
 2. *User Browsing Model (UBM)*.
-3. *Click Chain Model (CCM)*. (unfinished)
+3. *Click Chain Model (CCM)*.
 4. *Dynamic Bayesian Network Model (DBN)*. (unfinished)
 
 ## TODO
 
-- Implement CCM.
 - Implement DBN.
 - Retrieve distributed parameters and combine them on the root node into a complete click model.
 - Add check to see if data will fit in gpu memory.

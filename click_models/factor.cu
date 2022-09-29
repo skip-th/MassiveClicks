@@ -38,28 +38,9 @@ DEV CCMFactor::CCMFactor(float (&click_probs)[MAX_SERP_LENGTH][MAX_SERP_LENGTH],
  */
 DEV float CCMFactor::compute(int x, int y, int z, int qid, int did) {
     float log_prob = 0.f;
-    // printf("%d, %d] (%d,%d,%d) [attr = %f, tau 1 = %f, tau 2 = %f, tau 3 = %f, last_click_rank = %d, rank = %d, click = %d\n", qid, did, x, y, z, this->attr, this->tau_1, this->tau_2, this->tau_3, this->last_click_rank, this->rank, this->click);
-    // if (x == 1 && y == 0 && z == 1) {
-    // }
-    // int debug = 0;
-    // if (x == 1 && y == 0 && z == 1) {
-    //     debug = 1;
-    // }
-    // if (debug) {
-        // for (int i = 0; i < MAX_SERP_LENGTH; i++) {
-        //     for (int j = 0; j < MAX_SERP_LENGTH; j++) {
-        //         printf("click_probs[%d][%d] = %f\n", i, j, this->click_probs[i][j]);
-        //     }
-        // }
-        // for (int j = 0; j < MAX_SERP_LENGTH + 1; j++) {
-        //     printf("exam_probs[%d] = %f\n", j, this->click_probs[j]);
-        // }
-    // }
-    // if (debug) {printf("click = %d, last_click_rank = %d,  rank = %d, attr = %f, tau_1 = %f, tau_2 = %f, tau_3 = %f\n", this->click, this->last_click_rank, this->rank, this->attr, this->tau_1, this->tau_2, this->tau_3);}
 
     if (this->click == 0) { // Use tau 1 in case the document has not been clicked.
         if (y == 1) {
-            // printf("%d, %d] (%d,%d,%d) 1, log_prob = %f, returned = %f, [attr = %f, tau 1 = %f, tau 2 = %f, tau 3 = %f, last_click_rank = %d, rank = %d, click = %d\n", qid, did, x, y, z, log_prob, 0.f, this->attr, this->tau_1, this->tau_2, this->tau_3, this->last_click_rank, this->rank, this->click);
             return 0.f;
         }
 
@@ -68,20 +49,17 @@ DEV float CCMFactor::compute(int x, int y, int z, int qid, int did) {
         if (x == 1) {
             if (z == 1) {
                 log_prob += __logf(this->tau_1);
-                // if (debug) {printf("nc, tau1 = %f\n", this->tau_1);}
             }
             else {
                 log_prob += __logf(1 - this->tau_1);
             }
         }
         else if (z == 1) {
-            // printf("%d, %d] (%d,%d,%d) 2, log_prob = %f, returned = %f, [attr = %f, tau 1 = %f, tau 2 = %f, tau 3 = %f, last_click_rank = %d, rank = %d, click = %d\n", qid, did, x, y, z, log_prob, 0.f, this->attr, this->tau_1, this->tau_2, this->tau_3, this->last_click_rank, this->rank, this->click);
             return 0.f;
         }
     }
     else { // Use tau 2 or 3 in case the document has been clicked.
         if (x == 0) {
-            // printf("%d, %d] (%d,%d,%d) 3, log_prob = %f, returned = %f, [attr = %f, tau 1 = %f, tau 2 = %f, tau 3 = %f, last_click_rank = %d, rank = %d, click = %d\n", qid, did, x, y, z, log_prob, 0.f, this->attr, this->tau_1, this->tau_2, this->tau_3, this->last_click_rank, this->rank, this->click);
             return 0.f;
         }
 
@@ -111,22 +89,14 @@ DEV float CCMFactor::compute(int x, int y, int z, int qid, int did) {
     }
 
     if (z == 0) {
-        if (this->last_click_rank >= (this->rank + 1)) {
-            // printf("%d, %d] (%d,%d,%d) 4, log_prob = %f, returned = %f, [attr = %f, tau 1 = %f, tau 2 = %f, tau 3 = %f, last_click_rank = %d, rank = %d, click = %d\n", qid, did, x, y, z, log_prob, 0.f, this->attr, this->tau_1, this->tau_2, this->tau_3, this->last_click_rank, this->rank, this->click);
+        if (this->last_click_rank >= this->rank + 1) {
             return 0.f;
         }
     }
     else if (this->rank + 1 < MAX_SERP_LENGTH) {
-        // for (int start_rank = this->rank + 1; start_rank < MAX_SERP_LENGTH; start_rank++) {
-        //     int ses_itr{0};
         for (int res_itr = 0; res_itr < MAX_SERP_LENGTH - this->rank - 1; res_itr++) {
             log_prob += __logf(this->click_probs[this->rank + 1][res_itr]);
         }
-        // }
-
-        // for (int sub_rank = 0; sub_rank < MAX_SERP_LENGTH; sub_rank++) { // ! this part is most likely incorrect since print 5 always the wrong return value. replace this parclick with this snippet and change until it is correct.
-        //     log_prob += __logf(this->click_probs[this->rank + 1][sub_rank]);
-        // }
     }
 
     float exam_val = this->exam_probs[this->rank];
@@ -138,7 +108,6 @@ DEV float CCMFactor::compute(int x, int y, int z, int qid, int did) {
         log_prob += __logf(1 - exam_val);
     }
 
-    // printf("%d, %d] (%d,%d,%d) 5, log_prob = %f, returned = %f, [attr = %f, tau 1 = %f, tau 2 = %f, tau 3 = %f, last_click_rank = %d, rank = %d, click = %d\n", qid, did, x, y, z, log_prob, __expf(log_prob), this->attr, this->tau_1, this->tau_2, this->tau_3, this->last_click_rank, this->rank, this->click);
     return __expf(log_prob);
 }
 
@@ -183,7 +152,7 @@ DEV float DBNFactor::compute(int x, int y, int z) {
 
         log_prob += __logf(this->attr);
 
-        if (y == 0){
+        if (y == 0) {
             log_prob += __logf(1 - this->sat);
             if (z == 1) {
                 log_prob += __logf(this->gamma);

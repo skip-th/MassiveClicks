@@ -61,8 +61,8 @@ namespace Kernel {
      */
     GLB void update(SERP* partition, int partition_size, int parameter_type) {
         // Calculate the starting index within the query session array for this thread.
-        int thread_index = blockDim.x * blockIdx.x + threadIdx.x;
-        int block_index = threadIdx.x;
+        int thread_index = blockDim.x * blockIdx.x + threadIdx.x; // Global index.
+        int block_index = threadIdx.x; // Local index (local to thread block).
 
         // Estimate click model examination parameters.
         cm_dev->update_parameters(partition[thread_index], thread_index, block_index, parameter_type, partition_size);

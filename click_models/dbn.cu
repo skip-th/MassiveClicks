@@ -230,12 +230,12 @@ HST void DBN_Host::update_parameters(int& gridSize, int& blockSize, SERP*& parti
 HST void DBN_Host::reset_parameters(void) {
     // Create a parameter initialized at 0.
     Param default_parameter;
-    default_parameter.set_values(1.f, 2.f);
+    default_parameter.set_values(PARAM_DEF_NUM, PARAM_DEF_DENOM);
 
     // Create an array of the right proportions with the empty parameters.
     std::vector<Param> cleared_attractiveness_parameters(this->n_attr_dev, default_parameter);
-    std::vector<Param> cleared_satisfaction_parameters(this->n_attr_dev, default_parameter);
-    std::vector<Param> cleared_gamma_parameters(this->n_attr_dev, default_parameter);
+    std::vector<Param> cleared_satisfaction_parameters(this->n_satisfaction_dev, default_parameter);
+    std::vector<Param> cleared_gamma_parameters(this->n_gamma_dev, default_parameter);
 
     // Copy the cleared array to the device.
     CUDA_CHECK(cudaMemcpy(this->attr_param_dptr, cleared_attractiveness_parameters.data(), this->n_attr_dev * sizeof(Param), cudaMemcpyHostToDevice));
@@ -376,7 +376,7 @@ HST void DBN_Host::set_parameters(std::vector<std::vector<Param>>& source, int p
  * the document at each rank in the query session.
  */
 HST void DBN_Host::get_log_conditional_click_probs(SERP& query_session, std::vector<float>& log_click_probs) {
-    float exam_val{1.f}, click_prob;
+    float ex{1.f}, click_prob;
 
     for (int rank = 0; rank < MAX_SERP_LENGTH; rank++) {
         SearchResult sr = query_session[rank];
@@ -388,16 +388,16 @@ HST void DBN_Host::get_log_conditional_click_probs(SERP& query_session, std::vec
         float sat_val{(float) PARAM_DEF_NUM / (float) PARAM_DEF_DENOM};
         if (sr.get_param_index() != -1) {
             attr_val = this->attractiveness_parameters[sr.get_param_index()].value();
-            attr_val = this->satisfaction_parameters[sr.get_param_index()].value();
+            sat_val = this->satisfaction_parameters[sr.get_param_index()].value();
         }
         float gamma_val{this->gamma_parameters[0].value()};
 
         if (sr.get_click() == 1) {
-            click_prob = attr_val * exam_val;
-            exam_val = gamma_val * ( 1- sat_val);
+            click_prob = attr_val * ex;
+            ex = gamma_val * ( 1- sat_val);
         } else{
-            click_prob = 1 - attr_val * exam_val;
-            exam_val *= gamma_val * ( 1 - attr_val) / click_prob;
+            click_prob = 1 - attr_val * ex;
+            ex *= gamma_val * ( 1 - attr_val) / click_prob;
         }
 
         log_click_probs.push_back(std::log(click_prob));
@@ -414,7 +414,7 @@ HST void DBN_Host::get_log_conditional_click_probs(SERP& query_session, std::vec
  * for the document at each rank in the query session.
  */
 HST void DBN_Host::get_full_click_probs(SERP& query_session, std::vector<float> &full_click_probs) {
-    float ex_value{1.f}, atr_mul_ex;
+    float ex{1.f}, atr_mul_ex;
 
     // Go through all ranks of the query session.
     for (int rank = 0; rank < MAX_SERP_LENGTH; rank++) {
@@ -424,16 +424,16 @@ HST void DBN_Host::get_full_click_probs(SERP& query_session, std::vector<float> 
         // Get the parameters corresponding to the current search result.
         // Return the default parameter value if the qd-pair was not found in
         // the training set.
-        float attr_val{(float) PARAM_DEF_NUM / (float) PARAM_DEF_DENOM};
-        float sat_val{(float) PARAM_DEF_NUM / (float) PARAM_DEF_DENOM};
+        float atr{(float) PARAM_DEF_NUM / (float) PARAM_DEF_DENOM};
+        float sat{(float) PARAM_DEF_NUM / (float) PARAM_DEF_DENOM};
         if (sr.get_param_index() != -1) {
-            attr_val = this->attractiveness_parameters[sr.get_param_index()].value();
-            attr_val = this->satisfaction_parameters[sr.get_param_index()].value();
+            atr = this->attractiveness_parameters[sr.get_param_index()].value();
+            sat = this->satisfaction_parameters[sr.get_param_index()].value();
         }
-        float gamma_val{this->gamma_parameters[0].value()};
+        float gamma{this->gamma_parameters[0].value()};
 
         // Calculate the click probability.
-        atr_mul_ex = attr_val * ex_value;
+        atr_mul_ex = atr * ex;
 
         // Calculate the full click probability.
         if (sr.get_click() == 1) {
@@ -443,7 +443,7 @@ HST void DBN_Host::get_full_click_probs(SERP& query_session, std::vector<float> 
             full_click_probs.push_back(1 - atr_mul_ex);
         }
 
-        ex_value *= gamma_val * (1 - attr_val) + gamma_val * attr_val * (1 - sat_val);
+        ex *= gamma * (1 - atr) + gamma * atr * (1 - sat);
     }
 }
 
@@ -540,10 +540,12 @@ DEV void DBN_Dev::set_parameters(Param**& parameter_ptr, int* parameter_sizes) {
  */
 DEV void DBN_Dev::process_session(SERP& query_session, int& thread_index) {
     int last_click_rank = query_session.last_click_rank();
-    float click_probs[MAX_SERP_LENGTH][MAX_SERP_LENGTH];
+    float click_probs[MAX_SERP_LENGTH][MAX_SERP_LENGTH] = { 0.f };
     float exam_probs[MAX_SERP_LENGTH + 1];
     float exam[MAX_SERP_LENGTH + 1];
     float car[MAX_SERP_LENGTH + 1] = { 0.f };
+
+    this->tmp_gamma_parameters[thread_index].set_values(0.f, 0.f);
 
     this->compute_exam_car(thread_index, query_session, exam, car);
     this->compute_dbn_attr(thread_index, query_session, last_click_rank, exam, car);
@@ -553,10 +555,10 @@ DEV void DBN_Dev::process_session(SERP& query_session, int& thread_index) {
 }
 
 DEV void DBN_Dev::compute_exam_car(int& thread_index, SERP& query_session, float (&exam)[MAX_SERP_LENGTH + 1], float (&car)[MAX_SERP_LENGTH + 1]) {
-    exam[0] = 1;
-    float attr_val, sat_value, gamma_value, ex_value, temp;
+    // Set the default examination value for the first rank.
+    exam[0] = 1.f;
 
-    float car_val;
+    float attr_val, sat_value, gamma_value, ex_value, temp, car_val;
     float car_helper[MAX_SERP_LENGTH][2];
 
     for (int rank = 0; rank < MAX_SERP_LENGTH;) {
@@ -573,12 +575,13 @@ DEV void DBN_Dev::compute_exam_car(int& thread_index, SERP& query_session, float
         car_helper[rank][0] = attr_val;
         car_helper[rank][1] = temp;
 
-        rank++;
+        rank += 1;
         exam[rank] = ex_value;
     }
 
-    for (int car_itr = MAX_SERP_LENGTH; car_itr > 0; --car_itr) {
+    for (int car_itr = MAX_SERP_LENGTH - 1; car_itr > -1; car_itr--) {
         car_val = car[car_itr + 1];
+
         car[car_itr] = car_helper[car_itr][0] + car_helper[car_itr][1] * car_val;
     }
 }
@@ -599,7 +602,6 @@ DEV void DBN_Dev::compute_dbn_attr(int& thread_index, SERP& query_session, int& 
         else if (rank >= last_click_rank) {
             attr_val = this->attractiveness_parameters[sr.get_param_index()].value();
             exam_val = exam[rank];
-
             car_val = car[rank];
 
             numerator_update += (attr_val * (1 - exam_val)) / (1 - exam_val * car_val);
@@ -640,7 +642,7 @@ DEV void DBN_Dev::compute_dbn_sat(int& thread_index, SERP& query_session, int& l
 
 DEV void DBN_Dev::get_tail_clicks(int& thread_index, SERP& query_session, float (&click_probs)[MAX_SERP_LENGTH][MAX_SERP_LENGTH], float (&exam_probs)[MAX_SERP_LENGTH + 1]) {
     exam_probs[0] = 1.f;
-    float exam_val, click_prob;
+    float exam_val, gamma_val, click_prob;
 
     for (int start_rank = 0; start_rank < MAX_SERP_LENGTH; start_rank++) {
         exam_val = 1.f;
@@ -651,16 +653,15 @@ DEV void DBN_Dev::get_tail_clicks(int& thread_index, SERP& query_session, float 
 
             float attr_val = this->attractiveness_parameters[tmp_sr.get_param_index()].value();
             float sat_val = this->satisfaction_parameters[tmp_sr.get_param_index()].value();
-            float gamma_val = this->gamma_parameters[0].value();
-
+            gamma_val = this->gamma_parameters[0].value();
 
             if (query_session[res_itr].get_click() == 1){
                 click_prob = attr_val * exam_val;
-                exam_val = gamma_val * ( 1- sat_val);
+                exam_val = gamma_val * (1 - sat_val);
             }
             else{
                 click_prob = 1 - attr_val * exam_val;
-                exam_val *= gamma_val * ( 1 - attr_val) / click_prob;
+                exam_val *= gamma_val * (1 - attr_val) / click_prob;
             }
 
             click_probs[start_rank][ses_itr] = click_prob;
@@ -668,18 +669,21 @@ DEV void DBN_Dev::get_tail_clicks(int& thread_index, SERP& query_session, float 
             if (start_rank == 0) {
                 exam_probs[ses_itr + 1] = exam_val;
             }
+
+            ses_itr++;
         }
     }
 }
 
 DEV void DBN_Dev::compute_gamma(int& thread_index, SERP& query_session, int& last_click_rank, float (&click_probs)[MAX_SERP_LENGTH][MAX_SERP_LENGTH], float (&exam_probs)[MAX_SERP_LENGTH + 1]) {
-    float factor_values[8] = {0.f};
+    float factor_values[8] = { 0.f };
 
     for (int rank = 0; rank < MAX_SERP_LENGTH; rank++){
         SearchResult sr = query_session[rank];
 
-        DBNFactor factor_func(click_probs, exam_probs,
-                              sr.get_click(), last_click_rank, rank,
+        // Send the initialization values to the phi function.
+        DBNFactor factor_func(click_probs, exam_probs, sr.get_click(),
+                              last_click_rank, rank,
                               this->attractiveness_parameters[sr.get_param_index()].value(),
                               this->satisfaction_parameters[sr.get_param_index()].value(),
                               this->gamma_parameters[0].value());
@@ -687,6 +691,7 @@ DEV void DBN_Dev::compute_gamma(int& thread_index, SERP& query_session, int& las
         float factor_result = 0.f;
         float factor_sum = 0.f;
 
+        // Compute phi for all possible input values.
         for (int fct_itr{0}; fct_itr < 8; fct_itr++) {
             factor_result = factor_func.compute(this->factor_inputs[fct_itr][0],
                                                 this->factor_inputs[fct_itr][1],
@@ -698,7 +703,7 @@ DEV void DBN_Dev::compute_gamma(int& thread_index, SERP& query_session, int& las
         float numerator_update = factor_values[5] / factor_sum;
         float denominator_update = (factor_values[4] + factor_values[5]) / factor_sum;
 
-        this->tmp_gamma_parameters[thread_index * MAX_SERP_LENGTH + rank].set_values(numerator_update, denominator_update);
+        this->tmp_gamma_parameters[thread_index].add_to_values(numerator_update, denominator_update);
     }
 }
 
@@ -723,23 +728,6 @@ DEV void DBN_Dev::update_parameters(SERP& query_session, int& thread_index, int&
     }
 }
 
-/**
- * @brief Update the global satisfaction parameters using the local satisfaction
- * parameters of a single thread.
- *
- * @param query_session The query session of this thread.
- * @param thread_index The index of this thread.
- * @param block_index The index of the block in which this thread exists.
- * @param partition_size The size of the dataset.
- */
-DEV void DBN_Dev::update_satisfaction_parameters(SERP& query_session, int& thread_index) {
-    for (int rank = 0; rank < MAX_SERP_LENGTH; rank++) {
-        SearchResult sr = query_session[rank];
-        this->satisfaction_parameters[sr.get_param_index()].atomic_add_to_values(
-            this->tmp_satisfaction_parameters[thread_index * MAX_SERP_LENGTH + rank].numerator_val(),
-            1.f);
-    }
-}
 
 /**
  * @brief Update the global continuation parameters using the local continuation
@@ -766,8 +754,8 @@ DEV void DBN_Dev::update_gamma_parameters(SERP& query_session, int& thread_index
     // same time.
     if (thread_index < partition_size) {
         // Atomically add the numerator and denominator values to shared memory.
-        atomicAddArch(&block_gamma_num, this->tmp_gamma_parameters[thread_index * MAX_SERP_LENGTH].numerator_val());
-        atomicAddArch(&block_gamma_denom, 1.f / MAX_SERP_LENGTH);
+        atomicAddArch(&block_gamma_num, this->tmp_gamma_parameters[thread_index].numerator_val());
+        atomicAddArch(&block_gamma_denom, this->tmp_gamma_parameters[thread_index].denominator_val());
     }
     // Wait for all threads to finish writing to shared memory.
     __syncthreads();
@@ -791,6 +779,24 @@ DEV void DBN_Dev::update_attractiveness_parameters(SERP& query_session, int& thr
         SearchResult sr = query_session[rank];
         this->attractiveness_parameters[sr.get_param_index()].atomic_add_to_values(
             this->tmp_attractiveness_parameters[thread_index * MAX_SERP_LENGTH + rank].numerator_val(),
-            1.f);
+            this->tmp_attractiveness_parameters[thread_index * MAX_SERP_LENGTH + rank].denominator_val());
+    }
+}
+
+/**
+ * @brief Update the global satisfaction parameters using the local satisfaction
+ * parameters of a single thread.
+ *
+ * @param query_session The query session of this thread.
+ * @param thread_index The index of this thread.
+ * @param block_index The index of the block in which this thread exists.
+ * @param partition_size The size of the dataset.
+ */
+DEV void DBN_Dev::update_satisfaction_parameters(SERP& query_session, int& thread_index) {
+    for (int rank = 0; rank < MAX_SERP_LENGTH; rank++) {
+        SearchResult sr = query_session[rank];
+        this->satisfaction_parameters[sr.get_param_index()].atomic_add_to_values(
+            this->tmp_satisfaction_parameters[thread_index * MAX_SERP_LENGTH + rank].numerator_val(),
+            this->tmp_satisfaction_parameters[thread_index * MAX_SERP_LENGTH + rank].denominator_val());
     }
 }

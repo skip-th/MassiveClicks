@@ -7,7 +7,7 @@ EXEC = $(PRUN_ETC)/prun-openmpi
 SCHEDULE = prun
 NODES = 2
 DEVICES = 2
-PROG = parpbmubm
+PROG = gpucmt
 VERSION = v3
 CU_OPT = -arch=sm_50 \
 	-gencode=arch=compute_50,code=sm_50 \

@@ -625,6 +625,9 @@ DEV void UBM_Dev::update_examination_parameters(SERP& query_session, int& thread
             this->examination_parameters[index].atomic_add_to_values(block_examination_num[index], block_examination_denom[index]);
         }
     }
+    // if (block_index < max_index) { // * Equivalent function, but it should have less waiting for atomic operations.
+    //     this->examination_parameters[block_index].atomic_add_to_values(block_examination_num[block_index], block_examination_denom[block_index]);
+    // }
 }
 
 /**
