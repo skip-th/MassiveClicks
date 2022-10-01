@@ -8,8 +8,49 @@
 #include <vector>
 #include "param.cuh"
 
-
 DEV HST Param::Param() = default;
+
+// DEV HST Param::Param(const float& numerator, const float& denominator) {
+//     this->numerator = numerator;
+//     this->denominator = denominator;
+// }
+
+// /**
+//  * @brief Add two parameters.
+//  *
+//  * @param other The other parameter to add.
+//  * @return Param The result of the addition.
+//  */
+// DEV HST Param Param::operator + (const Param& other) const {
+//     Param result;
+//     result.set_values(this->numerator_val() + other.numerator_val(),
+//                       this->denominator_val() + other.denominator_val());
+//     return result;
+// }
+
+// /**
+//  * @brief Set the value of a parameter.
+//  *
+//  * @param value The new parameter values.
+//  * @return Param& A reference to this parameter with new values.
+//  */
+// DEV HST Param& Param::operator = (const Param& value) {
+//     this->numerator = value.numerator_val();
+//     this->denominator = value.denominator_val();
+//     return *this;
+// }
+
+// /**
+//  * @brief Add a value to this parameter.
+//  *
+//  * @param value The parameter to be added.
+//  * @return Param& A reference to this parameter with the added values.
+//  */
+// DEV HST Param& Param::operator += (const Param& value) {
+//     this->numerator += value.numerator_val();
+//     this->denominator += value.denominator_val();
+//     return *this;
+// }
 
 /**
  * @brief Retrieves the click probability of this parameter.

@@ -20,6 +20,10 @@ private:
     float denominator{PARAM_DEF_DENOM};
 public:
     DEV HST Param();
+    DEV HST Param(const float& numerator, const float& denominator);
+    // DEV HST Param operator + (const Param &other) const;
+    // DEV HST Param& operator = (const Param& value);
+    // DEV HST Param& operator += (const Param& value);
     DEV HST float value() const;
     DEV HST float numerator_val() const;
     DEV HST float denominator_val() const;
@@ -27,5 +31,9 @@ public:
     DEV HST void add_to_values(float numerator_val, float denominator_val);
     DEV void atomic_add_to_values(float numerator_val, float denominator_val);
 };
+
+// struct Param_add: public thrust::binary_function<Param, Param, Param> {
+//     DEV Param operator()(Param a, Param b) { return a + b; }
+// };
 
 #endif // CLICK_MODEL_PARAMETERS_H

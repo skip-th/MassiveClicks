@@ -169,6 +169,12 @@ HST void PBM_Hst::get_device_references(Param**& param_refs, int*& param_sizes) 
  */
 HST void PBM_Hst::update_parameters(int& gridSize, int& blockSize, SERP*& partition, int& dataset_size) {
     Kernel::update<<<gridSize, blockSize>>>(partition, dataset_size);
+
+    // for (int rank = 0; rank < MAX_SERP_LENGTH; rank++) {
+    //     typedef thrust::device_vector<int>::iterator Iterator;
+    //     strided_range<Iterator> examination(this->tmp_exam_param_dptr + rank, this->tmp_exam_param_dptr + n_tmp_exams_dev, MAX_SERP_LENGTH);
+    //     thrust::reduce(examination.begin(), examination.end())
+    // }
 }
 
 /**

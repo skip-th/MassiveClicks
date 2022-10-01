@@ -203,6 +203,11 @@ HST void DBN_Hst::get_device_references(Param**& param_refs, int*& param_sizes) 
  */
 HST void DBN_Hst::update_parameters(int& gridSize, int& blockSize, SERP*& partition, int& dataset_size) {
     Kernel::update<<<gridSize, blockSize>>>(partition, dataset_size);
+
+    // Use CUDA Thrust to reduce the sum of the temporary public parameter values.
+    // Param init_val(0.f, 0.f);
+    // thrust::device_ptr<Param> dptr = thrust::device_pointer_cast(tmp_gamma_param_dptr);
+    // gamma_parameters[0] = thrust::reduce(dptr, dptr + this->n_tmp_gamma_dev, init_val, Param_add());
 }
 
 /**
@@ -650,7 +655,7 @@ DEV void DBN_Dev::compute_dbn_sat(int& thread_index, SERP& query_session, int& l
             numerator_update = 0.f;
             denominator_update = 1.f;
 
-            if (rank == last_click_rank){
+            if (rank == last_click_rank) {
                 sat_val = this->satisfaction_parameters[sr.get_param_index()].value();
                 gamma_val = this->gamma_parameters[0].value();
 
@@ -687,7 +692,7 @@ DEV void DBN_Dev::get_tail_clicks(int& thread_index, SERP& query_session, float 
         exam_val = 1.f;
 
         int ses_itr{0};
-        for (int res_itr = start_rank; res_itr < MAX_SERP_LENGTH; res_itr++, ses_itr++) {
+        for (int res_itr = start_rank; res_itr < MAX_SERP_LENGTH; res_itr++) {
             SearchResult tmp_sr = query_session[ses_itr];
 
             float attr_val = this->attractiveness_parameters[tmp_sr.get_param_index()].value();
@@ -758,8 +763,6 @@ DEV void DBN_Dev::compute_gamma(int& thread_index, SERP& query_session, int& las
     }
 }
 
-
-
 /**
  * @brief Update the global parameter values using the local parameter values
  * on each thread.
@@ -778,7 +781,6 @@ DEV void DBN_Dev::update_parameters(SERP& query_session, int& thread_index, int&
         this->update_satisfaction_parameters(query_session, thread_index);
     }
 }
-
 
 /**
  * @brief Update the global continuation parameters using the local continuation

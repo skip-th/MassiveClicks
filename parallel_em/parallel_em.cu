@@ -160,6 +160,7 @@ void em_parallel(const int model_type, const int node_id, const int n_nodes, con
         auto em_itr_start_time = std::chrono::high_resolution_clock::now();
 
         for (int device_id = 0; device_id < n_devices; device_id++) {
+
             CUDA_CHECK(cudaSetDevice(device_id));
 
             int gridSize = kernel_dims[device_id * 2];
@@ -246,6 +247,7 @@ void em_parallel(const int model_type, const int node_id, const int n_nodes, con
         // Synchronize parameters across the nodes and devices.              //
         //-------------------------------------------------------------------//
 
+
         auto em_sync_itr_start_time = std::chrono::high_resolution_clock::now();
 
         std::vector<std::vector<std::vector<Param>>> public_parameters(n_devices); // Device ID -> Parameter type -> Parameters.
@@ -264,6 +266,8 @@ void em_parallel(const int model_type, const int node_id, const int n_nodes, con
             cm_hosts[device_id]->get_parameters(public_parameters[device_id], PUBLIC);
         }
 
+        // Synchronize the parameters local to this device before synchronizing
+        // with the parameters from other nodes.
         cm_hosts[0]->sync_parameters(public_parameters);
 
         // Send this node's synchronized public device parameters to all other
@@ -273,7 +277,7 @@ void em_parallel(const int model_type, const int node_id, const int n_nodes, con
             std::vector<Param>(public_parameters[0][0].size()))); // Node ID -> Parameter type -> Parameters.
         Communicate::exchange_parameters(network_parameters, public_parameters[0], n_nodes, node_id);
 
-        // Add the received public parameters.
+        // Sychronize the public parameters received from other nodes.
         cm_hosts[0]->sync_parameters(network_parameters);
 
         // Move all types of synchronized public parameters back to each device.
