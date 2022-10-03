@@ -85,9 +85,9 @@ int main(int argc, char** argv) {
     };
 
     std::string raw_dataset_path{"YandexRelPredChallenge100k.txt"}; // "/var/scratch/pkhandel/yandex/YandexClicks.txt"
-    int n_iterations{5};
+    int n_iterations{50};
     int max_sessions{40000};
-    int model_type{2};
+    int model_type{0};
     int partitioning_type{0};
     int job_id{0};
     float test_share{0.2};

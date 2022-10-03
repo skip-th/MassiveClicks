@@ -15,4 +15,3 @@ the training process. The following click models are supported:
 - Add check to see if data will fit in gpu memory.
 - Perform parallel sum reduction using CUDA Thrust.
 - Combine ClickModel_Host and _Dev.
-- Remove parameter reference functions.

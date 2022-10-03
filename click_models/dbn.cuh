@@ -84,18 +84,18 @@ public:
     DEV void say_hello() override;
     DEV DBN_Dev* clone() override;
     DEV void set_parameters(Param**& parameter_ptr, int* parameter_sizes) override;
-    DEV void process_session(SERP& query_session, int& thread_index) override;
+    DEV void process_session(SERP& query_session, int& thread_index, int& partition_size) override;
     DEV void update_parameters(SERP& query_session, int& thread_index, int& block_index, int& partition_size) override;
 
 private:
     DEV void update_examination_parameters(SERP& query_session, int& thread_index, int& block_index, int& partition_size);
-    DEV void update_attractiveness_parameters(SERP& query_session, int& thread_index);
-    DEV void update_satisfaction_parameters(SERP& query_session, int& thread_index);
+    DEV void update_attractiveness_parameters(SERP& query_session, int& thread_index, int& partition_size);
+    DEV void update_satisfaction_parameters(SERP& query_session, int& thread_index, int& partition_size);
     DEV void update_gamma_parameters(SERP& query_session, int& thread_index, int& block_index, int& partition_size);
 
     DEV void compute_exam_car(int& thread_index, SERP& query_session, float (&exam)[MAX_SERP_LENGTH + 1], float (&car)[MAX_SERP_LENGTH + 1]);
-    DEV void compute_dbn_attr(int& thread_index, SERP& query_session, int& last_click_rank, float (&exam)[MAX_SERP_LENGTH + 1], float (&car)[MAX_SERP_LENGTH + 1]);
-    DEV void compute_dbn_sat(int& thread_index, SERP& query_session, int& last_click_rank, float (&car)[MAX_SERP_LENGTH + 1]);
+    DEV void compute_dbn_attr(int& thread_index, SERP& query_session, int& last_click_rank, float (&exam)[MAX_SERP_LENGTH + 1], float (&car)[MAX_SERP_LENGTH + 1], int& partition_size);
+    DEV void compute_dbn_sat(int& thread_index, SERP& query_session, int& last_click_rank, float (&car)[MAX_SERP_LENGTH + 1], int& partition_size);
     DEV void get_tail_clicks(int& thread_index, SERP& query_session, float (&click_probs)[MAX_SERP_LENGTH][MAX_SERP_LENGTH], float (&exam_probs)[MAX_SERP_LENGTH + 1]);
     DEV void compute_gamma(int& thread_index, SERP& query_session, int& last_click_rank, float (&click_probs)[MAX_SERP_LENGTH][MAX_SERP_LENGTH], float (&exam_probs)[MAX_SERP_LENGTH + 1]);
 

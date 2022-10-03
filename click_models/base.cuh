@@ -57,7 +57,7 @@ public:
     DEV virtual ClickModel_Dev* clone() = 0;
     DEV virtual void say_hello() = 0;
     DEV virtual void set_parameters(Param**& parameter_ptr, int* parameter_sizes) = 0;
-    DEV virtual void process_session(SERP& query_session, int& thread_index) = 0;
+    DEV virtual void process_session(SERP& query_session, int& thread_index, int& partition_size) = 0;
     DEV virtual void update_parameters(SERP& query_session, int& thread_index, int& block_index, int& partition_size) = 0;
 };
 

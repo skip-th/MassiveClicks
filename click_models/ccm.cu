@@ -463,21 +463,21 @@ DEV void CCM_Dev::set_parameters(Param**& parameter_ptr, int* parameter_sizes) {
  * @param thread_index The index of the thread which will be estimating the
  * parameters.
  */
-DEV void CCM_Dev::process_session(SERP& query_session, int& thread_index) {
+DEV void CCM_Dev::process_session(SERP& query_session, int& thread_index, int& partition_size) {
     int last_click_rank = query_session.last_click_rank();
     float click_probs[MAX_SERP_LENGTH][MAX_SERP_LENGTH] = { 0.f };
     float exam_probs[MAX_SERP_LENGTH + 1];
     float exam[MAX_SERP_LENGTH + 1];
     float car[MAX_SERP_LENGTH + 1] = { 0.f };
 
-    this->tmp_tau_parameters[thread_index * 3 + 0].set_values(0.f, 0.f);
-    this->tmp_tau_parameters[thread_index * 3 + 1].set_values(0.f, 0.f);
-    this->tmp_tau_parameters[thread_index * 3 + 2].set_values(0.f, 0.f);
+    this->tmp_tau_parameters[thread_index].set_values(0.f, 0.f);
+    this->tmp_tau_parameters[partition_size + thread_index].set_values(0.f, 0.f);
+    this->tmp_tau_parameters[2 * partition_size + thread_index].set_values(0.f, 0.f);
 
     this->compute_exam_car(thread_index, query_session, exam, car);
-    this->compute_ccm_attr(thread_index, query_session, last_click_rank, exam, car);
+    this->compute_ccm_attr(thread_index, query_session, last_click_rank, exam, car, partition_size);
     this->get_tail_clicks(thread_index, query_session, click_probs, exam_probs);
-    this->compute_taus(thread_index, query_session, last_click_rank, click_probs, exam_probs);
+    this->compute_taus(thread_index, query_session, last_click_rank, click_probs, exam_probs, partition_size);
 }
 
 /**
@@ -544,7 +544,7 @@ DEV void CCM_Dev::compute_exam_car(int& thread_index, SERP& query_session, float
  * always examined (1).
  * @param car
  */
-DEV void CCM_Dev::compute_ccm_attr(int& thread_index, SERP& query_session, int& last_click_rank, float (&exam)[MAX_SERP_LENGTH + 1], float (&car)[MAX_SERP_LENGTH + 1]) {
+DEV void CCM_Dev::compute_ccm_attr(int& thread_index, SERP& query_session, int& last_click_rank, float (&exam)[MAX_SERP_LENGTH + 1], float (&car)[MAX_SERP_LENGTH + 1], int& partition_size) {
     float numerator_update, denominator_update;
     float attr_val, exam_val, car_val;
 
@@ -572,7 +572,7 @@ DEV void CCM_Dev::compute_ccm_attr(int& thread_index, SERP& query_session, int& 
             numerator_update += attr_val / (1 - (this->tau_parameters[1].value() * (1 - attr_val) + this->tau_parameters[2].value() * attr_val) * car_val);
         }
 
-        this->tmp_attractiveness_parameters[thread_index * MAX_SERP_LENGTH + rank].set_values(numerator_update, denominator_update);
+        this->tmp_attractiveness_parameters[rank * partition_size + thread_index].set_values(numerator_update, denominator_update);
     }
 }
 
@@ -636,7 +636,7 @@ DEV void CCM_Dev::get_tail_clicks(int& thread_index, SERP& query_session, float 
  * @param click_probs The probabilty of a click occurring on a rank.
  * @param exam_probs The probability of a rank being examined.
  */
-DEV void CCM_Dev::compute_taus(int& thread_index, SERP& query_session, int& last_click_rank, float (&click_probs)[MAX_SERP_LENGTH][MAX_SERP_LENGTH], float (&exam_probs)[MAX_SERP_LENGTH + 1]) {
+DEV void CCM_Dev::compute_taus(int& thread_index, SERP& query_session, int& last_click_rank, float (&click_probs)[MAX_SERP_LENGTH][MAX_SERP_LENGTH], float (&exam_probs)[MAX_SERP_LENGTH + 1], int& partition_size) {
     float factor_values[8] = { 0.f };
 
     for (int rank = 0; rank < MAX_SERP_LENGTH; rank++){
@@ -663,31 +663,31 @@ DEV void CCM_Dev::compute_taus(int& thread_index, SERP& query_session, int& last
         }
 
         if (sr.get_click() == 0) {
-            this->compute_tau_1(thread_index, factor_values, factor_sum);
+            this->compute_tau_1(thread_index, factor_values, factor_sum, partition_size);
         }
         else {
-            this->compute_tau_2(thread_index, factor_values, factor_sum);
-            this->compute_tau_3(thread_index, factor_values, factor_sum);
+            this->compute_tau_2(thread_index, factor_values, factor_sum, partition_size);
+            this->compute_tau_3(thread_index, factor_values, factor_sum, partition_size);
         }
     }
 }
 
-DEV void CCM_Dev::compute_tau_1(int& thread_index, float (&factor_values)[8], float& factor_sum) {
+DEV void CCM_Dev::compute_tau_1(int& thread_index, float (&factor_values)[8], float& factor_sum, int& partition_size) {
     double numerator_update{(factor_values[5] + factor_values[7]) / factor_sum};
     double denominator_update{numerator_update + ((factor_values[4] + factor_values[6]) / factor_sum)};
-    this->tmp_tau_parameters[thread_index * 3 + 0].add_to_values(numerator_update, denominator_update);
+    this->tmp_tau_parameters[thread_index].add_to_values(numerator_update, denominator_update);
 }
 
-DEV void CCM_Dev::compute_tau_2(int& thread_index, float (&factor_values)[8], float& factor_sum) {
+DEV void CCM_Dev::compute_tau_2(int& thread_index, float (&factor_values)[8], float& factor_sum, int& partition_size) {
     double numerator_update{factor_values[5] / factor_sum};
     double denominator_update{numerator_update + ((factor_values[4]) / factor_sum)};
-    this->tmp_tau_parameters[thread_index * 3 + 1].add_to_values(numerator_update, denominator_update);
+    this->tmp_tau_parameters[partition_size + thread_index].add_to_values(numerator_update, denominator_update);
 }
 
-DEV void CCM_Dev::compute_tau_3(int& thread_index, float (&factor_values)[8], float& factor_sum) {
+DEV void CCM_Dev::compute_tau_3(int& thread_index, float (&factor_values)[8], float& factor_sum, int& partition_size) {
     double numerator_update{factor_values[7] / factor_sum};
     double denominator_update{numerator_update + ((factor_values[6]) / factor_sum)};
-    this->tmp_tau_parameters[thread_index * 3 + 2].add_to_values(numerator_update, denominator_update);
+    this->tmp_tau_parameters[2 * partition_size + thread_index].add_to_values(numerator_update, denominator_update);
 }
 
 
@@ -705,7 +705,7 @@ DEV void CCM_Dev::update_parameters(SERP& query_session, int& thread_index, int&
     this->update_tau_parameters(query_session, thread_index, block_index, partition_size);
 
     if (thread_index < partition_size) {
-        this->update_attractiveness_parameters(query_session, thread_index);
+        this->update_attractiveness_parameters(query_session, thread_index, partition_size);
     }
 }
 
@@ -722,9 +722,9 @@ DEV void CCM_Dev::update_tau_parameters(SERP& query_session, int& thread_index, 
     // Initialize shared memory for this block's continuation parameters at 0.
     SHR float block_continuation_num[3];
     SHR float block_continuation_denom[3];
-    for (int tau_num = 0; tau_num < 3; tau_num++) {
-        block_continuation_num[tau_num] = 0.f;
-        block_continuation_denom[tau_num] = 0.f;
+    if (block_index < 3) {
+        block_continuation_num[block_index] = 0.f;
+        block_continuation_denom[block_index] = 0.f;
     }
     // Wait for all threads to finish initializing shared memory.
     __syncthreads();
@@ -739,8 +739,9 @@ DEV void CCM_Dev::update_tau_parameters(SERP& query_session, int& thread_index, 
         for (int offset = 0; offset < 3; offset++) {
             tau_num = (start_rank + offset) % 3;
 
-            atomicAddArch(&block_continuation_num[tau_num], this->tmp_tau_parameters[thread_index * 3 + tau_num].numerator_val());
-            atomicAddArch(&block_continuation_denom[tau_num], this->tmp_tau_parameters[thread_index * 3 + tau_num].denominator_val());
+            Param tau_update = this->tmp_tau_parameters[tau_num * partition_size + thread_index];
+            atomicAddArch(&block_continuation_num[tau_num], tau_update.numerator_val());
+            atomicAddArch(&block_continuation_denom[tau_num], tau_update.denominator_val());
         }
     }
     // Wait for all threads to finish writing to shared memory.
@@ -753,6 +754,56 @@ DEV void CCM_Dev::update_tau_parameters(SERP& query_session, int& thread_index, 
     }
 }
 
+
+// DEV void warp_reduce(volatile float* shared_data, int block_index) {
+//     if (block_index < 64) shared_data[block_index] += shared_data[block_index + 64];
+//     if (block_index < 32) shared_data[block_index] += shared_data[block_index + 32];
+//     if (block_index < 16) shared_data[block_index] += shared_data[block_index + 16];
+//     if (block_index < 8) shared_data[block_index] += shared_data[block_index + 8];
+//     if (block_index < 4) shared_data[block_index] += shared_data[block_index + 4];
+//     if (block_index < 2) shared_data[block_index] += shared_data[block_index + 2];
+//     if (block_index < 1) shared_data[block_index] += shared_data[block_index + 1];
+// }
+
+// DEV void PBM_Dev::update_tau_parameters(SERP& query_session, int& thread_index, int& block_index, int& partition_size) {
+//     // Initialize shared memory for this block's examination parameters at 0.
+//     SHR float numerator[BLOCK_SIZE];
+//     SHR float denominator[BLOCK_SIZE];
+
+//     for (int rank = 0; rank < MAX_SERP_LENGTH; rank++) {
+//         if (thread_index < partition_size) {
+//             Param tmp_param = this->tmp_examination_parameters[rank * partition_size + thread_index];
+//             numerator[block_index] = tmp_param.numerator_val();
+//             denominator[block_index] = tmp_param.denominator_val();
+//         } else {
+//             numerator[block_index] = 0.f;
+//             denominator[block_index] = 0.f;
+//         }
+//         __syncthreads();
+
+//         // Perform reduction in shared memory.
+//         for(unsigned int stride = blockDim.x / 2; stride > 64; stride >>= 1) {
+//             if (block_index < stride) {
+//                 numerator[block_index] += numerator[block_index + stride];
+//                 denominator[block_index] += denominator[block_index + stride];
+//             }
+//             __syncthreads();
+//         }
+
+//         // Use an unrolled version of the reduction loop for the last 64 elements.
+//         if (block_index < 64) {
+//             warp_reduce(numerator, block_index);
+//             warp_reduce(denominator, block_index);
+//         }
+
+//         // Have only the first thread of the block write the shared memory results
+//         // to global memory.
+//         if (block_index < MAX_SERP_LENGTH) {
+//             this->examination_parameters[rank].atomic_add_to_values(numerator[0], denominator[0]);
+//         }
+//     }
+// }
+
 /**
  * @brief Update the global attractiveness parameters using the local
  * attractiveness parameters of a single thread.
@@ -760,11 +811,11 @@ DEV void CCM_Dev::update_tau_parameters(SERP& query_session, int& thread_index, 
  * @param query_session The query session of this thread.
  * @param thread_index The index of this thread.
  */
-DEV void CCM_Dev::update_attractiveness_parameters(SERP& query_session, int& thread_index) {
+DEV void CCM_Dev::update_attractiveness_parameters(SERP& query_session, int& thread_index, int& partition_size) {
     for (int rank = 0; rank < MAX_SERP_LENGTH; rank++) {
         SearchResult sr = query_session[rank];
-        this->attractiveness_parameters[sr.get_param_index()].atomic_add_to_values(
-            this->tmp_attractiveness_parameters[thread_index * MAX_SERP_LENGTH + rank].numerator_val(),
-            this->tmp_attractiveness_parameters[thread_index * MAX_SERP_LENGTH + rank].denominator_val());
+        Param atr_update = this->tmp_attractiveness_parameters[rank * partition_size + thread_index];
+        this->attractiveness_parameters[sr.get_param_index()].atomic_add_to_values(atr_update.numerator_val(),
+                                                                                   atr_update.denominator_val());
     }
 }

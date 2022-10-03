@@ -21,9 +21,8 @@ private:
 public:
     DEV HST Param();
     DEV HST Param(const float& numerator, const float& denominator);
-    // DEV HST Param operator + (const Param &other) const;
-    // DEV HST Param& operator = (const Param& value);
-    // DEV HST Param& operator += (const Param& value);
+    DEV HST Param operator + (const Param &other) const;
+    DEV HST Param& operator += (const Param& value);
     DEV HST float value() const;
     DEV HST float numerator_val() const;
     DEV HST float denominator_val() const;

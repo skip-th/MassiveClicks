@@ -39,7 +39,7 @@ namespace Kernel {
      * @param partition A pointer to the partition containing the dataset to train the click model on.
      * @param partition_size The size of the partition containin the dataset.
      */
-    GLB void em_training(SERP* partition, const int partition_size) {
+    GLB void em_training(SERP* partition, int partition_size) {
         // Calculate the starting index within the query session array for this thread.
         int thread_index = blockDim.x * blockIdx.x + threadIdx.x; // Global index.
 
@@ -48,7 +48,7 @@ namespace Kernel {
             return;
 
         // Estimate click model parameters for the given query session.
-        cm_dev->process_session(partition[thread_index], thread_index);
+        cm_dev->process_session(partition[thread_index], thread_index, partition_size);
     }
 
     /**

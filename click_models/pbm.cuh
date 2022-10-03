@@ -75,12 +75,12 @@ public:
     DEV void say_hello() override;
     DEV PBM_Dev* clone() override;
     DEV void set_parameters(Param**& parameter_ptr, int* parameter_sizes) override; //, int*& parameter_sizes)  override;
-    DEV void process_session(SERP& query_session, int& thread_index) override;
+    DEV void process_session(SERP& query_session, int& thread_index, int& partition_size) override;
     DEV void update_parameters(SERP& query_session, int& thread_index, int& block_index, int& partition_size) override;
 
 private:
     DEV void update_examination_parameters(SERP& query_session, int& thread_index, int& block_index, int& partition_size);
-    DEV void update_attractiveness_parameters(SERP& query_session, int& thread_index);
+    DEV void update_attractiveness_parameters(SERP& query_session, int& thread_index, int& partition_size);
 
     Param* attractiveness_parameters;
     Param* tmp_attractiveness_parameters;

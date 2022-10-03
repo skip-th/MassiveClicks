@@ -18,7 +18,7 @@
 
 namespace Kernel {
     GLB void initialize(const int model_type, const int node_id, const int device_id, Param** cm_param_ptr, int* parameter_sizes);
-    GLB void em_training(SERP* partition, const int partition_size);
+    GLB void em_training(SERP* partition, int partition_size);
     GLB void update(SERP* partition, int partition_size);
 }
 

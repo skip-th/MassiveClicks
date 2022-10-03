@@ -169,12 +169,6 @@ HST void PBM_Hst::get_device_references(Param**& param_refs, int*& param_sizes) 
  */
 HST void PBM_Hst::update_parameters(int& gridSize, int& blockSize, SERP*& partition, int& dataset_size) {
     Kernel::update<<<gridSize, blockSize>>>(partition, dataset_size);
-
-    // for (int rank = 0; rank < MAX_SERP_LENGTH; rank++) {
-    //     typedef thrust::device_vector<int>::iterator Iterator;
-    //     strided_range<Iterator> examination(this->tmp_exam_param_dptr + rank, this->tmp_exam_param_dptr + n_tmp_exams_dev, MAX_SERP_LENGTH);
-    //     thrust::reduce(examination.begin(), examination.end())
-    // }
 }
 
 /**
@@ -463,9 +457,7 @@ DEV void PBM_Dev::set_parameters(Param**& parameter_ptr, int* parameter_sizes) {
  * @param thread_index The index of the thread which will be estimating the
  * parameters.
  */
-DEV void PBM_Dev::process_session(SERP& query_session, int& thread_index) {
-    // int query_id = query_session.get_query();
-    // printf("%d\n", query_session.get_query());
+DEV void PBM_Dev::process_session(SERP& query_session, int& thread_index, int& partition_size) {
     for (int rank = 0; rank < MAX_SERP_LENGTH; rank++) {
         SearchResult sr = query_session[rank];
 
@@ -492,8 +484,8 @@ DEV void PBM_Dev::process_session(SERP& query_session, int& thread_index) {
         }
 
         // Store the temporary attractiveness and examination parameters.
-        this->tmp_attractiveness_parameters[thread_index * MAX_SERP_LENGTH + rank].set_values(new_numerator_atr, 1);
-        this->tmp_examination_parameters[thread_index * MAX_SERP_LENGTH + rank].set_values(new_numerator_ex, 1);
+        this->tmp_attractiveness_parameters[rank * partition_size + thread_index].set_values(new_numerator_atr, 1);
+        this->tmp_examination_parameters[rank * partition_size + thread_index].set_values(new_numerator_ex, 1);
     }
 }
 
@@ -511,7 +503,7 @@ DEV void PBM_Dev::update_parameters(SERP& query_session, int& thread_index, int&
     this->update_examination_parameters(query_session, thread_index, block_index, partition_size);
 
     if (thread_index < partition_size) {
-        this->update_attractiveness_parameters(query_session, thread_index);
+        this->update_attractiveness_parameters(query_session, thread_index, partition_size);
     }
 }
 
@@ -529,8 +521,8 @@ DEV void PBM_Dev::update_examination_parameters(SERP& query_session, int& thread
     SHR float block_examination_num[MAX_SERP_LENGTH];
     SHR float block_examination_denom;
     block_examination_denom = 0.f;
-    for (int rank = 0; rank < MAX_SERP_LENGTH; rank++) {
-        block_examination_num[rank] = 0.f;
+    if (block_index < MAX_SERP_LENGTH) {
+        block_examination_num[block_index] = 0.f;
     }
     // Wait for all threads to finish initializing shared memory.
     __syncthreads();
@@ -546,7 +538,7 @@ DEV void PBM_Dev::update_examination_parameters(SERP& query_session, int& thread
             rank = (start_rank + offset) % MAX_SERP_LENGTH;
 
             // Atomically add the numerator and denominator values to shared memory.
-            atomicAddArch(&block_examination_num[rank], this->tmp_examination_parameters[thread_index * MAX_SERP_LENGTH + rank].numerator_val());
+            atomicAddArch(&block_examination_num[rank], this->tmp_examination_parameters[rank * partition_size + thread_index].numerator_val());
             atomicAddArch(&block_examination_denom, 1.f / MAX_SERP_LENGTH);
         }
     }
@@ -559,6 +551,92 @@ DEV void PBM_Dev::update_examination_parameters(SERP& query_session, int& thread
     }
 }
 
+// DEV void warp_reduce(volatile float* shared_data, int block_index) {
+//     if (block_index < 64) shared_data[block_index] += shared_data[block_index + 64];
+//     if (block_index < 32) shared_data[block_index] += shared_data[block_index + 32];
+//     if (block_index < 16) shared_data[block_index] += shared_data[block_index + 16];
+//     if (block_index < 8) shared_data[block_index] += shared_data[block_index + 8];
+//     if (block_index < 4) shared_data[block_index] += shared_data[block_index + 4];
+//     if (block_index < 2) shared_data[block_index] += shared_data[block_index + 2];
+//     if (block_index < 1) shared_data[block_index] += shared_data[block_index + 1];
+// }
+
+// DEV void PBM_Dev::update_examination_parameters(SERP& query_session, int& thread_index, int& block_index, int& partition_size) {
+//     // Initialize shared memory for this block's examination parameters at 0.
+//     SHR float numerator[BLOCK_SIZE];
+//     SHR float denominator[BLOCK_SIZE];
+
+//     for (int rank = 0; rank < MAX_SERP_LENGTH; rank++) {
+//         if (thread_index < partition_size) {
+//             Param tmp_param = this->tmp_examination_parameters[rank * partition_size + thread_index];
+//             numerator[block_index] = tmp_param.numerator_val();
+//             denominator[block_index] = tmp_param.denominator_val();
+//         } else {
+//             numerator[block_index] = 0.f;
+//             denominator[block_index] = 0.f;
+//         }
+//         __syncthreads();
+
+//         // Perform reduction in shared memory.
+//         for(unsigned int stride = blockDim.x / 2; stride > 64; stride >>= 1) {
+//             if (block_index < stride) {
+//                 numerator[block_index] += numerator[block_index + stride];
+//                 denominator[block_index] += denominator[block_index + stride];
+//             }
+//             __syncthreads();
+//         }
+
+//         // Use an unrolled version of the reduction loop for the last 64 elements.
+//         if (block_index < 64) {
+//             warp_reduce(numerator, block_index);
+//             warp_reduce(denominator, block_index);
+//         }
+
+//         // Have only the first thread of the block write the shared memory results
+//         // to global memory.
+//         if (block_index < MAX_SERP_LENGTH) {
+//             this->examination_parameters[rank].atomic_add_to_values(numerator[0], denominator[0]);
+//         }
+//     }
+// }
+
+// DEV void PBM_Dev::update_examination_parameters(SERP& query_session, int& thread_index, int& block_index, int& partition_size) {
+//     // Initialize shared memory for this block's examination parameters at 0.
+//     SHR float block_examination_num[BLOCK_SIZE];
+//     // SHR float block_examination_denom[BLOCK_SIZE];
+
+//     this->tmp_examination_parameters[thread_index * MAX_SERP_LENGTH + 0]
+//     block_examination_denom = 0.f;
+//     for (int rank = 0; rank < MAX_SERP_LENGTH; rank++) {
+//         block_examination_num[rank] = 0.f;
+//     }
+//     // Wait for all threads to finish initializing shared memory.
+//     __syncthreads();
+
+//     // Atomically add the values of the examination parameters of this thread's
+//     // query session to the shared examination parameters of this block.
+//     // Start every thread in this block at a different query session ranks
+//     // so prevent all threads from atomically writing to the same rank at the
+//     // same time.
+//     if (thread_index < partition_size) {
+//         int rank{0}, start_rank = block_index % MAX_SERP_LENGTH;
+//         for (int offset = 0; offset < MAX_SERP_LENGTH; offset++) {
+//             rank = (start_rank + offset) % MAX_SERP_LENGTH;
+
+//             // Atomically add the numerator and denominator values to shared memory.
+//             atomicAddArch(&block_examination_num[rank], this->tmp_examination_parameters[rank * partition_size + thread_index].numerator_val());
+//             // atomicAddArch(&block_examination_denom, 1.f / MAX_SERP_LENGTH);
+//         }
+//     }
+//     // Wait for all threads to finish writing to shared memory.
+//     __syncthreads();
+//     // Have only the first few threads of the block write the shared memory
+//     // results to global memory.
+//     if (block_index < MAX_SERP_LENGTH) {
+//         this->examination_parameters[block_index].atomic_add_to_values(block_examination_num[block_index], BLOCK_SIZE * 1.f / MAX_SERP_LENGTH);
+//     }
+// }
+
 /**
  * @brief Update the global attractiveness parameters using the local
  * attractiveness parameters of a single thread.
@@ -566,11 +644,11 @@ DEV void PBM_Dev::update_examination_parameters(SERP& query_session, int& thread
  * @param query_session The query session of this thread.
  * @param thread_index The index of this thread.
  */
-DEV void PBM_Dev::update_attractiveness_parameters(SERP& query_session, int& thread_index) {
+DEV void PBM_Dev::update_attractiveness_parameters(SERP& query_session, int& thread_index, int& partition_size) {
     for (int rank = 0; rank < MAX_SERP_LENGTH; rank++) {
         SearchResult sr = query_session[rank];
         this->attractiveness_parameters[sr.get_param_index()].atomic_add_to_values(
-            this->tmp_attractiveness_parameters[thread_index * MAX_SERP_LENGTH + rank].numerator_val(),
+            this->tmp_attractiveness_parameters[rank * partition_size + thread_index].numerator_val(),
             1.f);
     }
 }

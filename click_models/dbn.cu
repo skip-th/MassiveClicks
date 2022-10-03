@@ -531,7 +531,7 @@ DEV void DBN_Dev::set_parameters(Param**& parameter_ptr, int* parameter_sizes) {
  * @param thread_index The index of the thread which will be estimating the
  * parameters.
  */
-DEV void DBN_Dev::process_session(SERP& query_session, int& thread_index) {
+DEV void DBN_Dev::process_session(SERP& query_session, int& thread_index, int& partition_size) {
     int last_click_rank = query_session.last_click_rank();
     float click_probs[MAX_SERP_LENGTH][MAX_SERP_LENGTH] = { 0.f };
     float exam_probs[MAX_SERP_LENGTH + 1];
@@ -541,8 +541,8 @@ DEV void DBN_Dev::process_session(SERP& query_session, int& thread_index) {
     this->tmp_gamma_parameters[thread_index].set_values(0.f, 0.f);
 
     this->compute_exam_car(thread_index, query_session, exam, car);
-    this->compute_dbn_attr(thread_index, query_session, last_click_rank, exam, car);
-    this->compute_dbn_sat(thread_index, query_session, last_click_rank, car);
+    this->compute_dbn_attr(thread_index, query_session, last_click_rank, exam, car, partition_size);
+    this->compute_dbn_sat(thread_index, query_session, last_click_rank, car, partition_size);
     this->get_tail_clicks(thread_index, query_session, click_probs, exam_probs);
     this->compute_gamma(thread_index, query_session, last_click_rank, click_probs, exam_probs);
 }
@@ -607,7 +607,7 @@ DEV void DBN_Dev::compute_exam_car(int& thread_index, SERP& query_session, float
  * always examined (1).
  * @param car
  */
-DEV void DBN_Dev::compute_dbn_attr(int& thread_index, SERP& query_session, int& last_click_rank, float (&exam)[MAX_SERP_LENGTH + 1], float (&car)[MAX_SERP_LENGTH + 1]) {
+DEV void DBN_Dev::compute_dbn_attr(int& thread_index, SERP& query_session, int& last_click_rank, float (&exam)[MAX_SERP_LENGTH + 1], float (&car)[MAX_SERP_LENGTH + 1], int& partition_size) {
     float numerator_update, denominator_update;
     float exam_val, attr_val,  car_val;
 
@@ -628,7 +628,7 @@ DEV void DBN_Dev::compute_dbn_attr(int& thread_index, SERP& query_session, int& 
             numerator_update += (attr_val * (1 - exam_val)) / (1 - exam_val * car_val);
         }
 
-        this->tmp_attractiveness_parameters[thread_index * MAX_SERP_LENGTH + rank].set_values(numerator_update, denominator_update);
+        this->tmp_attractiveness_parameters[rank * partition_size + thread_index].set_values(numerator_update, denominator_update);
     }
 }
 
@@ -644,7 +644,7 @@ DEV void DBN_Dev::compute_dbn_attr(int& thread_index, SERP& query_session, int& 
  * clicked.
  * @param car
  */
-DEV void DBN_Dev::compute_dbn_sat(int& thread_index, SERP& query_session, int& last_click_rank, float (&car)[MAX_SERP_LENGTH + 1]) {
+DEV void DBN_Dev::compute_dbn_sat(int& thread_index, SERP& query_session, int& last_click_rank, float (&car)[MAX_SERP_LENGTH + 1], int& partition_size) {
     float numerator_update, denominator_update;
     float gamma_val, sat_val, car_val;
 
@@ -668,7 +668,7 @@ DEV void DBN_Dev::compute_dbn_sat(int& thread_index, SERP& query_session, int& l
                 numerator_update += sat_val / (1 - (1 - sat_val) * gamma_val * car_val);
             }
 
-            this->tmp_satisfaction_parameters[thread_index * MAX_SERP_LENGTH + rank].set_values(numerator_update, denominator_update);
+            this->tmp_satisfaction_parameters[rank * partition_size + thread_index].set_values(numerator_update, denominator_update);
         }
     }
 }
@@ -777,8 +777,8 @@ DEV void DBN_Dev::update_parameters(SERP& query_session, int& thread_index, int&
     this->update_gamma_parameters(query_session, thread_index, block_index, partition_size);
 
     if (thread_index < partition_size) {
-        this->update_attractiveness_parameters(query_session, thread_index);
-        this->update_satisfaction_parameters(query_session, thread_index);
+        this->update_attractiveness_parameters(query_session, thread_index, partition_size);
+        this->update_satisfaction_parameters(query_session, thread_index, partition_size);
     }
 }
 
@@ -807,18 +807,68 @@ DEV void DBN_Dev::update_gamma_parameters(SERP& query_session, int& thread_index
     // same time.
     if (thread_index < partition_size) {
         // Atomically add the numerator and denominator values to shared memory.
-        atomicAddArch(&block_gamma_num, this->tmp_gamma_parameters[thread_index].numerator_val());
-        atomicAddArch(&block_gamma_denom, this->tmp_gamma_parameters[thread_index].denominator_val());
+        Param gamma_update = this->tmp_gamma_parameters[thread_index];
+        atomicAddArch(&block_gamma_num, gamma_update.numerator_val());
+        atomicAddArch(&block_gamma_denom, gamma_update.denominator_val());
     }
     // Wait for all threads to finish writing to shared memory.
     __syncthreads();
 
-    // Have only the first thread of the block write the shared memory
-    // results to global memory.
+    // Have only the first thread of the block write the shared memory results
+    // to global memory.
     if (block_index == 0) {
         this->gamma_parameters[block_index].atomic_add_to_values(block_gamma_num, block_gamma_denom);
     }
 }
+
+// DEV void warp_reduce(volatile float* shared_data, int block_index) {
+//     if (block_index < 64) shared_data[block_index] += shared_data[block_index + 64];
+//     if (block_index < 32) shared_data[block_index] += shared_data[block_index + 32];
+//     if (block_index < 16) shared_data[block_index] += shared_data[block_index + 16];
+//     if (block_index < 8) shared_data[block_index] += shared_data[block_index + 8];
+//     if (block_index < 4) shared_data[block_index] += shared_data[block_index + 4];
+//     if (block_index < 2) shared_data[block_index] += shared_data[block_index + 2];
+//     if (block_index < 1) shared_data[block_index] += shared_data[block_index + 1];
+// }
+
+// DEV void DBN_Dev::update_gamma_parameters(SERP& query_session, int& thread_index, int& block_index, int& partition_size) {
+//     // Declare a shared memory array for the continuation parameters.
+//     SHR float numerator[BLOCK_SIZE];
+//     SHR float denominator[BLOCK_SIZE];
+//     // Retrieve the parameter values from global memory.
+//     if (thread_index < partition_size) {
+//         Param gamma_update = this->tmp_gamma_parameters[thread_index];
+//         numerator[block_index] = gamma_update.numerator_val();
+//         denominator[block_index] = gamma_update.denominator_val();
+//     }
+//     else {
+//         numerator[block_index] = 0.f;
+//         denominator[block_index] = 0.f;
+//     }
+//     __syncthreads();
+
+//     // Perform reduction in shared memory.
+//     for(unsigned int stride = blockDim.x / 2; stride > 64; stride >>= 1) {
+//         if (block_index < stride) {
+//             numerator[block_index] += numerator[block_index + stride];
+//             denominator[block_index] += denominator[block_index + stride];
+//         }
+//         __syncthreads();
+//     }
+
+//     // Use an unrolled version of the reduction loop for the last 64 elements.
+//     if (block_index < 64) {
+//         warp_reduce(numerator, block_index);
+//         warp_reduce(denominator, block_index);
+//     }
+
+//     // Have only the first thread of the block write the shared memory results
+//     // to global memory.
+//     if (block_index == 0) {
+//         this->gamma_parameters[block_index].atomic_add_to_values(numerator[0],
+//                                                                  denominator[0]);
+//     }
+// }
 
 /**
  * @brief Update the global attractiveness parameters using the local
@@ -827,12 +877,12 @@ DEV void DBN_Dev::update_gamma_parameters(SERP& query_session, int& thread_index
  * @param query_session The query session of this thread.
  * @param thread_index The index of this thread.
  */
-DEV void DBN_Dev::update_attractiveness_parameters(SERP& query_session, int& thread_index) {
+DEV void DBN_Dev::update_attractiveness_parameters(SERP& query_session, int& thread_index, int& partition_size) {
     for (int rank = 0; rank < MAX_SERP_LENGTH; rank++) {
         SearchResult sr = query_session[rank];
-        this->attractiveness_parameters[sr.get_param_index()].atomic_add_to_values(
-            this->tmp_attractiveness_parameters[thread_index * MAX_SERP_LENGTH + rank].numerator_val(),
-            this->tmp_attractiveness_parameters[thread_index * MAX_SERP_LENGTH + rank].denominator_val());
+        Param atr_update = this->tmp_attractiveness_parameters[rank * partition_size + thread_index];
+        this->attractiveness_parameters[sr.get_param_index()].atomic_add_to_values(atr_update.numerator_val(),
+                                                                                   atr_update.denominator_val());
     }
 }
 
@@ -845,11 +895,11 @@ DEV void DBN_Dev::update_attractiveness_parameters(SERP& query_session, int& thr
  * @param block_index The index of the block in which this thread exists.
  * @param partition_size The size of the dataset.
  */
-DEV void DBN_Dev::update_satisfaction_parameters(SERP& query_session, int& thread_index) {
+DEV void DBN_Dev::update_satisfaction_parameters(SERP& query_session, int& thread_index, int& partition_size) {
     for (int rank = 0; rank < MAX_SERP_LENGTH; rank++) {
         SearchResult sr = query_session[rank];
-        this->satisfaction_parameters[sr.get_param_index()].atomic_add_to_values(
-            this->tmp_satisfaction_parameters[thread_index * MAX_SERP_LENGTH + rank].numerator_val(),
-            this->tmp_satisfaction_parameters[thread_index * MAX_SERP_LENGTH + rank].denominator_val());
+        Param sat_update = this->tmp_satisfaction_parameters[rank * partition_size + thread_index];
+        this->satisfaction_parameters[sr.get_param_index()].atomic_add_to_values(sat_update.numerator_val(),
+                                                                                 sat_update.denominator_val());
     }
 }

@@ -536,7 +536,7 @@ DEV void TMP_Dev::set_parameters(Param**& parameter_ptr, int* parameter_sizes) {
  * @param thread_index The index of the thread which will be estimating the
  * parameters.
  */
-DEV void TMP_Dev::process_session(SERP& query_session, int& thread_index) {
+DEV void TMP_Dev::process_session(SERP& query_session, int& thread_index, int& partition_size) {
     int query_id = query_session.get_query();
     for (int rank = 0; rank < MAX_SERP_LENGTH; rank++) {
         SearchResult sr = query_session[rank];
@@ -564,8 +564,8 @@ DEV void TMP_Dev::process_session(SERP& query_session, int& thread_index) {
         }
 
         // Store the temporary attractiveness and examination parameters.
-        this->tmp_attractiveness_parameters[thread_index * MAX_SERP_LENGTH + rank].set_values(new_numerator_atr, 1);
-        this->tmp_examination_parameters[thread_index * MAX_SERP_LENGTH + rank].set_values(new_numerator_ex, 1);
+        this->tmp_attractiveness_parameters[rank * partition_size + thread_index].set_values(new_numerator_atr, 1);
+        this->tmp_examination_parameters[rank * partition_size + thread_index].set_values(new_numerator_ex, 1);
 
         // TODO, perform some computation with example_parameters and store the result in tmp_example_parameters.
     }
@@ -586,7 +586,7 @@ DEV void TMP_Dev::update_parameters(SERP& query_session, int& thread_index, int&
     this->update_example_parameters(query_session, thread_index);
 
     if (thread_index < partition_size) {
-        this->update_attractiveness_parameters(query_session, thread_index);
+        this->update_attractiveness_parameters(query_session, thread_index, partition_size);
         // this->update_example_parameters(query_session, thread_index);
     }
 }
@@ -623,7 +623,7 @@ DEV void TMP_Dev::update_examination_parameters(SERP& query_session, int& thread
             SearchResult sr = query_session[rank];
 
             // Atomically add the numerator and denominator values to shared memory.
-            atomicAddArch(&block_examination_num[rank], this->tmp_examination_parameters[thread_index * MAX_SERP_LENGTH + rank].numerator_val());
+            atomicAddArch(&block_examination_num[rank], this->tmp_examination_parameters[rank * partition_size + thread_index].numerator_val());
             atomicAddArch(&block_examination_denom, 1.f / MAX_SERP_LENGTH);
         }
     }
@@ -644,11 +644,11 @@ DEV void TMP_Dev::update_examination_parameters(SERP& query_session, int& thread
  * @param query_session The query session of this thread.
  * @param thread_index The index of this thread.
  */
-DEV void TMP_Dev::update_attractiveness_parameters(SERP& query_session, int& thread_index) {
+DEV void TMP_Dev::update_attractiveness_parameters(SERP& query_session, int& thread_index, int& partition_size) {
     for (int rank = 0; rank < MAX_SERP_LENGTH; rank++) {
         SearchResult sr = query_session[rank];
         this->attractiveness_parameters[sr.get_param_index()].atomic_add_to_values(
-            this->tmp_attractiveness_parameters[thread_index * MAX_SERP_LENGTH + rank].numerator_val(),
+            this->tmp_attractiveness_parameters[rank * partition_size + thread_index].numerator_val(),
             1.f);
     }
 }

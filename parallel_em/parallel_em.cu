@@ -136,12 +136,12 @@ void em_parallel(const int model_type, const int node_id, const int n_nodes, con
     for (int did = 0; did < n_devices; did++) {
         int n_queries = std::get<0>(device_partitions[did]).size();
         // Number of threads per block.
-        int n_threads = 96;
+        int block_size = BLOCK_SIZE;
         // Calculate the number of blocks in which the array size can be split
         // up. (block_size - 1) is used to ensure that there won't be an
         // insufficient amount of blocks.
-        kernel_dims[did * 2] = (n_queries + (n_threads - 1)) / n_threads;
-        kernel_dims[did * 2 + 1] = n_threads;
+        kernel_dims[did * 2] = (n_queries + (block_size - 1)) / block_size;
+        kernel_dims[did * 2 + 1] = block_size;
 
         std::cout << "(" << node_id << ", " << did << "), kernel dimensions = <<<" << kernel_dims[did * 2] << ", " << kernel_dims[did * 2 + 1] << ">>>" << std::endl;
     }
@@ -163,12 +163,12 @@ void em_parallel(const int model_type, const int node_id, const int n_nodes, con
 
             CUDA_CHECK(cudaSetDevice(device_id));
 
-            int gridSize = kernel_dims[device_id * 2];
-            int blockSize = kernel_dims[device_id * 2 + 1];
+            int grid_size = kernel_dims[device_id * 2];
+            int block_size = kernel_dims[device_id * 2 + 1];
             int dataset_size = std::get<0>(device_partitions[device_id]).size();
 
             CUDA_CHECK(cudaEventRecord(start_events[device_id], 0));
-            Kernel::em_training<<<gridSize, blockSize>>>(dataset_dev[device_id], dataset_size);
+            Kernel::em_training<<<grid_size, block_size>>>(dataset_dev[device_id], dataset_size);
             CUDA_CHECK(cudaEventRecord(end_events[device_id], 0));
         }
 
@@ -198,7 +198,6 @@ void em_parallel(const int model_type, const int node_id, const int n_nodes, con
             auto h2d_start_time = std::chrono::high_resolution_clock::now();
 
             cm_hosts[device_id]->reset_parameters();
-            // reset_kernel<<<1, 1>>>();
 
             auto h2d_stop_time = std::chrono::high_resolution_clock::now();
             avg_time_h2d += (h2d_stop_time - h2d_start_time) / n_itr;
@@ -217,12 +216,12 @@ void em_parallel(const int model_type, const int node_id, const int n_nodes, con
         for (int device_id = 0; device_id < n_devices; device_id++) {
             CUDA_CHECK(cudaSetDevice(device_id));
 
-            int gridSize = kernel_dims[device_id * 2];
-            int blockSize = kernel_dims[device_id * 2 + 1];
+            int grid_size = kernel_dims[device_id * 2];
+            int block_size = kernel_dims[device_id * 2 + 1];
             int dataset_size = std::get<0>(device_partitions[device_id]).size();
 
             CUDA_CHECK(cudaEventRecord(start_events[device_id], 0));
-            cm_hosts[device_id]->update_parameters(gridSize, blockSize, dataset_dev[device_id], dataset_size);
+            cm_hosts[device_id]->update_parameters(grid_size, block_size, dataset_dev[device_id], dataset_size);
             // cm_hosts[device_id]->update_parameters_on_host(std::get<0>(device_partitions[device_id]));
 
             CUDA_CHECK(cudaEventRecord(end_events[device_id], 0));
@@ -246,7 +245,6 @@ void em_parallel(const int model_type, const int node_id, const int n_nodes, con
         //-------------------------------------------------------------------//
         // Synchronize parameters across the nodes and devices.              //
         //-------------------------------------------------------------------//
-
 
         auto em_sync_itr_start_time = std::chrono::high_resolution_clock::now();
 
