@@ -23,6 +23,7 @@
 #include "macros.cuh"
 
 DEV void atomicAddArch(float* address, const float val);
+DEV void warp_reduce(volatile float* shared_data, int block_index);
 
 void get_number_devices(int *num_devices);
 int get_compute_capability(const int device);

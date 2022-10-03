@@ -792,83 +792,61 @@ DEV void DBN_Dev::update_parameters(SERP& query_session, int& thread_index, int&
  * @param partition_size The size of the dataset.
  */
 DEV void DBN_Dev::update_gamma_parameters(SERP& query_session, int& thread_index, int& block_index, int& partition_size) {
-    // Initialize shared memory for this block's continuation parameters at 0.
-    SHR float block_gamma_num;
-    SHR float block_gamma_denom;
-    block_gamma_num = 0.f;
-    block_gamma_denom = 0.f;
+    SHR float numerator[BLOCK_SIZE];
+    SHR float denominator[BLOCK_SIZE];
+
+    // Initialize shared memory for this block's parameters.
+    if (thread_index < partition_size) {
+        Param tmp_param = this->tmp_gamma_parameters[thread_index];
+        numerator[block_index] = tmp_param.numerator_val();
+        denominator[block_index] = tmp_param.denominator_val();
+    }
+    else {
+        numerator[block_index] = 0.f;
+        denominator[block_index] = 0.f;
+    }
     // Wait for all threads to finish initializing shared memory.
     __syncthreads();
 
-    // Atomically add the values of the continuation parameters of this thread's
-    // query session to the shared continuation parameters of this block.
-    // Start every thread in this block at a different query session ranks
-    // so prevent all threads from atomically writing to the same rank at the
-    // same time.
-    if (thread_index < partition_size) {
-        // Atomically add the numerator and denominator values to shared memory.
-        Param gamma_update = this->tmp_gamma_parameters[thread_index];
-        atomicAddArch(&block_gamma_num, gamma_update.numerator_val());
-        atomicAddArch(&block_gamma_denom, gamma_update.denominator_val());
+    // Perform sum reducution in shared memory using an unrolled
+    // for-loop.
+    if (BLOCK_SIZE >= 512) {
+        if (block_index < 256) {
+            numerator[block_index] += numerator[block_index + 256];
+            denominator[block_index] += denominator[block_index + 256];
+        }
+        __syncthreads();
     }
-    // Wait for all threads to finish writing to shared memory.
-    __syncthreads();
+    if (BLOCK_SIZE >= 256) {
+        if (block_index < 128) {
+            numerator[block_index] += numerator[block_index + 128];
+            denominator[block_index] += denominator[block_index + 128];
+        }
+        __syncthreads();
+    }
+    if (BLOCK_SIZE >= 128) {
+        if (block_index < 64) {
+            numerator[block_index] += numerator[block_index + 64];
+            denominator[block_index] += denominator[block_index + 64];
+        }
+        __syncthreads();
+    }
+
+    // Use an unrolled version of the reduction loop for the last 64
+    // elements without explicit thread synchronization. Warp-level
+    // threads (<32) are synchronized automatically.
+    if (block_index < 32) {
+        warp_reduce(numerator, block_index);
+        warp_reduce(denominator, block_index);
+    }
 
     // Have only the first thread of the block write the shared memory results
     // to global memory.
     if (block_index == 0) {
-        this->gamma_parameters[block_index].atomic_add_to_values(block_gamma_num, block_gamma_denom);
+        this->gamma_parameters[0].atomic_add_to_values(numerator[0],
+                                                       denominator[0]);
     }
 }
-
-// DEV void warp_reduce(volatile float* shared_data, int block_index) {
-//     if (block_index < 64) shared_data[block_index] += shared_data[block_index + 64];
-//     if (block_index < 32) shared_data[block_index] += shared_data[block_index + 32];
-//     if (block_index < 16) shared_data[block_index] += shared_data[block_index + 16];
-//     if (block_index < 8) shared_data[block_index] += shared_data[block_index + 8];
-//     if (block_index < 4) shared_data[block_index] += shared_data[block_index + 4];
-//     if (block_index < 2) shared_data[block_index] += shared_data[block_index + 2];
-//     if (block_index < 1) shared_data[block_index] += shared_data[block_index + 1];
-// }
-
-// DEV void DBN_Dev::update_gamma_parameters(SERP& query_session, int& thread_index, int& block_index, int& partition_size) {
-//     // Declare a shared memory array for the continuation parameters.
-//     SHR float numerator[BLOCK_SIZE];
-//     SHR float denominator[BLOCK_SIZE];
-//     // Retrieve the parameter values from global memory.
-//     if (thread_index < partition_size) {
-//         Param gamma_update = this->tmp_gamma_parameters[thread_index];
-//         numerator[block_index] = gamma_update.numerator_val();
-//         denominator[block_index] = gamma_update.denominator_val();
-//     }
-//     else {
-//         numerator[block_index] = 0.f;
-//         denominator[block_index] = 0.f;
-//     }
-//     __syncthreads();
-
-//     // Perform reduction in shared memory.
-//     for(unsigned int stride = blockDim.x / 2; stride > 64; stride >>= 1) {
-//         if (block_index < stride) {
-//             numerator[block_index] += numerator[block_index + stride];
-//             denominator[block_index] += denominator[block_index + stride];
-//         }
-//         __syncthreads();
-//     }
-
-//     // Use an unrolled version of the reduction loop for the last 64 elements.
-//     if (block_index < 64) {
-//         warp_reduce(numerator, block_index);
-//         warp_reduce(denominator, block_index);
-//     }
-
-//     // Have only the first thread of the block write the shared memory results
-//     // to global memory.
-//     if (block_index == 0) {
-//         this->gamma_parameters[block_index].atomic_add_to_values(numerator[0],
-//                                                                  denominator[0]);
-//     }
-// }
 
 /**
  * @brief Update the global attractiveness parameters using the local

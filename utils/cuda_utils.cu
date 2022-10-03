@@ -42,6 +42,23 @@
 #endif
 
 /**
+ * @brief Reduce the values of a shared memory array to a single sum stored in
+ * the first index.
+ *
+ * @param shared_data The array shared by the entire thread block containing
+ * the elements to be summed.
+ * @param block_index The index of the block in which this thread exists.
+ */
+DEV void warp_reduce(volatile float* shared_data, int block_index) {
+    if (BLOCK_SIZE >= 64) shared_data[block_index] += shared_data[block_index + 32];
+    if (BLOCK_SIZE >= 32) shared_data[block_index] += shared_data[block_index + 16];
+    if (BLOCK_SIZE >= 16) shared_data[block_index] += shared_data[block_index + 8];
+    if (BLOCK_SIZE >= 8) shared_data[block_index] += shared_data[block_index + 4];
+    if (BLOCK_SIZE >= 4) shared_data[block_index] += shared_data[block_index + 2];
+    if (BLOCK_SIZE >= 2) shared_data[block_index] += shared_data[block_index + 1];
+}
+
+/**
  * @brief Get the number of GPU devices available on this machine.
  *
  * @param num_devices Integer used to store the number of GPU devices.

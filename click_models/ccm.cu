@@ -719,90 +719,63 @@ DEV void CCM_Dev::update_parameters(SERP& query_session, int& thread_index, int&
  * @param partition_size The size of the dataset.
  */
 DEV void CCM_Dev::update_tau_parameters(SERP& query_session, int& thread_index, int& block_index, int& partition_size) {
-    // Initialize shared memory for this block's continuation parameters at 0.
-    SHR float block_continuation_num[3];
-    SHR float block_continuation_denom[3];
-    if (block_index < 3) {
-        block_continuation_num[block_index] = 0.f;
-        block_continuation_denom[block_index] = 0.f;
-    }
-    // Wait for all threads to finish initializing shared memory.
-    __syncthreads();
+    SHR float numerator[BLOCK_SIZE];
+    SHR float denominator[BLOCK_SIZE];
 
-    // Atomically add the values of the continuation parameters of this thread's
-    // query session to the shared continuation parameters of this block.
-    // Start every thread in this block at a different query session ranks
-    // so prevent all threads from atomically writing to the same rank at the
-    // same time.
-    if (thread_index < partition_size) {
-        int tau_num{0}, start_rank = block_index % 3;
-        for (int offset = 0; offset < 3; offset++) {
-            tau_num = (start_rank + offset) % 3;
+    for (int tau_num = 0; tau_num < 3; tau_num++) {
+        // Initialize shared memory for this block's parameters.
+        if (thread_index < partition_size) {
+            Param tmp_param = this->tmp_tau_parameters[tau_num * partition_size + thread_index];
+            numerator[block_index] = tmp_param.numerator_val();
+            denominator[block_index] = tmp_param.denominator_val();
+        }
+        else {
+            numerator[block_index] = 0.f;
+            denominator[block_index] = 0.f;
+        }
+        // Wait for all threads to finish initializing shared memory.
+        __syncthreads();
 
-            Param tau_update = this->tmp_tau_parameters[tau_num * partition_size + thread_index];
-            atomicAddArch(&block_continuation_num[tau_num], tau_update.numerator_val());
-            atomicAddArch(&block_continuation_denom[tau_num], tau_update.denominator_val());
+        // Perform sum reducution in shared memory using an unrolled
+        // for-loop.
+        if (BLOCK_SIZE >= 512) {
+            if (block_index < 256) {
+                numerator[block_index] += numerator[block_index + 256];
+                denominator[block_index] += denominator[block_index + 256];
+            }
+            __syncthreads();
+        }
+        if (BLOCK_SIZE >= 256) {
+            if (block_index < 128) {
+                numerator[block_index] += numerator[block_index + 128];
+                denominator[block_index] += denominator[block_index + 128];
+            }
+            __syncthreads();
+        }
+        if (BLOCK_SIZE >= 128) {
+            if (block_index < 64) {
+                numerator[block_index] += numerator[block_index + 64];
+                denominator[block_index] += denominator[block_index + 64];
+            }
+            __syncthreads();
+        }
+
+        // Use an unrolled version of the reduction loop for the last 64
+        // elements without explicit thread synchronization. Warp-level
+        // threads (<32) are synchronized automatically.
+        if (block_index < 32) {
+            warp_reduce(numerator, block_index);
+            warp_reduce(denominator, block_index);
+        }
+
+        // Have only the first thread of the block write the shared memory results
+        // to global memory.
+        if (block_index == 0) {
+            this->tau_parameters[tau_num].atomic_add_to_values(numerator[0],
+                                                               denominator[0]);
         }
     }
-    // Wait for all threads to finish writing to shared memory.
-    __syncthreads();
-
-    // Have only the first few threads of the block write the shared memory
-    // results to global memory.
-    if (block_index < 3) {
-        this->tau_parameters[block_index].atomic_add_to_values(block_continuation_num[block_index], block_continuation_denom[block_index]);
-    }
 }
-
-
-// DEV void warp_reduce(volatile float* shared_data, int block_index) {
-//     if (block_index < 64) shared_data[block_index] += shared_data[block_index + 64];
-//     if (block_index < 32) shared_data[block_index] += shared_data[block_index + 32];
-//     if (block_index < 16) shared_data[block_index] += shared_data[block_index + 16];
-//     if (block_index < 8) shared_data[block_index] += shared_data[block_index + 8];
-//     if (block_index < 4) shared_data[block_index] += shared_data[block_index + 4];
-//     if (block_index < 2) shared_data[block_index] += shared_data[block_index + 2];
-//     if (block_index < 1) shared_data[block_index] += shared_data[block_index + 1];
-// }
-
-// DEV void PBM_Dev::update_tau_parameters(SERP& query_session, int& thread_index, int& block_index, int& partition_size) {
-//     // Initialize shared memory for this block's examination parameters at 0.
-//     SHR float numerator[BLOCK_SIZE];
-//     SHR float denominator[BLOCK_SIZE];
-
-//     for (int rank = 0; rank < MAX_SERP_LENGTH; rank++) {
-//         if (thread_index < partition_size) {
-//             Param tmp_param = this->tmp_examination_parameters[rank * partition_size + thread_index];
-//             numerator[block_index] = tmp_param.numerator_val();
-//             denominator[block_index] = tmp_param.denominator_val();
-//         } else {
-//             numerator[block_index] = 0.f;
-//             denominator[block_index] = 0.f;
-//         }
-//         __syncthreads();
-
-//         // Perform reduction in shared memory.
-//         for(unsigned int stride = blockDim.x / 2; stride > 64; stride >>= 1) {
-//             if (block_index < stride) {
-//                 numerator[block_index] += numerator[block_index + stride];
-//                 denominator[block_index] += denominator[block_index + stride];
-//             }
-//             __syncthreads();
-//         }
-
-//         // Use an unrolled version of the reduction loop for the last 64 elements.
-//         if (block_index < 64) {
-//             warp_reduce(numerator, block_index);
-//             warp_reduce(denominator, block_index);
-//         }
-
-//         // Have only the first thread of the block write the shared memory results
-//         // to global memory.
-//         if (block_index < MAX_SERP_LENGTH) {
-//             this->examination_parameters[rank].atomic_add_to_values(numerator[0], denominator[0]);
-//         }
-//     }
-// }
 
 /**
  * @brief Update the global attractiveness parameters using the local
