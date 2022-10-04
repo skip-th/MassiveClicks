@@ -11,6 +11,6 @@ the training process. The following click models are supported:
 
 ## TODO
 
+- Add multi-node CPU-only click model training support.
 - Retrieve distributed parameters and combine them on the root node into a complete click model.
-- Add check to see if data will fit in gpu memory.
-- Combine ClickModel_Host and _Dev.
+- Combine ClickModel_Hst and _Dev.
