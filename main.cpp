@@ -92,37 +92,54 @@ int main(int argc, char** argv) {
     int job_id{0};
     float test_share{0.2};
     int total_n_devices{Utils::sum(n_devices_network, n_nodes)};
+    bool help{false};
 
+    // Parse input parameters.
     if (argc > 2) {
         for (int i = 1; i < argc; ++i) {
-            if (std::string(argv[i]) == "--raw-path") {
+            if (std::string(argv[i]) == "--raw-path" || std::string(argv[i]) == "-r") {
                 raw_dataset_path = argv[i + 1];
             }
-            else if (std::string(argv[i]) == "--itr") {
+            else if (std::string(argv[i]) == "--itr" || std::string(argv[i]) == "-i") {
                 n_iterations = std::stoi(argv[i + 1]);
             }
-            else if (std::string(argv[i]) == "--max-sessions") {
-                max_sessions = std::stoi(argv[i+1]);
+            else if (std::string(argv[i]) == "--max-sessions" || std::string(argv[i]) == "-s") {
+                max_sessions = std::stoi(argv[i + 1]);
             }
-            else if (std::string(argv[i]) == "--model-type") {
-                model_type = std::stoi(argv[i+1]);
+            else if (std::string(argv[i]) == "--model-type" || std::string(argv[i]) == "-m") {
+                model_type = std::stoi(argv[i + 1]);
             }
-            else if (std::string(argv[i]) == "--partition-type") {
-                partitioning_type = std::stoi(argv[i+1]);
+            else if (std::string(argv[i]) == "--partition-type" || std::string(argv[i]) == "-p") {
+                partitioning_type = std::stoi(argv[i + 1]);
             }
-            else if (std::string(argv[i]) == "--test-share") {
-                test_share = std::stod(argv[i+1]);
+            else if (std::string(argv[i]) == "--test-share" || std::string(argv[i]) == "-t") {
+                test_share = std::stod(argv[i + 1]);
             }
-            else if (std::string(argv[i]) == "--job-id") {
-                job_id = std::stoi(argv[i+1]);
+            else if (std::string(argv[i]) == "--job-id" || std::string(argv[i]) == "-j") {
+                job_id = std::stoi(argv[i + 1]);
+            }
+            else if (std::string(argv[i]) == "--help" || std::string(argv[i]) == "-h") {
+                help = true;
             }
             else if (std::string(argv[i]).rfind("-", 0) == 0) {
                 if (node_id == ROOT) {
-                    std::cout << "Did not recognize argument \"" <<
-                    std::string(argv[i]) << "\"" << std::endl;
+                    std::cout << "Did not recognize argument \'" <<
+                    std::string(argv[i]) << "\'." << std::endl;
                 }
+                help = true;
             }
         }
+    }
+
+    // Display help message and shutdown execution.
+    if (help) {
+        if (node_id == ROOT) {
+            print_help_msg();
+        }
+
+        // End MPI communication and exit.
+        Communicate::finalize();
+        return EXIT_FAILURE;
     }
 
     // Show job information on the root node.

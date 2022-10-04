@@ -11,6 +11,7 @@
 #include <cstdlib>
 #include <cmath>
 #include <limits>
+#include <iostream>
 
 namespace Utils
 {
@@ -58,5 +59,8 @@ namespace Utils
         return digit_str;
     }
 }
+
+// Display the help message.
+void print_help_msg(void);
 
 #endif // CLICK_MODEL_UTILS_H

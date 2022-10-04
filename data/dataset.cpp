@@ -489,7 +489,7 @@ void parse_dataset(Dataset &dataset, const std::string& raw_dataset_path, int ma
         }
     }
     else {
-        std::cout << "Unable to open the raw dataset." << std::endl;
+        std::cout << "Error: Unable to open the raw dataset.\n" << std::endl;
         mpi_abort(-1);
     }
 
