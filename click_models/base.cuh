@@ -31,7 +31,7 @@ public:
     HST virtual ClickModel_Hst* clone() = 0;
     HST virtual void say_hello() = 0;
     HST virtual size_t get_memory_usage(void) = 0;
-    HST virtual void init_parameters(const std::tuple<std::vector<SERP>, std::vector<SERP>, int>& partition, int n_devices) = 0;
+    HST virtual void init_parameters(const std::tuple<std::vector<SERP>, std::vector<SERP>, int>& partition, const size_t fmem) = 0;
     HST virtual void get_device_references(Param**& param_refs, int*& param_sizes) = 0;
     HST virtual void update_parameters(int& gridSize, int& blockSize, SERP*& partition, int& dataset_size) = 0;
     HST virtual void reset_parameters(void) = 0;

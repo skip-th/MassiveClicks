@@ -67,7 +67,7 @@ HST size_t TMP_Hst::get_memory_usage(void) {
  * query-document pairs in the training set.
  * @param n_devices The number of devices on this node.
  */
-HST void TMP_Hst::init_attractiveness_parameters(const std::tuple<std::vector<SERP>, std::vector<SERP>, int>& partition, int n_devices) {
+HST void TMP_Hst::init_attractiveness_parameters(const std::tuple<std::vector<SERP>, std::vector<SERP>, int>& partition, const size_t& fmem) {
     Param default_parameter;
     default_parameter.set_values(PARAM_DEF_NUM, PARAM_DEF_DENOM);
 
@@ -96,7 +96,7 @@ HST void TMP_Hst::init_attractiveness_parameters(const std::tuple<std::vector<SE
  * query-document pairs in the training set.
  * @param n_devices The number of devices on this node.
  */
-HST void TMP_Hst::init_examination_parameters(const std::tuple<std::vector<SERP>, std::vector<SERP>, int>& partition, int n_devices) {
+HST void TMP_Hst::init_examination_parameters(const std::tuple<std::vector<SERP>, std::vector<SERP>, int>& partition, const size_t& fmem) {
     Param default_parameter;
     default_parameter.set_values(PARAM_DEF_NUM, PARAM_DEF_DENOM);
 
@@ -125,7 +125,7 @@ HST void TMP_Hst::init_examination_parameters(const std::tuple<std::vector<SERP>
  * query-document pairs in the training set.
  * @param n_devices The number of devices on this node.
  */
-HST void TMP_Hst::init_example_parameters(const std::tuple<std::vector<SERP>, std::vector<SERP>, int>& partition, int n_devices) {
+HST void TMP_Hst::init_example_parameters(const std::tuple<std::vector<SERP>, std::vector<SERP>, int>& partition, const size_t& fmem) {
     Param default_parameter;
     default_parameter.set_values(PARAM_DEF_NUM, PARAM_DEF_DENOM);
 
@@ -155,10 +155,10 @@ HST void TMP_Hst::init_example_parameters(const std::tuple<std::vector<SERP>, st
  * query-document pairs in the training set.
  * @param n_devices The number of devices on this node.
  */
-HST void TMP_Hst::init_parameters(const std::tuple<std::vector<SERP>, std::vector<SERP>, int>& partition, int n_devices) {
-    this->init_attractiveness_parameters(partition, n_devices);
-    this->init_examination_parameters(partition, n_devices);
-    this->init_example_parameters(partition, n_devices);
+HST void TMP_Hst::init_parameters(const std::tuple<std::vector<SERP>, std::vector<SERP>, int>& partition, const size_t fmem) {
+    this->init_attractiveness_parameters(partition, fmem);
+    this->init_examination_parameters(partition, fmem);
+    this->init_example_parameters(partition, fmem);
 }
 
 /**

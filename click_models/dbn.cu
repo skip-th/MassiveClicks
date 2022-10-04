@@ -55,12 +55,24 @@ HST size_t DBN_Hst::get_memory_usage(void) {
  * query-document pairs in the training set.
  * @param n_devices The number of devices on this node.
  */
-HST void DBN_Hst::init_attractiveness_parameters(const std::tuple<std::vector<SERP>, std::vector<SERP>, int>& partition, int n_devices) {
+HST void DBN_Hst::init_attractiveness_parameters(const std::tuple<std::vector<SERP>, std::vector<SERP>, int>& partition, const size_t& fmem) {
     Param default_parameter;
     default_parameter.set_values(PARAM_DEF_NUM, PARAM_DEF_DENOM);
 
-    // Allocate memory for the attractiveness parameters on the device.
+    // Compute the storage space required to store the parameters.
     this->n_attr_dev = std::get<2>(partition);
+    this->n_tmp_attr_dev = std::get<0>(partition).size() * MAX_SERP_LENGTH;
+    // Store the number of allocated bytes.
+    this->cm_memory_usage += this->n_attr_dev * sizeof(Param) + this->n_tmp_attr_dev * sizeof(Param);
+    // Check if the new parameters will fit in GPU memory using a 0.1% error margin.
+    if (this->cm_memory_usage * 1.001 > fmem) {
+        std::cout << "Error: Insufficient GPU memory!\n" <<
+        "\tAllocating attractiveness parameters requires an additional " <<
+        (this->cm_memory_usage - fmem) / 1e6 << " MB of GPU memory." << std::endl;
+        mpi_abort(-1);
+    }
+
+    // Allocate memory for the attractiveness parameters on the device.
     this->attractiveness_parameters.resize(this->n_attr_dev, default_parameter);
     CUDA_CHECK(cudaMalloc(&this->attr_param_dptr, this->n_attr_dev * sizeof(Param)));
     CUDA_CHECK(cudaMemcpy(this->attr_param_dptr, this->attractiveness_parameters.data(),
@@ -69,12 +81,8 @@ HST void DBN_Hst::init_attractiveness_parameters(const std::tuple<std::vector<SE
     // Allocate memory for the temporary attractiveness parameters on the device.
     // These values are replaced at the start of each iteration, which means
     // they don't need to be initialized with a CUDA memory copy.
-    this->n_tmp_attr_dev = std::get<0>(partition).size() * MAX_SERP_LENGTH;
     this->tmp_attractiveness_parameters.resize(this->n_tmp_attr_dev);
     CUDA_CHECK(cudaMalloc(&this->tmp_attr_param_dptr, this->n_tmp_attr_dev * sizeof(Param)));
-
-    // Store the number of allocated bytes.
-    this->cm_memory_usage += this->n_attr_dev * sizeof(Param) + this->n_tmp_attr_dev * sizeof(Param);
 }
 
 /**
@@ -84,12 +92,24 @@ HST void DBN_Hst::init_attractiveness_parameters(const std::tuple<std::vector<SE
  * query-document pairs in the training set.
  * @param n_devices The number of devices on this node.
  */
-HST void DBN_Hst::init_satisfaction_parameters(const std::tuple<std::vector<SERP>, std::vector<SERP>, int>& partition, int n_devices) {
+HST void DBN_Hst::init_satisfaction_parameters(const std::tuple<std::vector<SERP>, std::vector<SERP>, int>& partition, const size_t& fmem) {
     Param default_parameter;
     default_parameter.set_values(PARAM_DEF_NUM, PARAM_DEF_DENOM);
 
-    // Allocate memory for the satisfaction parameters on the device.
+    // Compute the storage space required to store the parameters.
     this->n_satisfaction_dev = std::get<2>(partition);
+    this->n_tmp_satisfaction_dev = std::get<0>(partition).size() * MAX_SERP_LENGTH;
+    // Store the number of allocated bytes.
+    this->cm_memory_usage += this->n_satisfaction_dev * sizeof(Param) + this->n_tmp_satisfaction_dev * sizeof(Param);
+    // Check if the new parameters will fit in GPU memory using a 0.1% error margin.
+    if (this->cm_memory_usage * 1.001 > fmem) {
+        std::cout << "Error: Insufficient GPU memory!\n" <<
+        "\tAllocating satisfaction parameters requires an additional " <<
+        (this->cm_memory_usage - fmem) / 1e6 << " MB of GPU memory." << std::endl;
+        mpi_abort(-1);
+    }
+
+    // Allocate memory for the satisfaction parameters on the device.
     this->satisfaction_parameters.resize(this->n_satisfaction_dev, default_parameter);
     CUDA_CHECK(cudaMalloc(&this->satisfaction_param_dptr, this->n_satisfaction_dev * sizeof(Param)));
     CUDA_CHECK(cudaMemcpy(this->satisfaction_param_dptr, this->satisfaction_parameters.data(),
@@ -98,12 +118,8 @@ HST void DBN_Hst::init_satisfaction_parameters(const std::tuple<std::vector<SERP
     // Allocate memory for the temporary satisfaction parameters on the device.
     // These values are replaced at the start of each iteration, which means
     // they don't need to be initialized with a CUDA memory copy.
-    this->n_tmp_satisfaction_dev = std::get<0>(partition).size() * MAX_SERP_LENGTH;
     this->tmp_satisfaction_parameters.resize(this->n_tmp_satisfaction_dev);
     CUDA_CHECK(cudaMalloc(&this->tmp_satisfaction_param_dptr, this->n_tmp_satisfaction_dev * sizeof(Param)));
-
-    // Store the number of allocated bytes.
-    this->cm_memory_usage += this->n_satisfaction_dev * sizeof(Param) + this->n_tmp_satisfaction_dev * sizeof(Param);
 }
 
 /**
@@ -113,12 +129,24 @@ HST void DBN_Hst::init_satisfaction_parameters(const std::tuple<std::vector<SERP
  * query-document pairs in the training set.
  * @param n_devices The number of devices on this node.
  */
-HST void DBN_Hst::init_gamma_parameters(const std::tuple<std::vector<SERP>, std::vector<SERP>, int>& partition, int n_devices) {
+HST void DBN_Hst::init_gamma_parameters(const std::tuple<std::vector<SERP>, std::vector<SERP>, int>& partition, const size_t& fmem) {
     Param default_parameter;
     default_parameter.set_values(PARAM_DEF_NUM, PARAM_DEF_DENOM);
 
-    // Allocate memory for the continuation parameters on the device.
+    // Compute the storage space required to store the parameters.
     this->n_gamma_dev = 1;
+    this->n_tmp_gamma_dev = std::get<0>(partition).size() * this->n_gamma_dev;
+    // Store the number of allocated bytes.
+    this->cm_memory_usage += this->n_gamma_dev * sizeof(Param) + this->n_tmp_gamma_dev * sizeof(Param);
+    // Check if the new parameters will fit in GPU memory using a 0.1% error margin.
+    if (this->cm_memory_usage * 1.001 > fmem) {
+        std::cout << "Error: Insufficient GPU memory!\n" <<
+        "\tAllocating continuation parameters requires an additional " <<
+        (this->cm_memory_usage - fmem) / 1e6 << " MB of GPU memory." << std::endl;
+        mpi_abort(-1);
+    }
+
+    // Allocate memory for the continuation parameters on the device.
     this->gamma_parameters.resize(this->n_gamma_dev, default_parameter);
     CUDA_CHECK(cudaMalloc(&this->gamma_param_dptr, this->n_gamma_dev * sizeof(Param)));
     CUDA_CHECK(cudaMemcpy(this->gamma_param_dptr, this->gamma_parameters.data(),
@@ -127,12 +155,8 @@ HST void DBN_Hst::init_gamma_parameters(const std::tuple<std::vector<SERP>, std:
     // Allocate memory for the temporary continuation parameters on the device.
     // These values are replaced at the start of each iteration, which means
     // they don't need to be initialized with a CUDA memory copy.
-    this->n_tmp_gamma_dev = std::get<0>(partition).size() * this->n_gamma_dev;
     this->tmp_gamma_parameters.resize(this->n_tmp_gamma_dev);
     CUDA_CHECK(cudaMalloc(&this->tmp_gamma_param_dptr, this->n_tmp_gamma_dev * sizeof(Param)));
-
-    // Store the number of allocated bytes.
-    this->cm_memory_usage += this->n_gamma_dev * sizeof(Param) + this->n_tmp_gamma_dev * sizeof(Param);
 }
 
 /**
@@ -143,10 +167,10 @@ HST void DBN_Hst::init_gamma_parameters(const std::tuple<std::vector<SERP>, std:
  * query-document pairs in the training set.
  * @param n_devices The number of devices on this node.
  */
-HST void DBN_Hst::init_parameters(const std::tuple<std::vector<SERP>, std::vector<SERP>, int>& partition, int n_devices) {
-    this->init_attractiveness_parameters(partition, n_devices);
-    this->init_satisfaction_parameters(partition, n_devices);
-    this->init_gamma_parameters(partition, n_devices);
+HST void DBN_Hst::init_parameters(const std::tuple<std::vector<SERP>, std::vector<SERP>, int>& partition, const size_t fmem) {
+    this->init_attractiveness_parameters(partition, fmem);
+    this->init_satisfaction_parameters(partition, fmem);
+    this->init_gamma_parameters(partition, fmem);
 }
 
 /**

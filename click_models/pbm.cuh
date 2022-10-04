@@ -25,7 +25,7 @@ public:
     HST PBM_Hst* clone() override;
     HST void say_hello() override;
     HST size_t get_memory_usage(void) override;
-    HST void init_parameters(const std::tuple<std::vector<SERP>, std::vector<SERP>, int>& partition, const int n_devices) override;
+    HST void init_parameters(const std::tuple<std::vector<SERP>, std::vector<SERP>, int>& partition, const size_t fmem) override;
     HST void get_device_references(Param**& param_refs, int*& param_sizes) override;
     HST void update_parameters(int& gridSize, int& blockSize, SERP*& partition, int& dataset_size) override;
     HST void reset_parameters(void) override;
@@ -40,8 +40,8 @@ public:
     HST void get_full_click_probs(SERP& search_ses, std::vector<float> &full_click_probs) override;
 
 private:
-    HST void init_attractiveness_parameters(const std::tuple<std::vector<SERP>, std::vector<SERP>, int>& partition, const int n_devices);
-    HST void init_examination_parameters(const std::tuple<std::vector<SERP>, std::vector<SERP>, int>& partition, const int n_devices);
+    HST void init_attractiveness_parameters(const std::tuple<std::vector<SERP>, std::vector<SERP>, int>& partition, const size_t& fmem);
+    HST void init_examination_parameters(const std::tuple<std::vector<SERP>, std::vector<SERP>, int>& partition, const size_t& fmem);
 
     std::vector<Param> attractiveness_parameters; // Host-side attractiveness parameters.
     std::vector<Param> tmp_attractiveness_parameters; // Host-side temporary attractiveness parameters.

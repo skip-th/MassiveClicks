@@ -9,12 +9,12 @@
 #include "macros.cuh"
 
 /**
- * @brief Shut down MPI cleanly if something goes wrong.
+ * @brief Terminate all MPI processes in case of an irrecoverable error.
  *
  * @param err Error code.
  */
 void mpi_abort(const int err) {
-    std::cout << "Quiting MPI\n";
+    std::cout << "Quiting MPI" << std::endl;
 
     MPI_Abort(MPI_COMM_WORLD, err);
 }

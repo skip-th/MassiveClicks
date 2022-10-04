@@ -29,7 +29,7 @@
         cudaGetErrorString(err) << "." << std::endl; \
         mpi_abort(err); }
 
-// Shut down MPI cleanly if something goes wrong
+// Error handling for MPI.
 void mpi_abort(const int err);
 
 #endif // CUDA_MPI_MACROS_H

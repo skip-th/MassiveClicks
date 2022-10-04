@@ -69,14 +69,21 @@ void em_parallel(const int model_type, const int node_id, const int n_nodes, con
         fmem_dev[device_id * 2] = 0; // Memory in use.
         fmem_dev[device_id * 2 + 1] = fmem; // Total available memory.
 
+        // Check whether the current device has enough free memory available.
+        double dataset_size = std::get<0>(device_partitions[device_id]).size() * sizeof(SERP);
+        if (dataset_size * 1.001 > fmem) {
+            std::cout << "Error: Insufficient GPU memory!\n\tAllocating dataset requires an additional " <<
+            (dataset_size - fmem_dev[device_id * 2 + 1]) / 1e6 << " MB of GPU memory." << std::endl;
+            mpi_abort(-1);
+        }
         // Allocate memory for the dataset on the current device.
-        CUDA_CHECK(cudaMalloc(&dataset_dev[device_id], std::get<0>(device_partitions[device_id]).size() * sizeof(SERP)));
+        CUDA_CHECK(cudaMalloc(&dataset_dev[device_id], dataset_size));
         CUDA_CHECK(cudaMemcpy(dataset_dev[device_id], std::get<0>(device_partitions[device_id]).data(),
-                              std::get<0>(device_partitions[device_id]).size() * sizeof(SERP), cudaMemcpyHostToDevice));
-        fmem_dev[device_id * 2] += std::get<0>(device_partitions[device_id]).size() * sizeof(SERP);
+                              dataset_size, cudaMemcpyHostToDevice));
+        fmem_dev[device_id * 2] += dataset_size;
 
         // Allocate memory for the query dependent parameters on both the current device and host.
-        cm_hosts[device_id]->init_parameters(device_partitions[device_id], n_devices);
+        cm_hosts[device_id]->init_parameters(device_partitions[device_id], fmem_dev[device_id * 2 + 1] - fmem_dev[device_id * 2]);
         fmem_dev[device_id * 2] += cm_hosts[device_id]->get_memory_usage();
 
         // Show memory usage.
