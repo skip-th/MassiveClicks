@@ -25,9 +25,13 @@ public:
     HST PBM_Hst* clone() override;
     HST void say_hello() override;
     HST size_t get_memory_usage(void) override;
+    HST size_t compute_memory_footprint(int n_queries, int n_qd) override;
     HST void init_parameters(const std::tuple<std::vector<SERP>, std::vector<SERP>, int>& partition, const size_t fmem) override;
     HST void get_device_references(Param**& param_refs, int*& param_sizes) override;
-    HST void update_parameters(int& gridSize, int& blockSize, SERP*& partition, int& dataset_size) override;
+    HST void update_parameters(int& gridSize, int& blockSize, SERP_DEV*& partition, int& dataset_size) override;
+    HST void update_parameters_on_host(const int& n_threads, const int& partition_size, std::vector<SERP>& partition) override;
+    HST static void* reduce_init(void* args) { return ((PBM_Hst*)args)->reduce_parameters(args); }
+    HST void* reduce_parameters(void* args);
     HST void reset_parameters(void) override;
 
     HST void transfer_parameters(int parameter_type, int transfer_direction) override;
@@ -37,11 +41,13 @@ public:
     HST void destroy_parameters(void) override;
 
     HST void get_log_conditional_click_probs(SERP& query_session, std::vector<float>& log_click_probs) override;
-    HST void get_full_click_probs(SERP& search_ses, std::vector<float> &full_click_probs) override;
+    HST void get_full_click_probs(SERP& search_ses, std::vector<float>& full_click_probs) override;
 
 private:
-    HST void init_attractiveness_parameters(const std::tuple<std::vector<SERP>, std::vector<SERP>, int>& partition, const size_t& fmem);
-    HST void init_examination_parameters(const std::tuple<std::vector<SERP>, std::vector<SERP>, int>& partition, const size_t& fmem);
+    HST void init_attractiveness_parameters(const std::tuple<std::vector<SERP>, std::vector<SERP>, int>& partition, const size_t fmem);
+    HST void init_examination_parameters(const std::tuple<std::vector<SERP>, std::vector<SERP>, int>& partition, const size_t fmem);
+    HST std::pair<int,int> get_n_attr_params(int n_queries, int n_qd);
+    HST std::pair<int,int> get_n_exam_params(int n_queries, int n_qd);
 
     std::vector<Param> attractiveness_parameters; // Host-side attractiveness parameters.
     std::vector<Param> tmp_attractiveness_parameters; // Host-side temporary attractiveness parameters.
@@ -75,12 +81,12 @@ public:
     DEV void say_hello() override;
     DEV PBM_Dev* clone() override;
     DEV void set_parameters(Param**& parameter_ptr, int* parameter_sizes) override; //, int*& parameter_sizes)  override;
-    DEV void process_session(SERP& query_session, int& thread_index, int& partition_size) override;
-    DEV void update_parameters(SERP& query_session, int& thread_index, int& block_index, int& partition_size) override;
+    DEV void process_session(SERP_DEV& query_session, int& thread_index, int& partition_size) override;
+    DEV void update_parameters(SERP_DEV& query_session, int& thread_index, int& block_index, int& partition_size) override;
 
 private:
-    DEV void update_examination_parameters(SERP& query_session, int& thread_index, int& block_index, int& partition_size);
-    DEV void update_attractiveness_parameters(SERP& query_session, int& thread_index, int& partition_size);
+    DEV void update_examination_parameters(SERP_DEV& query_session, int& thread_index, int& block_index, int& partition_size);
+    DEV void update_attractiveness_parameters(SERP_DEV& query_session, int& thread_index, int& partition_size);
 
     Param* attractiveness_parameters;
     Param* tmp_attractiveness_parameters;

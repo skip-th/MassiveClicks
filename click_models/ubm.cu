@@ -49,19 +49,61 @@ HST size_t UBM_Hst::get_memory_usage(void) {
 }
 
 /**
+ * @brief Get the expected amount of memory the click model will need to store
+ * the current parameters.
+ *
+ * @param n_queries The number of queries assigned to this click model.
+ * @return size_t The worst-case parameter memory footprint.
+ */
+HST size_t UBM_Hst::compute_memory_footprint(int n_queries, int n_qd) {
+    std::pair<int, int> n_attractiveness = this->get_n_attr_params(n_queries, n_qd);
+    std::pair<int, int> n_examination = this->get_n_exam_params(n_queries, n_qd);
+
+    return (n_attractiveness.first + n_attractiveness.second +
+            n_examination.first + n_examination.second) * sizeof(Param);
+}
+
+/**
+ * @brief Get the number of original and temporary attractiveness parameters.
+ *
+ * @param n_queries The number of queries assigned to this click model.
+ * @param n_qd The number of query-document pairs assigned to this click model.
+ * @return std::pair<int,int> The number of original and temporary attractiveness
+ * parameters.
+ */
+HST std::pair<int,int> UBM_Hst::get_n_attr_params(int n_queries, int n_qd) {
+    return std::make_pair(n_qd,                         // #original.
+                          n_queries * MAX_SERP_LENGTH); // #temporary.
+}
+
+/**
+ * @brief Get the number of original and temporary examination parameters.
+ *
+ * @param n_queries The number of queries assigned to this click model.
+ * @param n_qd The number of query-document pairs assigned to this click model.
+ * @return std::pair<int,int> The number of original and temporary examination
+ * parameters.
+ */
+HST std::pair<int, int> UBM_Hst::get_n_exam_params(int n_queries, int n_qd) {
+    return std::make_pair((MAX_SERP_LENGTH - 1) * MAX_SERP_LENGTH / 2 + MAX_SERP_LENGTH,                // #original.
+                          n_queries * ((MAX_SERP_LENGTH - 1) * MAX_SERP_LENGTH / 2 + MAX_SERP_LENGTH)); // #temporary.
+}
+
+/**
  * @brief Allocate device-side memory for the attractiveness parameters.
  *
  * @param partition The training and testing sets, and the number of
  * query-document pairs in the training set.
  * @param n_devices The number of devices on this node.
  */
-HST void UBM_Hst::init_attractiveness_parameters(const std::tuple<std::vector<SERP>, std::vector<SERP>, int>& partition, const size_t& fmem) {
+HST void UBM_Hst::init_attractiveness_parameters(const std::tuple<std::vector<SERP>, std::vector<SERP>, int>& partition, const size_t fmem) {
     Param default_parameter;
     default_parameter.set_values(PARAM_DEF_NUM, PARAM_DEF_DENOM);
 
     // Compute the storage space required to store the parameters.
-    this->n_attr_dev = std::get<2>(partition);
-    this->n_tmp_attr_dev = std::get<0>(partition).size() * MAX_SERP_LENGTH;
+    std::pair<int, int> n_attractiveness = this->get_n_attr_params(std::get<0>(partition).size(), std::get<2>(partition));
+    this->n_attr_dev = n_attractiveness.first;
+    this->n_tmp_attr_dev = n_attractiveness.second;
     // Store the number of allocated bytes.
     this->cm_memory_usage += this->n_attr_dev * sizeof(Param) + this->n_tmp_attr_dev * sizeof(Param);
     // Check if the new parameters will fit in GPU memory using a 0.1% error margin.
@@ -92,13 +134,14 @@ HST void UBM_Hst::init_attractiveness_parameters(const std::tuple<std::vector<SE
  * query-document pairs in the training set.
  * @param n_devices The number of devices on this node.
  */
-HST void UBM_Hst::init_examination_parameters(const std::tuple<std::vector<SERP>, std::vector<SERP>, int>& partition, const size_t& fmem) {
+HST void UBM_Hst::init_examination_parameters(const std::tuple<std::vector<SERP>, std::vector<SERP>, int>& partition, const size_t fmem) {
     Param default_parameter;
     default_parameter.set_values(PARAM_DEF_NUM, PARAM_DEF_DENOM);
 
     // Compute the storage space required to store the parameters.
-    this->n_exams_dev = (MAX_SERP_LENGTH - 1) * MAX_SERP_LENGTH / 2 + MAX_SERP_LENGTH;
-    this->n_tmp_exams_dev = std::get<0>(partition).size() * this->n_exams_dev;
+    std::pair<int, int> n_examination = this->get_n_exam_params(std::get<0>(partition).size(), std::get<2>(partition));
+    this->n_exams_dev = n_examination.first;
+    this->n_tmp_exams_dev = n_examination.second;
     // Store the number of allocated bytes.
     this->cm_memory_usage += this->n_exams_dev * sizeof(Param) + this->n_tmp_exams_dev * sizeof(Param);
     // Check if the new parameters will fit in GPU memory using a 0.1% error margin.
@@ -183,8 +226,12 @@ HST void UBM_Hst::get_device_references(Param**& param_refs, int*& param_sizes) 
  * @param partition The dataset allocated on the GPU.
  * @param dataset_size The size of the allocated dataset.
  */
-HST void UBM_Hst::update_parameters(int& gridSize, int& blockSize, SERP*& partition, int& dataset_size) {
+HST void UBM_Hst::update_parameters(int& gridSize, int& blockSize, SERP_DEV*& partition, int& dataset_size) {
     Kernel::update<<<gridSize, blockSize>>>(partition, dataset_size);
+}
+
+HST void UBM_Hst::update_parameters_on_host(const int& n_threads, const int& partition_size, std::vector<SERP>& partition){
+    // Kernel::update<<<gridSize, blockSize>>>(partition, dataset_size);
 }
 
 /**
@@ -504,12 +551,12 @@ DEV void UBM_Dev::set_parameters(Param**& parameter_ptr, int* parameter_sizes) {
  * @param thread_index The index of the thread which will be estimating the
  * parameters.
  */
-DEV void UBM_Dev::process_session(SERP& query_session, int& thread_index, int& partition_size) {
+DEV void UBM_Dev::process_session(SERP_DEV& query_session, int& thread_index, int& partition_size) {
     int prev_click_rank[MAX_SERP_LENGTH] = { 0 };
     query_session.prev_clicked_rank(prev_click_rank);
 
     for (int rank = 0; rank < MAX_SERP_LENGTH; rank++) {
-        SearchResult sr = query_session[rank];
+        SearchResult_DEV sr = query_session[rank];
 
         // Get the attractiveness and examination parameters.
         float atr{this->attractiveness_parameters[sr.get_param_index()].value()};
@@ -579,7 +626,7 @@ DEV void UBM_Dev::process_session(SERP& query_session, int& thread_index, int& p
  * @param parameter_type The type of parameter to update.
  * @param partition_size The size of the dataset.
  */
-DEV void UBM_Dev::update_parameters(SERP& query_session, int& thread_index, int& block_index, int& partition_size) {
+DEV void UBM_Dev::update_parameters(SERP_DEV& query_session, int& thread_index, int& block_index, int& partition_size) {
     this->update_examination_parameters(query_session, thread_index, block_index, partition_size);
 
     if (thread_index < partition_size) {
@@ -596,7 +643,7 @@ DEV void UBM_Dev::update_parameters(SERP& query_session, int& thread_index, int&
  * @param block_index The index of the block in which this thread exists.
  * @param partition_size The size of the dataset.
  */
-DEV void UBM_Dev::update_examination_parameters(SERP& query_session, int& thread_index, int& block_index, int& partition_size) {
+DEV void UBM_Dev::update_examination_parameters(SERP_DEV& query_session, int& thread_index, int& block_index, int& partition_size) {
     SHR float numerator[BLOCK_SIZE];
     SHR float denominator[BLOCK_SIZE];
 
@@ -665,9 +712,9 @@ DEV void UBM_Dev::update_examination_parameters(SERP& query_session, int& thread
  * @param query_session The query session of this thread.
  * @param thread_index The index of this thread.
  */
-DEV void UBM_Dev::update_attractiveness_parameters(SERP& query_session, int& thread_index, int& partition_size) {
+DEV void UBM_Dev::update_attractiveness_parameters(SERP_DEV& query_session, int& thread_index, int& partition_size) {
     for (int rank = 0; rank < MAX_SERP_LENGTH; rank++) {
-        SearchResult sr = query_session[rank];
+        SearchResult_DEV sr = query_session[rank];
         this->attractiveness_parameters[sr.get_param_index()].atomic_add_to_values(
             this->tmp_attractiveness_parameters[rank * partition_size + thread_index].numerator_val(),
             1.f);

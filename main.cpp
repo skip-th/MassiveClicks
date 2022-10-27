@@ -20,6 +20,7 @@
 #include <cstddef>
 #include <iomanip>
 #include <cmath>
+#include <thread>
 
 // User include.
 #include "utils/definitions.h"
@@ -82,9 +83,11 @@ int main(int argc, char** argv) {
         {0, "Round-Robin"},
         {1, "Maximum Utilization"},
         {2, "Resource-Aware Maximum Utilization"},
+        {3, "Newest architecture first"},
     };
 
     std::string raw_dataset_path{"YandexRelPredChallenge100k.txt"}; // "/var/scratch/pkhandel/yandex/YandexClicks.txt"
+    int n_threads = std::thread::hardware_concurrency();
     int n_iterations{50};
     int max_sessions{40000};
     int model_type{0};
@@ -95,36 +98,48 @@ int main(int argc, char** argv) {
     bool help{false};
 
     // Parse input parameters.
-    if (argc > 2) {
+    if (argc > 1) {
         for (int i = 1; i < argc; ++i) {
-            if (std::string(argv[i]) == "--raw-path" || std::string(argv[i]) == "-r") {
-                raw_dataset_path = argv[i + 1];
+            try {
+                if (std::string(argv[i]) == "--n-threads"){
+                    n_threads = std::stoi(argv[i+1]);
+                }
+                else if (std::string(argv[i]) == "--raw-path" || std::string(argv[i]) == "-r") {
+                    raw_dataset_path = argv[i + 1];
+                }
+                else if (std::string(argv[i]) == "--itr" || std::string(argv[i]) == "-i") {
+                    n_iterations = std::stoi(argv[i + 1]);
+                }
+                else if (std::string(argv[i]) == "--max-sessions" || std::string(argv[i]) == "-s") {
+                    max_sessions = std::stoi(argv[i + 1]);
+                }
+                else if (std::string(argv[i]) == "--model-type" || std::string(argv[i]) == "-m") {
+                    model_type = std::stoi(argv[i + 1]);
+                }
+                else if (std::string(argv[i]) == "--partition-type" || std::string(argv[i]) == "-p") {
+                    partitioning_type = std::stoi(argv[i + 1]);
+                }
+                else if (std::string(argv[i]) == "--test-share" || std::string(argv[i]) == "-t") {
+                    test_share = std::stod(argv[i + 1]);
+                }
+                else if (std::string(argv[i]) == "--job-id" || std::string(argv[i]) == "-j") {
+                    job_id = std::stoi(argv[i + 1]);
+                }
+                else if (std::string(argv[i]) == "--help" || std::string(argv[i]) == "-h") {
+                    help = true;
+                }
+                else if (std::string(argv[i]).rfind("-", 0) == 0) {
+                    if (node_id == ROOT) {
+                        std::cout << "Did not recognize flag \'" <<
+                        std::string(argv[i]) << "\'." << std::endl;
+                    }
+                    help = true;
+                }
             }
-            else if (std::string(argv[i]) == "--itr" || std::string(argv[i]) == "-i") {
-                n_iterations = std::stoi(argv[i + 1]);
-            }
-            else if (std::string(argv[i]) == "--max-sessions" || std::string(argv[i]) == "-s") {
-                max_sessions = std::stoi(argv[i + 1]);
-            }
-            else if (std::string(argv[i]) == "--model-type" || std::string(argv[i]) == "-m") {
-                model_type = std::stoi(argv[i + 1]);
-            }
-            else if (std::string(argv[i]) == "--partition-type" || std::string(argv[i]) == "-p") {
-                partitioning_type = std::stoi(argv[i + 1]);
-            }
-            else if (std::string(argv[i]) == "--test-share" || std::string(argv[i]) == "-t") {
-                test_share = std::stod(argv[i + 1]);
-            }
-            else if (std::string(argv[i]) == "--job-id" || std::string(argv[i]) == "-j") {
-                job_id = std::stoi(argv[i + 1]);
-            }
-            else if (std::string(argv[i]) == "--help" || std::string(argv[i]) == "-h") {
-                help = true;
-            }
-            else if (std::string(argv[i]).rfind("-", 0) == 0) {
+            catch (std::invalid_argument& e) {
                 if (node_id == ROOT) {
-                    std::cout << "Did not recognize argument \'" <<
-                    std::string(argv[i]) << "\'." << std::endl;
+                    std::cout << "Invalid argument \'" << argv[i + 1] <<
+                    "\' for flag \'" << argv[i] << "\'." << std::endl;
                 }
                 help = true;
             }
@@ -134,7 +149,7 @@ int main(int argc, char** argv) {
     // Display help message and shutdown execution.
     if (help) {
         if (node_id == ROOT) {
-            print_help_msg();
+            show_help_msg();
         }
 
         // End MPI communication and exit.
@@ -147,6 +162,7 @@ int main(int argc, char** argv) {
         std::cout << "Job ID: " << job_id <<
         "\nNumber of machines: " << n_nodes <<
         "\nNumber of devices in total: " << total_n_devices <<
+        "\nNumber of threads: " << n_threads <<
         "\nRaw data path: " << raw_dataset_path <<
         "\nNumber of EM iterations: " << n_iterations <<
         "\nShare of data used for testing: " << test_share * 100 << "%" <<
@@ -197,7 +213,7 @@ int main(int argc, char** argv) {
 
     if (node_id == ROOT) {
         // Split the dataset into partitions. One for each device on each node.
-        dataset.make_splits(network_properties, test_share, partitioning_type);
+        dataset.make_splits(network_properties, test_share, partitioning_type, model_type);
     }
 
     auto partitioning_stop_time = std::chrono::high_resolution_clock::now();
@@ -259,7 +275,7 @@ int main(int argc, char** argv) {
 
     // Run click model parameter estimation computation using the generic EM
     // algorithm.
-    em_parallel(model_type, node_id, n_nodes, n_devices_network, n_iterations,
+    em_parallel(model_type, node_id, n_nodes, n_threads, n_devices_network, n_iterations,
                 device_partitions, root_mapping);
 
     auto estimating_stop_time = std::chrono::high_resolution_clock::now();

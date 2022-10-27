@@ -17,40 +17,75 @@
 // User include.
 #include "../utils/definitions.h"
 
-// A SearchResult contains a query-document pair from within a session.
+//---------------------------------------------------------------------------//
+// Host-side functions.                                                      //
+//---------------------------------------------------------------------------//
+
+// A SearchResult contains a query-document pair from within a session/SERP.
 class SearchResult {
 public:
-    HST DEV SearchResult();
-    SearchResult(const int& doc_id, const int& doc_rank, const int& click, const int& param);
+    HST SearchResult();
+    HST SearchResult(const int& doc_id, const int& click, const int& param);
 
     HST void update_click(const int& click_val);
     HST void set_param_index(const int& index);
-    HST DEV int get_doc_id() const;
-    HST DEV int get_doc_rank() const;
-    HST DEV int get_click() const;
-    HST DEV int get_param_index() const;
+    HST int get_doc_id() const;
+    HST int get_click() const;
+    HST int get_param_index() const;
 private:
-    int doc_id, doc_rank, click, param_index;
+    int click;
+    int doc_id, param_index;
 };
 
 // A Search Engine Result Page (SERP). A set of 10 documents (SearchResult)
 // related to a given query, and whether those documents have been clicked.
 class SERP {
 public:
-    HST DEV SERP();
+    HST SERP();
     HST explicit SERP(const std::vector<std::string>& line);
+    HST SearchResult operator[] (const int& rank) const;
 
     HST bool update_click_res(const std::vector<std::string>& line);
-    HST DEV SearchResult operator[] (const int& rank) const;
-    HST int sid() const;
-    HST DEV int get_query() const;
-    HST DEV void prev_clicked_rank(int (&prev_click_rank)[MAX_SERP_LENGTH]);
-    HST DEV int last_click_rank(void);
+    HST int get_query() const;
+    HST void prev_clicked_rank(int (&prev_click_rank)[MAX_SERP_LENGTH]);
+    HST int last_click_rank(void);
     HST SearchResult& access_sr(const int& rank);
 
 private:
-    int session_id{-1}, rank_doc{}, query{-1};
+    int query{-1};
     SearchResult session[MAX_SERP_LENGTH]{};
 };
+
+//---------------------------------------------------------------------------//
+// Device-side functions.                                                    //
+//---------------------------------------------------------------------------//
+
+// A SearchResult contains a query-document pair from within a session/SERP.
+class SearchResult_DEV {
+public:
+    HST SearchResult_DEV();
+    HST SearchResult_DEV(const int& click, const int& param);
+
+    DEV int get_click() const;
+    DEV int get_param_index() const;
+private:
+    char click;
+    int param_index;
+};
+
+// A Search Engine Result Page (SERP). A set of 10 documents (SearchResult)
+// related to a given query, and whether those documents have been clicked.
+class SERP_DEV {
+public:
+    HST SERP_DEV();
+    HST explicit SERP_DEV(const SERP serp);
+    HST DEV SearchResult_DEV operator[] (const int& rank) const;
+    DEV void prev_clicked_rank(int (&prev_click_rank)[MAX_SERP_LENGTH]);
+    DEV int last_click_rank(void);
+private:
+    SearchResult_DEV session[MAX_SERP_LENGTH]{};
+};
+
+HST void convert_to_device(std::vector<SERP>& dataset_hst, std::vector<SERP_DEV>& dataset_dev);
 
 #endif // CLICK_MODEL_SESSION_H

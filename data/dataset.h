@@ -22,7 +22,9 @@
 #include "../utils/definitions.h"
 #include "../utils/macros.cuh"
 #include "search.cuh"
+#include "../click_models/base.cuh"
 
+class ClickModel_Hst;
 class Dataset {
 public:
     Dataset();
@@ -34,23 +36,23 @@ public:
     void increment_queries(const int& value);
     void add_session(const int session_id, const std::vector<SERP>& session);
     void add_query_session(const SERP& query_session);
-    void make_splits(const NetworkMap<std::vector<int>>& network_properties, const float test_share, const int partitioning_type);
+    void make_splits(const NetworkMap<std::vector<int>>& network_properties, const float test_share, const int partitioning_type, const int model_type);
     std::vector<SERP>* get_train_set(const int& nid, const int& did);
     std::vector<SERP>* get_test_set(const int& nid, const int& did);
     std::unordered_map<int, std::unordered_map<int, int>>* get_mapping(const int& nid, const int& did);
 
 private:
-    void make_partitions(const NetworkMap<std::vector<int>>& network_properties, const float test_share, const int partitioning_type);
+    void make_partitions(const NetworkMap<std::vector<int>>& network_properties, const float test_share, const int partitioning_type, const int model_type);
     void reshape_pvar(const NetworkMap<std::vector<int>>& network_properties);
     void add_parameter_train(SERP& query_session, const int& node_id, const int& device_id);
     bool add_parameter_test(SERP& query_session, const int& node_id, const int& device_id);
     std::pair<int,int> get_smallest_train(const NetworkMap<std::vector<SERP>>& training_queries);
     std::pair<int,int> get_smallest_relative_train(const NetworkMap<std::vector<SERP>>& training_queries, const NetworkMap<std::vector<int>>& network_properties);
-
+    std::pair<int,int> get_smallest_arch_train(const NetworkMap<std::vector<SERP>>& training_queries, const NetworkMap<std::vector<int>>& network_properties);
     int n_queries{0};
     int n_qd_pairs{0};
+    ClickModel_Hst* cm;
 
-    // std::unordered_map<int, std::vector<SERP>> sessions; // Session ID -> Query sessions with this session ID.
     std::vector<SERP> sessions;
     // A multi-dimensional array imitating the layout of the nodes and devices in the network.
     // Each node's device array contains a from the query-document pair to a unique index in the parameter array.

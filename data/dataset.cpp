@@ -228,7 +228,10 @@ void Dataset::add_parameter_train(SERP& query_session, const int& node_id, const
 /**
  * @brief Finds the device with the least filled training query vector.
  *
- * @param training_queries
+ *
+ * @param training_queries A vector containing SERPs grouped by query.
+ * @param network_properties The properties of the devices within the network.
+ *
  * @return std::pair<int,int> The node id and device id of smallest training vector.
  */
 std::pair<int,int> Dataset::get_smallest_train(const NetworkMap<std::vector<SERP>>& training_queries) {
@@ -251,8 +254,11 @@ std::pair<int,int> Dataset::get_smallest_train(const NetworkMap<std::vector<SERP
  * @brief Finds the device with the least filled training query vector relative
  * to the available memory on the device.
  *
- * @param training_queries
- * @return std::pair<int,int> The node id and device id of smallest training vector.
+ * @param training_queries A vector containing SERPs grouped by query.
+ * @param network_properties The properties of the devices within the network.
+ *
+ * @return std::pair<int,int> The node id and device id of smallest training
+ * vector relative to memory size.
  */
 std::pair<int,int> Dataset::get_smallest_relative_train(const NetworkMap<std::vector<SERP>>& training_queries, const NetworkMap<std::vector<int>>& network_properties) {
     int small_nid{0}, small_did{0};
@@ -273,6 +279,45 @@ std::pair<int,int> Dataset::get_smallest_relative_train(const NetworkMap<std::ve
 }
 
 /**
+ * @brief Finds the device with the newest architecture and fills its training
+ * query vector first.
+ *
+ * @param training_queries A vector containing SERPs grouped by query.
+ * @param network_properties The properties of the devices within the network.
+ *
+ * @return std::pair<int,int> The node id and device id of smallest training
+ * vector with the highest device architecture.
+ */
+std::pair<int,int> Dataset::get_smallest_arch_train(const NetworkMap<std::vector<SERP>>& training_queries, const NetworkMap<std::vector<int>>& network_properties) {
+    int small_new_nid{0}, small_new_did{0}, arch, prev_arch{0};
+    float memory_footprint, occupancy, smallest_occupancy{std::numeric_limits<float>::max()};
+
+    for (int nid = 0; nid < training_queries.size(); nid++) {
+        for (int did = 0; did < training_queries[nid].size(); did++) {
+            memory_footprint = cm->compute_memory_footprint(training_queries[nid][did].size(), this->qd_parameters_sz[nid][did]) / 1e6;
+            // Calculate the occupancy of the device with a margin of error of 0.1%.
+            occupancy = memory_footprint * 1.001 / (float) network_properties[nid][did][1];
+
+            // If the device is newer than the previous device and is less
+            // occupied than the other devices with the same architecture, then
+            // make it the new target. Ignore the device if it is full.
+            if (occupancy < smallest_occupancy && occupancy < 1.f) { // Use "if (occupancy < 1.f) {" to fill up one new arch device first.
+                arch = network_properties[nid][did][0];
+
+                if (arch >= prev_arch) {
+                    smallest_occupancy = occupancy;
+                    small_new_nid = nid;
+                    small_new_did = did;
+                    prev_arch = arch;
+                }
+            }
+        }
+    }
+
+    return std::make_pair(small_new_nid, small_new_did);
+}
+
+/**
  * @brief Partitions the parsed dataset into training and testing sets
  * according to a given partitioning scheme. The resulting sets are assigned
  * to the available devices on different nodes.
@@ -281,8 +326,10 @@ std::pair<int,int> Dataset::get_smallest_relative_train(const NetworkMap<std::ve
  * @param test_share The share of the dataset that will be used for testing.
  * @param partitioning_type The partitioning scheme to use (e.g. Round-Robin).
  */
-void Dataset::make_partitions(const NetworkMap<std::vector<int>>& network_properties, const float test_share, const int partitioning_type) {
+void Dataset::make_partitions(const NetworkMap<std::vector<int>>& network_properties, const float test_share, const int partitioning_type, const int model_type) {
     int node_id{0}, device_id{0}, n_nodes = network_properties.size();
+    this->cm = create_cm_host(model_type);
+
     // Calculate the length of the training set using the test share. The
     // training set length is rounded to the nearest integer.
     int n_train{static_cast<int>(this->n_queries * (1 - test_share) - 0.5) + 1};
@@ -326,7 +373,11 @@ void Dataset::make_partitions(const NetworkMap<std::vector<int>>& network_proper
             // Get the node id and device id of where the smallest training set
             // relative to total device memory exists.
             std::tie(node_id, device_id) = this->get_smallest_relative_train(this->training_queries, network_properties);
-
+        }
+        else if (partitioning_type == 3) { // Prefer Newer Architectures
+            // Get the node id and device id of where the smallest training set
+            // relative to total device memory exists.
+            std::tie(node_id, device_id) = this->get_smallest_arch_train(this->training_queries, network_properties);
         }
 
         // For each document in a query group's query session, get the
@@ -396,14 +447,14 @@ void Dataset::reshape_pvar(const NetworkMap<std::vector<int>>& network_propertie
  * @param test_share The share of the dataset that will be used for testing.
  * @param partitioning_type The partitioning scheme to use (e.g. Round-Robin).
  */
-void Dataset::make_splits(const NetworkMap<std::vector<int>>& network_properties, const float test_share, const int partitioning_type) {
+void Dataset::make_splits(const NetworkMap<std::vector<int>>& network_properties, const float test_share, const int partitioning_type, const int model_type) {
     // Shape the multi-dimensional arrays training, testing and parameter arrays
     // according to the network topology beforehand.
     this->reshape_pvar(network_properties);
 
     // Assign query groups from the dataset to different partitions according to
     // the chosen partitioning approach.
-    make_partitions(network_properties, test_share, partitioning_type);
+    make_partitions(network_properties, test_share, partitioning_type, model_type);
 }
 
 

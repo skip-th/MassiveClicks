@@ -10,8 +10,8 @@
 // https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#atomic-functions
 #if __CUDA_ARCH__ >= 600
     /**
-     * @brief Atomically adds a float value to another float at a given
-     * address for CUDA architecture >6.0.
+     * @brief Atomically adds a single-precision floating point value to
+     * another at a given address for CUDA architecture of 6.0 and above.
      *
      * @param address The address to add the value to.
      * @param val The value to add.
@@ -21,23 +21,14 @@
     }
 #else
     /**
-     * @brief Atomically adds a float value to another float at a given
-     * address for CUDA architecture <6.0.
+     * @brief Atomically adds a single-precision floating point value to
+     * another at a given address for CUDA architecture below 6.0.
      *
      * @param address The address to add the value to.
      * @param val The value to add.
      */
     DEV void atomicAddArch(float* address, const float val) {
-        unsigned int* address_as_ull = (unsigned int*) address;
-        unsigned int old = *address_as_ull, assumed;
-
-        do {
-            assumed = old;
-            old = atomicCAS(address_as_ull, assumed,
-                            __float_as_uint(val + __uint_as_float(assumed)));
-
-        // Note: uses integer comparison to avoid hang in case of NaN (since NaN != NaN)
-        } while (assumed != old);
+        atomicAdd(address, val);
     }
 #endif
 

@@ -49,19 +49,76 @@ HST size_t DBN_Hst::get_memory_usage(void) {
 }
 
 /**
+ * @brief Get the expected amount of memory the click model will need to store
+ * the current parameters.
+ *
+ * @param n_queries The number of queries assigned to this click model.
+ * @return size_t The worst-case parameter memory footprint.
+ */
+HST size_t DBN_Hst::compute_memory_footprint(int n_queries, int n_qd) {
+    std::pair<int, int> n_attractiveness = this->get_n_attr_params(n_queries, n_qd);
+    std::pair<int, int> n_satisfaction = this->get_n_sat_params(n_queries, n_qd);
+    std::pair<int, int> n_continuation = this->get_n_cont_params(n_queries, n_qd);
+
+    return (n_attractiveness.first + n_attractiveness.second +
+            n_satisfaction.first + n_satisfaction.second +
+            n_continuation.first + n_continuation.second) * sizeof(Param);
+}
+
+/**
+ * @brief Get the number of original and temporary attractiveness parameters.
+ *
+ * @param n_queries The number of queries assigned to this click model.
+ * @param n_qd The number of query-document pairs assigned to this click model.
+ * @return std::pair<int,int> The number of original and temporary examination
+ * parameters.
+ */
+HST std::pair<int,int> DBN_Hst::get_n_attr_params(int n_queries, int n_qd) {
+    return std::make_pair(n_qd,                         // # original
+                          n_queries * MAX_SERP_LENGTH); // # temporary
+}
+
+/**
+ * @brief Get the number of original and temporary satisfaction parameters.
+ *
+ * @param n_queries The number of queries assigned to this click model.
+ * @param n_qd The number of query-document pairs assigned to this click model.
+ * @return std::pair<int,int> The number of original and temporary satisfaction
+ * parameters.
+ */
+HST std::pair<int, int> DBN_Hst::get_n_sat_params(int n_queries, int n_qd) {
+    return std::make_pair(n_qd,                         // # original
+                          n_queries * MAX_SERP_LENGTH); // # temporary
+}
+
+/**
+ * @brief Get the number of original and temporary continuation (gamma) parameters.
+ *
+ * @param n_queries The number of queries assigned to this click model.
+ * @param n_qd The number of query-document pairs assigned to this click model.
+ * @return std::pair<int,int> The number of original and temporary continuation
+ * parameters.
+ */
+HST std::pair<int, int> DBN_Hst::get_n_cont_params(int n_queries, int n_qd) {
+    return std::make_pair(1,              // # original
+                          n_queries * 1); // # temporary
+}
+
+/**
  * @brief Allocate device-side memory for the attractiveness parameters.
  *
  * @param partition The training and testing sets, and the number of
  * query-document pairs in the training set.
  * @param n_devices The number of devices on this node.
  */
-HST void DBN_Hst::init_attractiveness_parameters(const std::tuple<std::vector<SERP>, std::vector<SERP>, int>& partition, const size_t& fmem) {
+HST void DBN_Hst::init_attractiveness_parameters(const std::tuple<std::vector<SERP>, std::vector<SERP>, int>& partition, const size_t fmem) {
     Param default_parameter;
     default_parameter.set_values(PARAM_DEF_NUM, PARAM_DEF_DENOM);
 
     // Compute the storage space required to store the parameters.
-    this->n_attr_dev = std::get<2>(partition);
-    this->n_tmp_attr_dev = std::get<0>(partition).size() * MAX_SERP_LENGTH;
+    std::pair<int, int> n_attractiveness = this->get_n_attr_params(std::get<0>(partition).size(), std::get<2>(partition));
+    this->n_attr_dev = n_attractiveness.first;
+    this->n_tmp_attr_dev = n_attractiveness.second;
     // Store the number of allocated bytes.
     this->cm_memory_usage += this->n_attr_dev * sizeof(Param) + this->n_tmp_attr_dev * sizeof(Param);
     // Check if the new parameters will fit in GPU memory using a 0.1% error margin.
@@ -92,13 +149,14 @@ HST void DBN_Hst::init_attractiveness_parameters(const std::tuple<std::vector<SE
  * query-document pairs in the training set.
  * @param n_devices The number of devices on this node.
  */
-HST void DBN_Hst::init_satisfaction_parameters(const std::tuple<std::vector<SERP>, std::vector<SERP>, int>& partition, const size_t& fmem) {
+HST void DBN_Hst::init_satisfaction_parameters(const std::tuple<std::vector<SERP>, std::vector<SERP>, int>& partition, const size_t fmem) {
     Param default_parameter;
     default_parameter.set_values(PARAM_DEF_NUM, PARAM_DEF_DENOM);
 
     // Compute the storage space required to store the parameters.
-    this->n_satisfaction_dev = std::get<2>(partition);
-    this->n_tmp_satisfaction_dev = std::get<0>(partition).size() * MAX_SERP_LENGTH;
+    std::pair<int, int> n_satisfaction = this->get_n_sat_params(std::get<0>(partition).size(), std::get<2>(partition));
+    this->n_satisfaction_dev = n_satisfaction.first;
+    this->n_tmp_satisfaction_dev = n_satisfaction.second;
     // Store the number of allocated bytes.
     this->cm_memory_usage += this->n_satisfaction_dev * sizeof(Param) + this->n_tmp_satisfaction_dev * sizeof(Param);
     // Check if the new parameters will fit in GPU memory using a 0.1% error margin.
@@ -129,13 +187,14 @@ HST void DBN_Hst::init_satisfaction_parameters(const std::tuple<std::vector<SERP
  * query-document pairs in the training set.
  * @param n_devices The number of devices on this node.
  */
-HST void DBN_Hst::init_gamma_parameters(const std::tuple<std::vector<SERP>, std::vector<SERP>, int>& partition, const size_t& fmem) {
+HST void DBN_Hst::init_gamma_parameters(const std::tuple<std::vector<SERP>, std::vector<SERP>, int>& partition, const size_t fmem) {
     Param default_parameter;
     default_parameter.set_values(PARAM_DEF_NUM, PARAM_DEF_DENOM);
 
     // Compute the storage space required to store the parameters.
-    this->n_gamma_dev = 1;
-    this->n_tmp_gamma_dev = std::get<0>(partition).size() * this->n_gamma_dev;
+    std::pair<int, int> n_gamma = this->get_n_cont_params(std::get<0>(partition).size(), std::get<2>(partition));
+    this->n_gamma_dev = n_gamma.first;
+    this->n_tmp_gamma_dev = n_gamma.second;
     // Store the number of allocated bytes.
     this->cm_memory_usage += this->n_gamma_dev * sizeof(Param) + this->n_tmp_gamma_dev * sizeof(Param);
     // Check if the new parameters will fit in GPU memory using a 0.1% error margin.
@@ -225,13 +284,17 @@ HST void DBN_Hst::get_device_references(Param**& param_refs, int*& param_sizes) 
  * @param partition The dataset allocated on the GPU.
  * @param dataset_size The size of the allocated dataset.
  */
-HST void DBN_Hst::update_parameters(int& gridSize, int& blockSize, SERP*& partition, int& dataset_size) {
+HST void DBN_Hst::update_parameters(int& gridSize, int& blockSize, SERP_DEV*& partition, int& dataset_size) {
     Kernel::update<<<gridSize, blockSize>>>(partition, dataset_size);
 
     // Use CUDA Thrust to reduce the sum of the temporary public parameter values.
     // Param init_val(0.f, 0.f);
     // thrust::device_ptr<Param> dptr = thrust::device_pointer_cast(tmp_gamma_param_dptr);
     // gamma_parameters[0] = thrust::reduce(dptr, dptr + this->n_tmp_gamma_dev, init_val, Param_add());
+}
+
+HST void DBN_Hst::update_parameters_on_host(const int& n_threads, const int& partition_size, std::vector<SERP>& partition){
+    // Kernel::update<<<gridSize, blockSize>>>(partition, dataset_size);
 }
 
 /**
@@ -555,7 +618,7 @@ DEV void DBN_Dev::set_parameters(Param**& parameter_ptr, int* parameter_sizes) {
  * @param thread_index The index of the thread which will be estimating the
  * parameters.
  */
-DEV void DBN_Dev::process_session(SERP& query_session, int& thread_index, int& partition_size) {
+DEV void DBN_Dev::process_session(SERP_DEV& query_session, int& thread_index, int& partition_size) {
     int last_click_rank = query_session.last_click_rank();
     float click_probs[MAX_SERP_LENGTH][MAX_SERP_LENGTH] = { 0.f };
     float exam_probs[MAX_SERP_LENGTH + 1];
@@ -585,7 +648,7 @@ DEV void DBN_Dev::process_session(SERP& query_session, int& thread_index, int& p
  * always examined (1).
  * @param car
  */
-DEV void DBN_Dev::compute_exam_car(int& thread_index, SERP& query_session, float (&exam)[MAX_SERP_LENGTH + 1], float (&car)[MAX_SERP_LENGTH + 1]) {
+DEV void DBN_Dev::compute_exam_car(int& thread_index, SERP_DEV& query_session, float (&exam)[MAX_SERP_LENGTH + 1], float (&car)[MAX_SERP_LENGTH + 1]) {
     // Set the default examination value for the first rank.
     exam[0] = 1.f;
 
@@ -593,7 +656,7 @@ DEV void DBN_Dev::compute_exam_car(int& thread_index, SERP& query_session, float
     float car_helper[MAX_SERP_LENGTH][2];
 
     for (int rank = 0; rank < MAX_SERP_LENGTH;) {
-        SearchResult sr = query_session[rank];
+        SearchResult_DEV sr = query_session[rank];
 
         attr_val = this->attractiveness_parameters[sr.get_param_index()].value();
         sat_value = this->satisfaction_parameters[sr.get_param_index()].value();
@@ -631,12 +694,12 @@ DEV void DBN_Dev::compute_exam_car(int& thread_index, SERP& query_session, float
  * always examined (1).
  * @param car
  */
-DEV void DBN_Dev::compute_dbn_attr(int& thread_index, SERP& query_session, int& last_click_rank, float (&exam)[MAX_SERP_LENGTH + 1], float (&car)[MAX_SERP_LENGTH + 1], int& partition_size) {
+DEV void DBN_Dev::compute_dbn_attr(int& thread_index, SERP_DEV& query_session, int& last_click_rank, float (&exam)[MAX_SERP_LENGTH + 1], float (&car)[MAX_SERP_LENGTH + 1], int& partition_size) {
     float numerator_update, denominator_update;
     float exam_val, attr_val,  car_val;
 
     for (int rank = 0; rank < MAX_SERP_LENGTH; rank++) {
-        SearchResult sr = query_session[rank];
+        SearchResult_DEV sr = query_session[rank];
 
         numerator_update = 0.f;
         denominator_update = 1.f;
@@ -668,12 +731,12 @@ DEV void DBN_Dev::compute_dbn_attr(int& thread_index, SERP& query_session, int& 
  * clicked.
  * @param car
  */
-DEV void DBN_Dev::compute_dbn_sat(int& thread_index, SERP& query_session, int& last_click_rank, float (&car)[MAX_SERP_LENGTH + 1], int& partition_size) {
+DEV void DBN_Dev::compute_dbn_sat(int& thread_index, SERP_DEV& query_session, int& last_click_rank, float (&car)[MAX_SERP_LENGTH + 1], int& partition_size) {
     float numerator_update, denominator_update;
     float gamma_val, sat_val, car_val;
 
     for (int rank = 0; rank < MAX_SERP_LENGTH; rank++) {
-        SearchResult sr = query_session[rank];
+        SearchResult_DEV sr = query_session[rank];
 
         if (sr.get_click() == 1) {
             numerator_update = 0.f;
@@ -708,7 +771,7 @@ DEV void DBN_Dev::compute_dbn_sat(int& thread_index, SERP& query_session, int& l
  * @param click_probs The probabilty of a click occurring on a rank.
  * @param exam_probs The probability of a rank being examined.
  */
-DEV void DBN_Dev::get_tail_clicks(int& thread_index, SERP& query_session, float (&click_probs)[MAX_SERP_LENGTH][MAX_SERP_LENGTH], float (&exam_probs)[MAX_SERP_LENGTH + 1]) {
+DEV void DBN_Dev::get_tail_clicks(int& thread_index, SERP_DEV& query_session, float (&click_probs)[MAX_SERP_LENGTH][MAX_SERP_LENGTH], float (&exam_probs)[MAX_SERP_LENGTH + 1]) {
     exam_probs[0] = 1.f;
     float exam_val, gamma_val, click_prob;
 
@@ -717,7 +780,7 @@ DEV void DBN_Dev::get_tail_clicks(int& thread_index, SERP& query_session, float 
 
         int ses_itr{0};
         for (int res_itr = start_rank; res_itr < MAX_SERP_LENGTH; res_itr++) {
-            SearchResult tmp_sr = query_session[ses_itr];
+            SearchResult_DEV tmp_sr = query_session[ses_itr];
 
             float attr_val = this->attractiveness_parameters[tmp_sr.get_param_index()].value();
             float sat_val = this->satisfaction_parameters[tmp_sr.get_param_index()].value();
@@ -755,11 +818,11 @@ DEV void DBN_Dev::get_tail_clicks(int& thread_index, SERP& query_session, float 
  * @param click_probs The probabilty of a click occurring on a rank.
  * @param exam_probs The probability of a rank being examined.
  */
-DEV void DBN_Dev::compute_gamma(int& thread_index, SERP& query_session, int& last_click_rank, float (&click_probs)[MAX_SERP_LENGTH][MAX_SERP_LENGTH], float (&exam_probs)[MAX_SERP_LENGTH + 1]) {
+DEV void DBN_Dev::compute_gamma(int& thread_index, SERP_DEV& query_session, int& last_click_rank, float (&click_probs)[MAX_SERP_LENGTH][MAX_SERP_LENGTH], float (&exam_probs)[MAX_SERP_LENGTH + 1]) {
     float factor_values[8] = { 0.f };
 
     for (int rank = 0; rank < MAX_SERP_LENGTH; rank++){
-        SearchResult sr = query_session[rank];
+        SearchResult_DEV sr = query_session[rank];
 
         // Send the initialization values to the phi function.
         DBNFactor factor_func(click_probs, exam_probs, sr.get_click(),
@@ -797,7 +860,7 @@ DEV void DBN_Dev::compute_gamma(int& thread_index, SERP& query_session, int& las
  * @param parameter_type The type of parameter to update.
  * @param partition_size The size of the dataset.
  */
-DEV void DBN_Dev::update_parameters(SERP& query_session, int& thread_index, int& block_index, int& partition_size) {
+DEV void DBN_Dev::update_parameters(SERP_DEV& query_session, int& thread_index, int& block_index, int& partition_size) {
     this->update_gamma_parameters(query_session, thread_index, block_index, partition_size);
 
     if (thread_index < partition_size) {
@@ -815,7 +878,7 @@ DEV void DBN_Dev::update_parameters(SERP& query_session, int& thread_index, int&
  * @param block_index The index of the block in which this thread exists.
  * @param partition_size The size of the dataset.
  */
-DEV void DBN_Dev::update_gamma_parameters(SERP& query_session, int& thread_index, int& block_index, int& partition_size) {
+DEV void DBN_Dev::update_gamma_parameters(SERP_DEV& query_session, int& thread_index, int& block_index, int& partition_size) {
     SHR float numerator[BLOCK_SIZE];
     SHR float denominator[BLOCK_SIZE];
 
@@ -879,9 +942,9 @@ DEV void DBN_Dev::update_gamma_parameters(SERP& query_session, int& thread_index
  * @param query_session The query session of this thread.
  * @param thread_index The index of this thread.
  */
-DEV void DBN_Dev::update_attractiveness_parameters(SERP& query_session, int& thread_index, int& partition_size) {
+DEV void DBN_Dev::update_attractiveness_parameters(SERP_DEV& query_session, int& thread_index, int& partition_size) {
     for (int rank = 0; rank < MAX_SERP_LENGTH; rank++) {
-        SearchResult sr = query_session[rank];
+        SearchResult_DEV sr = query_session[rank];
         Param atr_update = this->tmp_attractiveness_parameters[rank * partition_size + thread_index];
         this->attractiveness_parameters[sr.get_param_index()].atomic_add_to_values(atr_update.numerator_val(),
                                                                                    atr_update.denominator_val());
@@ -897,9 +960,9 @@ DEV void DBN_Dev::update_attractiveness_parameters(SERP& query_session, int& thr
  * @param block_index The index of the block in which this thread exists.
  * @param partition_size The size of the dataset.
  */
-DEV void DBN_Dev::update_satisfaction_parameters(SERP& query_session, int& thread_index, int& partition_size) {
+DEV void DBN_Dev::update_satisfaction_parameters(SERP_DEV& query_session, int& thread_index, int& partition_size) {
     for (int rank = 0; rank < MAX_SERP_LENGTH; rank++) {
-        SearchResult sr = query_session[rank];
+        SearchResult_DEV sr = query_session[rank];
         Param sat_update = this->tmp_satisfaction_parameters[rank * partition_size + thread_index];
         this->satisfaction_parameters[sr.get_param_index()].atomic_add_to_values(sat_update.numerator_val(),
                                                                                  sat_update.denominator_val());

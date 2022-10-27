@@ -61,6 +61,6 @@ namespace Utils
 }
 
 // Display the help message.
-void print_help_msg(void);
+void show_help_msg(void);
 
 #endif // CLICK_MODEL_UTILS_H
