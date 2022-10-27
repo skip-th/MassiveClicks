@@ -95,7 +95,7 @@ HST std::pair<int, int> CCM_Hst::get_n_cont_params(int n_queries, int n_qd) {
  * query-document pairs in the training set.
  * @param n_devices The number of devices on this node.
  */
-HST void CCM_Hst::init_attractiveness_parameters(const std::tuple<std::vector<SERP>, std::vector<SERP>, int>& partition, const size_t fmem) {
+HST void CCM_Hst::init_attractiveness_parameters(const std::tuple<std::vector<SERP_HST>, std::vector<SERP_HST>, int>& partition, const size_t fmem) {
     Param default_parameter;
     default_parameter.set_values(PARAM_DEF_NUM, PARAM_DEF_DENOM);
 
@@ -133,7 +133,7 @@ HST void CCM_Hst::init_attractiveness_parameters(const std::tuple<std::vector<SE
  * query-document pairs in the training set.
  * @param n_devices The number of devices on this node.
  */
-HST void CCM_Hst::init_tau_parameters(const std::tuple<std::vector<SERP>, std::vector<SERP>, int>& partition, const size_t fmem) {
+HST void CCM_Hst::init_tau_parameters(const std::tuple<std::vector<SERP_HST>, std::vector<SERP_HST>, int>& partition, const size_t fmem) {
     Param default_parameter;
     default_parameter.set_values(PARAM_DEF_NUM, PARAM_DEF_DENOM);
 
@@ -172,7 +172,7 @@ HST void CCM_Hst::init_tau_parameters(const std::tuple<std::vector<SERP>, std::v
  * query-document pairs in the training set.
  * @param n_devices The number of devices on this node.
  */
-HST void CCM_Hst::init_parameters(const std::tuple<std::vector<SERP>, std::vector<SERP>, int>& partition, const size_t fmem) {
+HST void CCM_Hst::init_parameters(const std::tuple<std::vector<SERP_HST>, std::vector<SERP_HST>, int>& partition, const size_t fmem) {
     this->init_attractiveness_parameters(partition, fmem);
     this->init_tau_parameters(partition, fmem);
 }
@@ -229,7 +229,7 @@ HST void CCM_Hst::update_parameters(int& gridSize, int& blockSize, SERP_DEV*& pa
     Kernel::update<<<gridSize, blockSize>>>(partition, dataset_size);
 }
 
-HST void CCM_Hst::update_parameters_on_host(const int& n_threads, const int& partition_size, std::vector<SERP>& partition){
+HST void CCM_Hst::update_parameters_on_host(const int& n_threads, const int& partition_size, std::vector<SERP_HST>& partition){
     // Kernel::update<<<gridSize, blockSize>>>(partition, dataset_size);
 }
 
@@ -375,12 +375,12 @@ HST void CCM_Hst::set_parameters(std::vector<std::vector<Param>>& source, int pa
  * @param log_click_probs The vector which will store the log-likelihood for
  * the document at each rank in the query session.
  */
-HST void CCM_Hst::get_log_conditional_click_probs(SERP& query_session, std::vector<float>& log_click_probs) {
+HST void CCM_Hst::get_log_conditional_click_probs(SERP_HST& query_session, std::vector<float>& log_click_probs) {
     float atr, tau_1, tau_2, tau_3;
     float ex{1.f}, click_prob;
 
     for (int rank = 0; rank < MAX_SERP_LENGTH; rank++) {
-        SearchResult sr = query_session[rank];
+        SearchResult_HST sr = query_session[rank];
 
         atr = (float) PARAM_DEF_NUM / (float) PARAM_DEF_DENOM;
         if (sr.get_param_index() != -1)
@@ -411,14 +411,14 @@ HST void CCM_Hst::get_log_conditional_click_probs(SERP& query_session, std::vect
  * @param full_click_probs The vector which will store the click probability
  * for the document at each rank in the query session.
  */
-HST void CCM_Hst::get_full_click_probs(SERP& query_session, std::vector<float> &full_click_probs) {
+HST void CCM_Hst::get_full_click_probs(SERP_HST& query_session, std::vector<float> &full_click_probs) {
     float atr, tau_1, tau_2, tau_3;
     float ex{1.f}, atr_mul_ex;
 
     // Go through all ranks of the query session.
     for (int rank = 0; rank < MAX_SERP_LENGTH; rank++) {
         // Retrieve the search result at the current rank.
-        SearchResult sr = query_session[rank];
+        SearchResult_HST sr = query_session[rank];
 
         atr = (float) PARAM_DEF_NUM / (float) PARAM_DEF_DENOM;
         if (sr.get_param_index() != -1)

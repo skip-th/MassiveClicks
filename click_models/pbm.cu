@@ -96,7 +96,7 @@ HST std::pair<int, int> PBM_Hst::get_n_exam_params(int n_queries, int n_qd) {
  * query-document pairs in the training set.
  * @param n_devices The number of devices on this node.
  */
-HST void PBM_Hst::init_attractiveness_parameters(const std::tuple<std::vector<SERP>, std::vector<SERP>, int>& partition, const size_t fmem) {
+HST void PBM_Hst::init_attractiveness_parameters(const std::tuple<std::vector<SERP_HST>, std::vector<SERP_HST>, int>& partition, const size_t fmem) {
     Param default_parameter;
     default_parameter.set_values(PARAM_DEF_NUM, PARAM_DEF_DENOM);
 
@@ -134,7 +134,7 @@ HST void PBM_Hst::init_attractiveness_parameters(const std::tuple<std::vector<SE
  * query-document pairs in the training set.
  * @param n_devices The number of devices on this node.
  */
-HST void PBM_Hst::init_examination_parameters(const std::tuple<std::vector<SERP>, std::vector<SERP>, int>& partition, const size_t fmem) {
+HST void PBM_Hst::init_examination_parameters(const std::tuple<std::vector<SERP_HST>, std::vector<SERP_HST>, int>& partition, const size_t fmem) {
     Param default_parameter;
     default_parameter.set_values(PARAM_DEF_NUM, PARAM_DEF_DENOM);
 
@@ -173,7 +173,7 @@ HST void PBM_Hst::init_examination_parameters(const std::tuple<std::vector<SERP>
  * query-document pairs in the training set.
  * @param n_devices The number of devices on this node.
  */
-HST void PBM_Hst::init_parameters(const std::tuple<std::vector<SERP>, std::vector<SERP>, int>& partition, const size_t fmem) {
+HST void PBM_Hst::init_parameters(const std::tuple<std::vector<SERP_HST>, std::vector<SERP_HST>, int>& partition, const size_t fmem) {
     this->init_attractiveness_parameters(partition, fmem);
     this->init_examination_parameters(partition, fmem);
 }
@@ -234,7 +234,7 @@ struct thread_data {
     int thread_index;
     int n_threads;
     int stride;
-    std::vector<SERP>* partition;
+    std::vector<SERP_HST>* partition;
 };
 
 HST void* PBM_Hst::reduce_parameters(void* data) {
@@ -242,7 +242,7 @@ HST void* PBM_Hst::reduce_parameters(void* data) {
     int thread_index = ptr->thread_index;
     int n_threads = ptr->n_threads;
     int stride = ptr->stride;
-    std::vector<SERP>* partition = ptr->partition;
+    std::vector<SERP_HST>* partition = ptr->partition;
 
     Param* public_sum = (Param*) calloc(MAX_SERP_LENGTH, sizeof(Param));
 
@@ -267,7 +267,7 @@ HST void* PBM_Hst::reduce_parameters(void* data) {
     for (int rank = 0; rank < MAX_SERP_LENGTH; rank++) {
         for (int query_index = thread_index * thread_stride; query_index < thread_index * thread_stride + thread_stride; query_index++) {
             if (query_index < stride) {
-                SearchResult sr = (*partition)[query_index][rank];
+                SearchResult_HST sr = (*partition)[query_index][rank];
                 this->attractiveness_parameters[sr.get_param_index()].add_to_values(
                     this->tmp_attractiveness_parameters[rank * stride + query_index].numerator_val(),
                     1.f);
@@ -279,7 +279,7 @@ HST void* PBM_Hst::reduce_parameters(void* data) {
     pthread_exit(public_sum);
 }
 
-HST void PBM_Hst::update_parameters_on_host(const int& n_threads, const int& partition_size, std::vector<SERP>& partition) {
+HST void PBM_Hst::update_parameters_on_host(const int& n_threads, const int& partition_size, std::vector<SERP_HST>& partition) {
     // Retrieve the intermediate parameter values.
     CUDA_CHECK(cudaMemcpy(this->tmp_attractiveness_parameters.data(), this->tmp_attr_param_dptr, this->n_tmp_attr_dev * sizeof(Param), cudaMemcpyDeviceToHost));
     CUDA_CHECK(cudaMemcpy(this->tmp_examination_parameters.data(), this->tmp_exam_param_dptr, this->n_tmp_exams_dev * sizeof(Param), cudaMemcpyDeviceToHost));
@@ -464,9 +464,9 @@ HST void PBM_Hst::set_parameters(std::vector<std::vector<Param>>& source, int pa
  * @param log_click_probs The vector which will store the log-likelihood for
  * the document at each rank in the query session.
  */
-HST void PBM_Hst::get_log_conditional_click_probs(SERP& query_session, std::vector<float>& log_click_probs) {
+HST void PBM_Hst::get_log_conditional_click_probs(SERP_HST& query_session, std::vector<float>& log_click_probs) {
     for (int rank = 0; rank < MAX_SERP_LENGTH; rank++) {
-        SearchResult sr = query_session[rank];
+        SearchResult_HST sr = query_session[rank];
 
         // Get the parameters corresponding to the current search result.
         // Return the default parameter value if the qd-pair was not found in
@@ -499,11 +499,11 @@ HST void PBM_Hst::get_log_conditional_click_probs(SERP& query_session, std::vect
  * @param full_click_probs The vector which will store the click probability
  * for the document at each rank in the query session.
  */
-HST void PBM_Hst::get_full_click_probs(SERP& query_session, std::vector<float> &full_click_probs) {
+HST void PBM_Hst::get_full_click_probs(SERP_HST& query_session, std::vector<float> &full_click_probs) {
     // Go through all ranks of the query session.
     for (int rank = 0; rank < MAX_SERP_LENGTH; rank++) {
         // Retrieve the search result at the current rank.
-        SearchResult sr = query_session[rank];
+        SearchResult_HST sr = query_session[rank];
 
         // Get the parameters corresponding to the current search result.
         // Return the default parameter value if the qd-pair was not found in

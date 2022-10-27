@@ -27,7 +27,7 @@
  */
 void em_parallel(const int model_type, const int node_id, const int n_nodes,
     const int n_threads, const int* n_devices_network, const int n_itr,
-    std::vector<std::tuple<std::vector<SERP>, std::vector<SERP>, int>>& device_partitions,
+    std::vector<std::tuple<std::vector<SERP_HST>, std::vector<SERP_HST>, int>>& device_partitions,
     const std::vector<std::unordered_map<int, std::unordered_map<int, int>>*>& root_mapping) {
     int n_devices = device_partitions.size();
 
@@ -87,7 +87,7 @@ void em_parallel(const int model_type, const int node_id, const int n_nodes,
         CUDA_CHECK(cudaMemcpy(dataset_dev[device_id], dataset_dev_tmp.data(),
                               dataset_size, cudaMemcpyHostToDevice));
 
-        // double dataset_size = std::get<0>(device_partitions[device_id]).size() * sizeof(SERP);
+        // double dataset_size = std::get<0>(device_partitions[device_id]).size() * sizeof(SERP_HST);
         // if (dataset_size * 1.001 > fmem) {
         //     std::cout << "Error: Insufficient GPU memory!\n\tAllocating dataset requires an additional " <<
         //     (dataset_size - fmem_dev[device_id * 2 + 1]) / 1e6 << " MB of GPU memory." << std::endl;

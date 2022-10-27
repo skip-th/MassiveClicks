@@ -30,7 +30,7 @@
 
 void em_parallel(const int model_type, const int node_id, const int n_nodes,
     const int n_threads,const int* n_devices_network, const int n_itr,
-    std::vector<std::tuple<std::vector<SERP>, std::vector<SERP>, int>>& device_partitions,
+    std::vector<std::tuple<std::vector<SERP_HST>, std::vector<SERP_HST>, int>>& device_partitions,
     const std::vector<std::unordered_map<int, std::unordered_map<int, int>>*>& root_mapping);
 
 #endif // CLICK_MODEL_PARALLEL_EM_H

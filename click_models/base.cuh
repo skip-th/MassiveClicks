@@ -35,10 +35,10 @@ public:
     HST virtual void say_hello() = 0;
     HST virtual size_t get_memory_usage(void) = 0;
     HST virtual size_t compute_memory_footprint(int n_queries, int n_qd) = 0;
-    HST virtual void init_parameters(const std::tuple<std::vector<SERP>, std::vector<SERP>, int>& partition, const size_t fmem) = 0;
+    HST virtual void init_parameters(const std::tuple<std::vector<SERP_HST>, std::vector<SERP_HST>, int>& partition, const size_t fmem) = 0;
     HST virtual void get_device_references(Param**& param_refs, int*& param_sizes) = 0;
     HST virtual void update_parameters(int& gridSize, int& blockSize, SERP_DEV*& partition, int& dataset_size) = 0;
-    HST virtual void update_parameters_on_host(const int& n_threads, const int& partition_size, std::vector<SERP>& partition)= 0;
+    HST virtual void update_parameters_on_host(const int& n_threads, const int& partition_size, std::vector<SERP_HST>& partition)= 0;
     HST virtual void reset_parameters(void) = 0;
 
     HST virtual void transfer_parameters(int parameter_type, int transfer_direction) = 0;
@@ -47,8 +47,8 @@ public:
     HST virtual void set_parameters(std::vector<std::vector<Param>>& public_parameters, int parameter_type) = 0;
     HST virtual void destroy_parameters(void) = 0;
 
-    HST virtual void get_log_conditional_click_probs(SERP& query_session, std::vector<float>& log_click_probs) = 0;
-    HST virtual void get_full_click_probs(SERP& search_ses, std::vector<float> &full_click_probs) = 0;
+    HST virtual void get_log_conditional_click_probs(SERP_HST& query_session, std::vector<float>& log_click_probs) = 0;
+    HST virtual void get_full_click_probs(SERP_HST& search_ses, std::vector<float> &full_click_probs) = 0;
 };
 
 

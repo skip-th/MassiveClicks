@@ -111,7 +111,7 @@ HST std::pair<int, int> DBN_Hst::get_n_cont_params(int n_queries, int n_qd) {
  * query-document pairs in the training set.
  * @param n_devices The number of devices on this node.
  */
-HST void DBN_Hst::init_attractiveness_parameters(const std::tuple<std::vector<SERP>, std::vector<SERP>, int>& partition, const size_t fmem) {
+HST void DBN_Hst::init_attractiveness_parameters(const std::tuple<std::vector<SERP_HST>, std::vector<SERP_HST>, int>& partition, const size_t fmem) {
     Param default_parameter;
     default_parameter.set_values(PARAM_DEF_NUM, PARAM_DEF_DENOM);
 
@@ -149,7 +149,7 @@ HST void DBN_Hst::init_attractiveness_parameters(const std::tuple<std::vector<SE
  * query-document pairs in the training set.
  * @param n_devices The number of devices on this node.
  */
-HST void DBN_Hst::init_satisfaction_parameters(const std::tuple<std::vector<SERP>, std::vector<SERP>, int>& partition, const size_t fmem) {
+HST void DBN_Hst::init_satisfaction_parameters(const std::tuple<std::vector<SERP_HST>, std::vector<SERP_HST>, int>& partition, const size_t fmem) {
     Param default_parameter;
     default_parameter.set_values(PARAM_DEF_NUM, PARAM_DEF_DENOM);
 
@@ -187,7 +187,7 @@ HST void DBN_Hst::init_satisfaction_parameters(const std::tuple<std::vector<SERP
  * query-document pairs in the training set.
  * @param n_devices The number of devices on this node.
  */
-HST void DBN_Hst::init_gamma_parameters(const std::tuple<std::vector<SERP>, std::vector<SERP>, int>& partition, const size_t fmem) {
+HST void DBN_Hst::init_gamma_parameters(const std::tuple<std::vector<SERP_HST>, std::vector<SERP_HST>, int>& partition, const size_t fmem) {
     Param default_parameter;
     default_parameter.set_values(PARAM_DEF_NUM, PARAM_DEF_DENOM);
 
@@ -226,7 +226,7 @@ HST void DBN_Hst::init_gamma_parameters(const std::tuple<std::vector<SERP>, std:
  * query-document pairs in the training set.
  * @param n_devices The number of devices on this node.
  */
-HST void DBN_Hst::init_parameters(const std::tuple<std::vector<SERP>, std::vector<SERP>, int>& partition, const size_t fmem) {
+HST void DBN_Hst::init_parameters(const std::tuple<std::vector<SERP_HST>, std::vector<SERP_HST>, int>& partition, const size_t fmem) {
     this->init_attractiveness_parameters(partition, fmem);
     this->init_satisfaction_parameters(partition, fmem);
     this->init_gamma_parameters(partition, fmem);
@@ -293,7 +293,7 @@ HST void DBN_Hst::update_parameters(int& gridSize, int& blockSize, SERP_DEV*& pa
     // gamma_parameters[0] = thrust::reduce(dptr, dptr + this->n_tmp_gamma_dev, init_val, Param_add());
 }
 
-HST void DBN_Hst::update_parameters_on_host(const int& n_threads, const int& partition_size, std::vector<SERP>& partition){
+HST void DBN_Hst::update_parameters_on_host(const int& n_threads, const int& partition_size, std::vector<SERP_HST>& partition){
     // Kernel::update<<<gridSize, blockSize>>>(partition, dataset_size);
 }
 
@@ -455,11 +455,11 @@ HST void DBN_Hst::set_parameters(std::vector<std::vector<Param>>& source, int pa
  * @param log_click_probs The vector which will store the log-likelihood for
  * the document at each rank in the query session.
  */
-HST void DBN_Hst::get_log_conditional_click_probs(SERP& query_session, std::vector<float>& log_click_probs) {
+HST void DBN_Hst::get_log_conditional_click_probs(SERP_HST& query_session, std::vector<float>& log_click_probs) {
     float ex{1.f}, click_prob;
 
     for (int rank = 0; rank < MAX_SERP_LENGTH; rank++) {
-        SearchResult sr = query_session[rank];
+        SearchResult_HST sr = query_session[rank];
 
         // Get the parameters corresponding to the current search result.
         // Return the default parameter value if the qd-pair was not found in
@@ -493,13 +493,13 @@ HST void DBN_Hst::get_log_conditional_click_probs(SERP& query_session, std::vect
  * @param full_click_probs The vector which will store the click probability
  * for the document at each rank in the query session.
  */
-HST void DBN_Hst::get_full_click_probs(SERP& query_session, std::vector<float> &full_click_probs) {
+HST void DBN_Hst::get_full_click_probs(SERP_HST& query_session, std::vector<float> &full_click_probs) {
     float ex{1.f}, atr_mul_ex;
 
     // Go through all ranks of the query session.
     for (int rank = 0; rank < MAX_SERP_LENGTH; rank++) {
         // Retrieve the search result at the current rank.
-        SearchResult sr = query_session[rank];
+        SearchResult_HST sr = query_session[rank];
 
         // Get the parameters corresponding to the current search result.
         // Return the default parameter value if the qd-pair was not found in

@@ -74,7 +74,7 @@ int Dataset::size_qd(const int& nid, const int& did) const{
  * @param session_id The session id shared by all provided query sessions.
  * @param session The session containing the query sessions.
  */
-void Dataset::add_session(const int session_id, const std::vector<SERP>& session) {
+void Dataset::add_session(const int session_id, const std::vector<SERP_HST>& session) {
     for (auto serp : session) {
         // this->sessions[session_id].push_back(serp);
         this->sessions.push_back(serp);
@@ -87,7 +87,7 @@ void Dataset::add_session(const int session_id, const std::vector<SERP>& session
  * @param session_id The session id shared by all provided query sessions.
  * @param query_session The query session which will be added.
  */
-void Dataset::add_query_session(const SERP& query_session) {
+void Dataset::add_query_session(const SERP_HST& query_session) {
     // this->sessions[session_id].push_back(query_session);
     this->sessions.push_back(query_session);
 }
@@ -106,9 +106,9 @@ void Dataset::increment_queries(const int& value) {
  *
  * @param node_id The id of the node.
  * @param device_id The id of the device on the node.
- * @return std::vector<SERP>* A reference to the training queries vector.
+ * @return std::vector<SERP_HST>* A reference to the training queries vector.
  */
-std::vector<SERP>* Dataset::get_train_set(const int& nid, const int& did) {
+std::vector<SERP_HST>* Dataset::get_train_set(const int& nid, const int& did) {
     return &this->training_queries[nid][did];
 }
 
@@ -117,9 +117,9 @@ std::vector<SERP>* Dataset::get_train_set(const int& nid, const int& did) {
  *
  * @param node_id The id of the node.
  * @param device_id The id of the device on the node.
- * @return std::vector<SERP>* A reference to the testing queries vector.
+ * @return std::vector<SERP_HST>* A reference to the testing queries vector.
  */
-std::vector<SERP>* Dataset::get_test_set(const int& nid, const int& did) {
+std::vector<SERP_HST>* Dataset::get_test_set(const int& nid, const int& did) {
     return &this->testing_queries[nid][did];
 }
 
@@ -147,7 +147,7 @@ std::unordered_map<int, std::unordered_map<int, int>>* Dataset::get_mapping(cons
  * @return true if all query-document pairs were successfully assigned a
  * parameter index, false otherwise.
  */
-bool Dataset::add_parameter_test(SERP& query_session, const int& node_id, const int& device_id) {
+bool Dataset::add_parameter_test(SERP_HST& query_session, const int& node_id, const int& device_id) {
     std::unordered_map<int, std::unordered_map<int, int>>* local_params = &this->qd_parameters[node_id][device_id];
 
     // Iterate over all ranks in the query session.
@@ -188,7 +188,7 @@ bool Dataset::add_parameter_test(SERP& query_session, const int& node_id, const 
  * @param node_id The id of the node.
  * @param device_id The id of the device on the node.
  */
-void Dataset::add_parameter_train(SERP& query_session, const int& node_id, const int& device_id) {
+void Dataset::add_parameter_train(SERP_HST& query_session, const int& node_id, const int& device_id) {
     std::unordered_map<int, std::unordered_map<int, int>>* local_params = &this->qd_parameters[node_id][device_id];
     int* local_params_sz = &this->qd_parameters_sz[node_id][device_id];
     int query = query_session.get_query();
@@ -229,12 +229,12 @@ void Dataset::add_parameter_train(SERP& query_session, const int& node_id, const
  * @brief Finds the device with the least filled training query vector.
  *
  *
- * @param training_queries A vector containing SERPs grouped by query.
+ * @param training_queries A vector containing SERP_HSTs grouped by query.
  * @param network_properties The properties of the devices within the network.
  *
  * @return std::pair<int,int> The node id and device id of smallest training vector.
  */
-std::pair<int,int> Dataset::get_smallest_train(const NetworkMap<std::vector<SERP>>& training_queries) {
+std::pair<int,int> Dataset::get_smallest_train(const NetworkMap<std::vector<SERP_HST>>& training_queries) {
     int smallest{std::numeric_limits<int>::max()}, small_nid{0}, small_did{0};
 
     for (int nid = 0; nid < training_queries.size(); nid++) {
@@ -254,13 +254,13 @@ std::pair<int,int> Dataset::get_smallest_train(const NetworkMap<std::vector<SERP
  * @brief Finds the device with the least filled training query vector relative
  * to the available memory on the device.
  *
- * @param training_queries A vector containing SERPs grouped by query.
+ * @param training_queries A vector containing SERP_HSTs grouped by query.
  * @param network_properties The properties of the devices within the network.
  *
  * @return std::pair<int,int> The node id and device id of smallest training
  * vector relative to memory size.
  */
-std::pair<int,int> Dataset::get_smallest_relative_train(const NetworkMap<std::vector<SERP>>& training_queries, const NetworkMap<std::vector<int>>& network_properties) {
+std::pair<int,int> Dataset::get_smallest_relative_train(const NetworkMap<std::vector<SERP_HST>>& training_queries, const NetworkMap<std::vector<int>>& network_properties) {
     int small_nid{0}, small_did{0};
     float smallest{std::numeric_limits<float>::max()}, occupancy{0};
 
@@ -282,13 +282,13 @@ std::pair<int,int> Dataset::get_smallest_relative_train(const NetworkMap<std::ve
  * @brief Finds the device with the newest architecture and fills its training
  * query vector first.
  *
- * @param training_queries A vector containing SERPs grouped by query.
+ * @param training_queries A vector containing SERP_HSTs grouped by query.
  * @param network_properties The properties of the devices within the network.
  *
  * @return std::pair<int,int> The node id and device id of smallest training
  * vector with the highest device architecture.
  */
-std::pair<int,int> Dataset::get_smallest_arch_train(const NetworkMap<std::vector<SERP>>& training_queries, const NetworkMap<std::vector<int>>& network_properties) {
+std::pair<int,int> Dataset::get_smallest_arch_train(const NetworkMap<std::vector<SERP_HST>>& training_queries, const NetworkMap<std::vector<int>>& network_properties) {
     int small_new_nid{0}, small_new_did{0}, arch, prev_arch{0};
     float memory_footprint, occupancy, smallest_occupancy{std::numeric_limits<float>::max()};
 
@@ -384,25 +384,25 @@ void Dataset::make_partitions(const NetworkMap<std::vector<int>>& network_proper
         // device-local parameter index from qd_parameters and assign the query
         // session to the training array of the device.
         for (int ses_i : grp_itr->second) {
-            SERP serp = this->sessions[ses_i];
+            SERP_HST serp = this->sessions[ses_i];
             this->add_parameter_train(serp, node_id, device_id);
             this->training_queries[node_id][device_id].push_back(serp);
         }
     }
 
     // Move the remaining sessions to the testing set.
-    // Check for each SERP from the test sessions whether all the SERP's search
+    // Check for each SERP_HST from the test sessions whether all the SERP_HST's search
     // results occur in a device's qd_parameters.
     std::cout << "(3/3) Partitioning testing query sessions..." << std::endl;
     for (grp_itr = std::begin(grouped_test_queries); grp_itr != std::end(grouped_test_queries); grp_itr++) {
         // Go through all queries in the current session.
         for (int ses_i : grp_itr->second) {
-            SERP qry = this->sessions[ses_i];
+            SERP_HST qry = this->sessions[ses_i];
 
             // Go through all devices in the network.
             for (int nid = 0; nid < n_nodes; nid++) {
                 for (int did = 0; did < this->qd_parameters[nid].size(); did++) {
-                    // Check if all query-document pairs from this SERP exist
+                    // Check if all query-document pairs from this SERP_HST exist
                     // in the qd_parameters of this device.
                     if (this->add_parameter_test(qry, nid, did)) {
                         // Add the query session to the device's testing set.
@@ -482,7 +482,7 @@ void parse_dataset(Dataset &dataset, const std::string& raw_dataset_path, int ma
     if (raw_file.is_open()) {
         std::cout << "Raw dataset file \"" << raw_dataset_path << "\" is opened." << std::endl;
 
-        SERP curr_SERP;
+        SERP_HST curr_SERP_HST;
         int session_id_curr{0}, session_id_prev{-1};
 
         // Extract lines of type string from the dataset input stream, while the
@@ -512,16 +512,16 @@ void parse_dataset(Dataset &dataset, const std::string& raw_dataset_path, int ma
                 // this query session has actually been filled by checking
                 // whether the session id does not equal its default value (-1).
                 if (session_id_prev != -1) {
-                    dataset.add_query_session(curr_SERP);
+                    dataset.add_query_session(curr_SERP_HST);
                     n_queries++;
                 }
 
-                curr_SERP = SERP(line_vec);
+                curr_SERP_HST = SERP_HST(line_vec);
             }
             // If this line contains 4 elements, then it describes a click action.
             // Vector elements: session id, time passed, C, document id.
             else if (line_vec.size() == CLICK_LINE_LENGTH) {
-                curr_SERP.update_click_res(line_vec);
+                curr_SERP_HST.update_click_res(line_vec);
             }
             // If this line contains any other number of elements, then the
             // associated action type is unknown.

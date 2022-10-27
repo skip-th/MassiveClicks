@@ -117,10 +117,10 @@ DEV float CCMFactor::compute(int x, int y, int z) {
 /**
  * @brief Set the necessary arguments to compute phi for DBN.
  *
- * @param click_probs The current click probabilities for this SERP.
- * @param exam_probs The current examination probabilities for this SERP.
+ * @param click_probs The current click probabilities for this SERP_HST.
+ * @param exam_probs The current examination probabilities for this SERP_HST.
  * @param click The click on the current document.
- * @param last_click_rank The rank of the last clicked document in this SERP.
+ * @param last_click_rank The rank of the last clicked document in this SERP_HST.
  * @param rank The rank of this document.
  * @param attr The attractiveness of this query-document pair.
  * @param sat The satisfaction with this query-document pair.
