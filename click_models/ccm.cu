@@ -229,7 +229,7 @@ HST void CCM_Hst::update_parameters(int& gridSize, int& blockSize, SERP_DEV*& pa
     Kernel::update<<<gridSize, blockSize>>>(partition, dataset_size);
 }
 
-HST void CCM_Hst::update_parameters_on_host(const int& n_threads, const int& partition_size, std::vector<SERP_HST>& partition){
+HST void CCM_Hst::update_parameters_on_host(const int& n_threads, const int* thread_start_idx, std::vector<SERP_HST>& partition){
     // Kernel::update<<<gridSize, blockSize>>>(partition, dataset_size);
 }
 

@@ -78,5 +78,6 @@ private:
 };
 
 void parse_dataset(Dataset &dataset, const std::string& raw_dataset_path, int max_sessions=-1);
+void sort_partitions(std::vector<std::tuple<std::vector<SERP_HST>, std::vector<SERP_HST>, int>>& device_partitions, int n_threads);
 
 #endif // CLICK_MODEL_DATASET_H

@@ -38,7 +38,7 @@ public:
     HST virtual void init_parameters(const std::tuple<std::vector<SERP_HST>, std::vector<SERP_HST>, int>& partition, const size_t fmem) = 0;
     HST virtual void get_device_references(Param**& param_refs, int*& param_sizes) = 0;
     HST virtual void update_parameters(int& gridSize, int& blockSize, SERP_DEV*& partition, int& dataset_size) = 0;
-    HST virtual void update_parameters_on_host(const int& n_threads, const int& partition_size, std::vector<SERP_HST>& partition)= 0;
+    HST virtual void update_parameters_on_host(const int& n_threads, const int* thread_start_idx, std::vector<SERP_HST>& partition)= 0;
     HST virtual void reset_parameters(void) = 0;
 
     HST virtual void transfer_parameters(int parameter_type, int transfer_direction) = 0;

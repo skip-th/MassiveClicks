@@ -263,6 +263,25 @@ int main(int argc, char** argv) {
     auto transfering_stop_time = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> elapsed_transfering = transfering_stop_time - transfering_start_time;
 
+
+    //-----------------------------------------------------------------------//
+    // Sort dataset partitions                                               //
+    //-----------------------------------------------------------------------//
+
+    auto sorting_start_time = std::chrono::high_resolution_clock::now();
+
+    // TODO: Only necessary when the CPU is used.
+
+    // Sort the training sets for each device by query so a multiple sessions
+    // with the same query can be assigned to a single cpu thread.
+    if (node_id == ROOT) {
+        std::cout << "\nSorting dataset partitions..." << std::endl;
+    }
+    sort_partitions(device_partitions, n_threads);
+
+    auto sorting_stop_time = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> elapsed_sorting = sorting_stop_time - sorting_start_time;
+
     auto preprocessing_stop_time = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> elapsed_preprocessing = preprocessing_stop_time - preprocessing_start_time;
 
@@ -291,11 +310,12 @@ int main(int argc, char** argv) {
 
     // Show timing metrics on the root node.
     if (node_id == ROOT) {
-        int preproc_sz = 3, combined_sz = 2;
+        int preproc_sz = 4, combined_sz = 2;
         double timings_preproc[preproc_sz];
         timings_preproc[0] = elapsed_parsing.count();
         timings_preproc[1] = elapsed_partitioning.count();
         timings_preproc[2] = elapsed_transfering.count();
+        timings_preproc[3] = elapsed_sorting.count();
         double timings_combined[combined_sz];
         timings_combined[0] = elapsed_preprocessing.count();
         timings_combined[1] = elapsed_estimating.count();
@@ -308,6 +328,7 @@ int main(int argc, char** argv) {
         std::cout << std::left << std::setw(27) << "  Parsing time: " << std::left << std::setw(7) << Utils::digit_len(elapsed_parsing.count(), 7) << " seconds, " << std::right << std::setw(3) << round(percent_preproc[0] * 100) << " %" << std::endl;
         std::cout << std::left << std::setw(27) << "  Partitioning time: " << std::left << std::setw(7) << Utils::digit_len(elapsed_partitioning.count(), 7) << " seconds, " << std::right << std::setw(3) << round(percent_preproc[1] * 100) << " %" << std::endl;
         std::cout << std::left << std::setw(27) << "  Communication time: " << std::left << std::setw(7) << Utils::digit_len(elapsed_transfering.count(), 7) << " seconds, " << std::right << std::setw(3) << round(percent_preproc[2] * 100) << " %" << std::endl;
+        std::cout << std::left << std::setw(27) << "  Sorting time: " << std::left << std::setw(7) << Utils::digit_len(elapsed_sorting.count(), 7) << " seconds, " << std::right << std::setw(3) << round(percent_preproc[3] * 100) << " %" << std::endl;
         std::cout << std::left << std::setw(27) << "Parameter estimation time: " << std::left << std::setw(7) << Utils::digit_len(elapsed_estimating.count(), 7) << " seconds, " << std::right << std::setw(3) << round(percent_combined[1] * 100) << " %" << std::endl;
         std::cout << std::left << std::setw(27) << "Total elapsed time: " << std::left << std::setw(7) << Utils::digit_len(elapsed.count(), 7) << " seconds, 100 %" << std::endl << std::endl;
     }

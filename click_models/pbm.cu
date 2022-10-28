@@ -231,17 +231,21 @@ HST void PBM_Hst::update_parameters(int& gridSize, int& blockSize, SERP_DEV*& pa
 }
 
 struct thread_data {
-    int thread_index;
-    int n_threads;
-    int stride;
+    int thread_id;
+    int start_idx;
+    int stop_idx;
+    // int n_threads;
+    // int stride;
     std::vector<SERP_HST>* partition;
 };
 
 HST void* PBM_Hst::reduce_parameters(void* data) {
     thread_data* ptr = (thread_data*) data;
-    int thread_index = ptr->thread_index;
-    int n_threads = ptr->n_threads;
-    int stride = ptr->stride;
+    int thread_id = ptr->thread_id;
+    int start_idx = ptr->start_idx;
+    int stop_idx = ptr->stop_idx;
+    // int n_threads = ptr->n_threads;
+    // int stride = ptr->stride;
     std::vector<SERP_HST>* partition = ptr->partition;
 
     Param* public_sum = (Param*) calloc(MAX_SERP_LENGTH, sizeof(Param));
@@ -252,26 +256,39 @@ HST void* PBM_Hst::reduce_parameters(void* data) {
     }
 
     // Sum the public parameters.
-    int thread_stride = stride / n_threads + 1;
+    // int thread_stride = stride / n_threads + 1;
     for (int rank = 0; rank < MAX_SERP_LENGTH; rank++) {
+        // int start_rank = start_idx % MAX_SERP_LENGTH; // TODO: determine the start rank in range 0 to 9.
         // Have a single thread read contiguous memory locations. (T1: 0, T2: 10, T3: 20, ...)
-        for (int rank_index = thread_index * thread_stride; rank_index < thread_index * thread_stride + thread_stride; rank_index++) {
-            if (rank_index < stride) {
-                public_sum[rank] += this->tmp_examination_parameters[rank_index + stride * rank];
-            }
+        for (int array_index = start_idx; array_index < stop_idx; array_index++) {
+        // for (int rank_index = thread_id * thread_stride; rank_index < thread_index * thread_stride + thread_stride; rank_index++) {
+            // if (rank_index < stride) {
+            //     public_sum[rank] += this->tmp_examination_parameters[rank_index + stride * rank];
+            // }
+            public_sum[rank] += this->tmp_examination_parameters[array_index];
         }
     }
+
+    // // ! //////////////////////
+    // TEST ON DAS5 IF THE CHANGES WORK
+    // it is possible to use a separate temporary array like the public parameters to store the results, and then do the final sum later.
+    // // ! //////////////////////
 
     // ! TODO: Assign the same queries to each thread beforehand.
     // Sum the private parameters atomically.
     for (int rank = 0; rank < MAX_SERP_LENGTH; rank++) {
-        for (int query_index = thread_index * thread_stride; query_index < thread_index * thread_stride + thread_stride; query_index++) {
-            if (query_index < stride) {
-                SearchResult_HST sr = (*partition)[query_index][rank];
-                this->attractiveness_parameters[sr.get_param_index()].add_to_values(
-                    this->tmp_attractiveness_parameters[rank * stride + query_index].numerator_val(),
-                    1.f);
-            }
+        for (int query_index = start_idx; query_index < stop_idx; query_index++) {
+        // for (int query_index = id * thread_stride; query_index < thread_id * thread_stride + thread_stride; query_index++) {
+            // if (query_index < stride) {
+            //     SearchResult_HST sr = (*partition)[query_index][rank];
+            //     this->attractiveness_parameters[sr.get_param_index()].add_to_values(
+            //         this->tmp_attractiveness_parameters[rank * stride + query_index].numerator_val(),
+            //         1.f);
+            // }
+            SearchResult_HST sr = (*partition)[query_index][rank];
+            this->attractiveness_parameters[sr.get_param_index()].add_to_values(
+                this->tmp_attractiveness_parameters[query_index].numerator_val(),
+                1.f);
         }
     }
 
@@ -279,7 +296,7 @@ HST void* PBM_Hst::reduce_parameters(void* data) {
     pthread_exit(public_sum);
 }
 
-HST void PBM_Hst::update_parameters_on_host(const int& n_threads, const int& partition_size, std::vector<SERP_HST>& partition) {
+HST void PBM_Hst::update_parameters_on_host(const int& n_threads, const int* thread_start_idx, std::vector<SERP_HST>& partition) {
     // Retrieve the intermediate parameter values.
     CUDA_CHECK(cudaMemcpy(this->tmp_attractiveness_parameters.data(), this->tmp_attr_param_dptr, this->n_tmp_attr_dev * sizeof(Param), cudaMemcpyDeviceToHost));
     CUDA_CHECK(cudaMemcpy(this->tmp_examination_parameters.data(), this->tmp_exam_param_dptr, this->n_tmp_exams_dev * sizeof(Param), cudaMemcpyDeviceToHost));
@@ -292,10 +309,17 @@ HST void PBM_Hst::update_parameters_on_host(const int& n_threads, const int& par
     // Initialize threads.
     pthread_t threads[n_threads];
     for (int i = 0; i < n_threads; i++) {
-        data[i].thread_index = i;
-        data[i].n_threads = n_threads;
-        data[i].stride = partition_size;
+        data[i].thread_id = i;
+        data[i].start_idx = thread_start_idx[i];
+        if (i == n_threads - 1) {
+            data[i].stop_idx = partition.size();
+        } else {
+            data[i].stop_idx = thread_start_idx[i + 1];
+        }
+        // data[i].n_threads = n_threads;
+        // data[i].stride = partition_size;
         data[i].partition = &partition;
+
         if (pthread_create(&threads[i], NULL, reduce_init, (void*) &data[i])) {
             perror("Error: failed pthread_create()");
             mpi_abort(-1);

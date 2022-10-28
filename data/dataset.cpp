@@ -457,6 +457,63 @@ void Dataset::make_splits(const NetworkMap<std::vector<int>>& network_properties
     make_partitions(network_properties, test_share, partitioning_type, model_type);
 }
 
+//---------------------------------------------------------------------------//
+// Sort dataset partition                                                    //
+//---------------------------------------------------------------------------//
+
+/**
+ * @brief Sort the training set of the dataset by query id using quicksort.
+ *
+ * @param data The dataset partition to sort.
+ */
+void* quicksort_partition(void* data) {
+    std::vector<SERP_HST>* partition = (std::vector<SERP_HST>*) data;
+    std::sort(partition->begin(), partition->end(),
+              [](const SERP_HST& a, const SERP_HST& b) { return a.get_query() < b.get_query(); });
+    // pthread_exit(NULL);
+    return NULL;
+}
+
+/**
+ * @brief Sort a device's training set by query id using quicksort.
+ *
+ * @param device_partitions The partitions to sort.
+ * @param n_threads The number of threads to available.
+ */
+void sort_partitions(std::vector<std::tuple<std::vector<SERP_HST>, std::vector<SERP_HST>, int>>& device_partitions, int n_threads) {
+    int n_devices = device_partitions.size();
+
+    // Check whether there are enough threads to sort the partitions in parallel.
+    if (n_threads >= n_devices) {
+        // Sort the partitions in parallel.
+        pthread_t threads[n_devices];
+        for (int i = 0; i < n_devices; i++) {
+            // std::thread t(quicksort_partition, &std::get<0>(device_partitions[i]));
+            // t.join();
+            if (pthread_create(&threads[i], NULL, quicksort_partition, (void*) &std::get<0>(device_partitions[i]))) {
+                perror("Error: failed create threads");
+                mpi_abort(-1);
+            }
+        }
+
+        // Wait for all threads to finish.
+        for (int i = 0; i < n_devices; i++) {
+            if (pthread_join(threads[i], NULL)) {
+                perror("Error: failed to join threads");
+                mpi_abort(-1);
+            }
+        }
+    }
+    else {
+        // Sort the partitions sequentially.
+        for (int did = 0; did < n_devices; did++) {
+            // quicksort_partition(&std::get<0>(device_partitions[did]));
+            std::sort(std::get<0>(device_partitions[did]).begin(), std::get<0>(device_partitions[did]).end(),
+                [](const SERP_HST& a, const SERP_HST& b) { return a.get_query() < b.get_query(); });
+        }
+    }
+}
+
 
 //---------------------------------------------------------------------------//
 // Parse raw dataset                                                         //

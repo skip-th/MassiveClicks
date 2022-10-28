@@ -293,7 +293,7 @@ HST void DBN_Hst::update_parameters(int& gridSize, int& blockSize, SERP_DEV*& pa
     // gamma_parameters[0] = thrust::reduce(dptr, dptr + this->n_tmp_gamma_dev, init_val, Param_add());
 }
 
-HST void DBN_Hst::update_parameters_on_host(const int& n_threads, const int& partition_size, std::vector<SERP_HST>& partition){
+HST void DBN_Hst::update_parameters_on_host(const int& n_threads, const int* thread_start_idx, std::vector<SERP_HST>& partition){
     // Kernel::update<<<gridSize, blockSize>>>(partition, dataset_size);
 }
 

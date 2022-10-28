@@ -29,7 +29,7 @@ public:
     HST void init_parameters(const std::tuple<std::vector<SERP_HST>, std::vector<SERP_HST>, int>& partition, const size_t fmem) override;
     HST void get_device_references(Param**& param_refs, int*& param_sizes) override;
     HST void update_parameters(int& gridSize, int& blockSize, SERP_DEV*& partition, int& dataset_size) override;
-    HST void update_parameters_on_host(const int& n_threads, const int& partition_size, std::vector<SERP_HST>& partition) override;
+    HST void update_parameters_on_host(const int& n_threads, const int* thread_start_idx, std::vector<SERP_HST>& partition) override;
     HST static void* reduce_init(void* args) { return ((PBM_Hst*)args)->reduce_parameters(args); }
     HST void* reduce_parameters(void* args);
     HST void reset_parameters(void) override;
