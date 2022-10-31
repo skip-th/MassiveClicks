@@ -27,7 +27,7 @@
  */
 void em_parallel(const int model_type, const int node_id, const int n_nodes,
     const int n_threads, const int* n_devices_network, const int n_itr,
-    std::vector<std::tuple<std::vector<SERP_HST>, std::vector<SERP_HST>, int>>& device_partitions,
+    std::vector<std::tuple<std::vector<SERP_Hst>, std::vector<SERP_Hst>, int>>& device_partitions,
     const std::vector<std::unordered_map<int, std::unordered_map<int, int>>*>& root_mapping) {
     int n_devices = device_partitions.size();
 
@@ -56,24 +56,29 @@ void em_parallel(const int model_type, const int node_id, const int n_nodes,
     // Assign queries to CPU threads.                                        //
     //-----------------------------------------------------------------------//
 
-    // Allocate CPU threads to each device based on the number of queries.
     std::vector<std::vector<int>> thread_start_idx(n_devices);
     int n_queries_total = std::accumulate(device_partitions.begin(), device_partitions.end(), 0,
-        [](int sum, const std::tuple<std::vector<SERP_HST>, std::vector<SERP_HST>, int>& partition) {
+        [](int sum, const std::tuple<std::vector<SERP_Hst>, std::vector<SERP_Hst>, int>& partition) {
            return sum + std::get<0>(partition).size();});
-    for (int did = 0; did < n_devices; did++) {
-        int n_queries = std::get<0>(device_partitions[did]).size();
-        int n_threads_device = round((float) n_threads * ((float) n_queries / (float) n_queries_total));
+    int available_threads = n_threads;
+    int device_id = 0;
+    // Allocate CPU threads to each device based on the number of assigned
+    // queries.
+    while (available_threads > 0) {
+        int n_queries = std::get<0>(device_partitions[device_id]).size();
+        float ratio = (float) n_queries / (float) n_queries_total;
+        int n_threads_device = std::round(ratio * n_threads);
 
-        // Ensure that all devices get at least one thread.
-        if (n_threads_device == 0) {
-            n_threads_device = 1;
+        if (thread_start_idx[device_id].size() < 1) {
+            thread_start_idx[device_id].push_back(-1);
+            available_threads--;
         }
-        else if (n_threads_device == n_threads) {
-            n_threads_device = n_threads - 1;
+        else if (thread_start_idx[device_id].size() < n_threads_device) {
+            thread_start_idx[device_id].push_back(-1);
+            available_threads--;
         }
 
-        thread_start_idx[did].resize(n_threads_device, -1);
+        device_id = (device_id + 1) % n_devices;
     }
 
     // Determine the number of queries per thread for each device.
@@ -156,7 +161,7 @@ void em_parallel(const int model_type, const int node_id, const int n_nodes,
     auto h2d_init_start_time = std::chrono::high_resolution_clock::now();
 
     // Allocate memory on the device.
-    SERP_DEV* dataset_dev[n_devices];
+    SERP_Dev* dataset_dev[n_devices];
     size_t fmem_dev[n_devices * 2];
     for (int device_id = 0; device_id < n_devices; device_id++) {
         CUDA_CHECK(cudaSetDevice(device_id));
@@ -168,11 +173,11 @@ void em_parallel(const int model_type, const int node_id, const int n_nodes,
         fmem_dev[device_id * 2 + 1] = fmem; // Total available memory.
 
         // Convert the host-side dataset to a smaller device-side dataset.
-        std::vector<SERP_DEV> dataset_dev_tmp;
+        std::vector<SERP_Dev> dataset_dev_tmp;
         convert_to_device(std::get<0>(device_partitions[device_id]), dataset_dev_tmp);
 
         // Check whether the current device has enough free memory available.
-        double dataset_size = dataset_dev_tmp.size() * sizeof(SERP_DEV);
+        double dataset_size = dataset_dev_tmp.size() * sizeof(SERP_Dev);
         if (dataset_size * 1.001 > fmem) {
             std::cout << "Error: Insufficient GPU memory!\n\tAllocating dataset requires an additional " <<
             (dataset_size - fmem_dev[device_id * 2 + 1]) / 1e6 << " MB of GPU memory." << std::endl;
@@ -333,7 +338,7 @@ void em_parallel(const int model_type, const int node_id, const int n_nodes,
 
             CUDA_CHECK(cudaEventRecord(start_events[device_id], 0));
             cm_hosts[device_id]->update_parameters(grid_size, block_size, dataset_dev[device_id], dataset_size);
-            // cm_hosts[device_id]->update_parameters_on_host(n_threads, thread_start_idx[device_id], std::get<0>(device_partitions[device_id]));
+            // cm_hosts[device_id]->update_parameters_on_host(thread_start_idx[device_id], std::get<0>(device_partitions[device_id]));
 
             CUDA_CHECK(cudaEventRecord(end_events[device_id], 0));
         }

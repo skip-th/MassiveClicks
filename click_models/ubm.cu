@@ -96,7 +96,7 @@ HST std::pair<int, int> UBM_Hst::get_n_exam_params(int n_queries, int n_qd) {
  * query-document pairs in the training set.
  * @param n_devices The number of devices on this node.
  */
-HST void UBM_Hst::init_attractiveness_parameters(const std::tuple<std::vector<SERP_HST>, std::vector<SERP_HST>, int>& partition, const size_t fmem) {
+HST void UBM_Hst::init_attractiveness_parameters(const std::tuple<std::vector<SERP_Hst>, std::vector<SERP_Hst>, int>& partition, const size_t fmem) {
     Param default_parameter;
     default_parameter.set_values(PARAM_DEF_NUM, PARAM_DEF_DENOM);
 
@@ -134,7 +134,7 @@ HST void UBM_Hst::init_attractiveness_parameters(const std::tuple<std::vector<SE
  * query-document pairs in the training set.
  * @param n_devices The number of devices on this node.
  */
-HST void UBM_Hst::init_examination_parameters(const std::tuple<std::vector<SERP_HST>, std::vector<SERP_HST>, int>& partition, const size_t fmem) {
+HST void UBM_Hst::init_examination_parameters(const std::tuple<std::vector<SERP_Hst>, std::vector<SERP_Hst>, int>& partition, const size_t fmem) {
     Param default_parameter;
     default_parameter.set_values(PARAM_DEF_NUM, PARAM_DEF_DENOM);
 
@@ -173,7 +173,7 @@ HST void UBM_Hst::init_examination_parameters(const std::tuple<std::vector<SERP_
  * query-document pairs in the training set.
  * @param n_devices The number of devices on this node.
  */
-HST void UBM_Hst::init_parameters(const std::tuple<std::vector<SERP_HST>, std::vector<SERP_HST>, int>& partition, const size_t fmem) {
+HST void UBM_Hst::init_parameters(const std::tuple<std::vector<SERP_Hst>, std::vector<SERP_Hst>, int>& partition, const size_t fmem) {
     this->init_attractiveness_parameters(partition, fmem);
     this->init_examination_parameters(partition, fmem);
 }
@@ -226,11 +226,11 @@ HST void UBM_Hst::get_device_references(Param**& param_refs, int*& param_sizes) 
  * @param partition The dataset allocated on the GPU.
  * @param dataset_size The size of the allocated dataset.
  */
-HST void UBM_Hst::update_parameters(int& gridSize, int& blockSize, SERP_DEV*& partition, int& dataset_size) {
+HST void UBM_Hst::update_parameters(int& gridSize, int& blockSize, SERP_Dev*& partition, int& dataset_size) {
     Kernel::update<<<gridSize, blockSize>>>(partition, dataset_size);
 }
 
-HST void UBM_Hst::update_parameters_on_host(const int& n_threads, const int* thread_start_idx, std::vector<SERP_HST>& partition) {
+HST void UBM_Hst::update_parameters_on_host(const std::vector<int>& thread_start_idx, std::vector<SERP_Hst>& partition) {
     // Kernel::update<<<gridSize, blockSize>>>(partition, dataset_size);
 }
 
@@ -375,12 +375,12 @@ HST void UBM_Hst::set_parameters(std::vector<std::vector<Param>>& source, int pa
  * @param log_click_probs The vector which will store the log-likelihood for
  * the document at each rank in the query session.
  */
-HST void UBM_Hst::get_log_conditional_click_probs(SERP_HST& query_session, std::vector<float>& log_click_probs) {
+HST void UBM_Hst::get_log_conditional_click_probs(SERP_Hst& query_session, std::vector<float>& log_click_probs) {
     int prev_click_rank[MAX_SERP_LENGTH] = { 0 };
     query_session.prev_clicked_rank(prev_click_rank);
 
     for (int rank = 0; rank < MAX_SERP_LENGTH; rank++) {
-        SearchResult_HST sr = query_session[rank];
+        SearchResult_Hst sr = query_session[rank];
 
         // Get the parameters corresponding to the current search result.
         // Return the default parameter value if the qd-pair was not found in
@@ -413,13 +413,13 @@ HST void UBM_Hst::get_log_conditional_click_probs(SERP_HST& query_session, std::
  * @param full_click_probs The vector which will store the click probability
  * for the document at each rank in the query session.
  */
-HST void UBM_Hst::get_full_click_probs(SERP_HST& query_session, std::vector<float> &full_click_probs) {
+HST void UBM_Hst::get_full_click_probs(SERP_Hst& query_session, std::vector<float> &full_click_probs) {
     std::vector<float> temp_full_click_probs;
 
     // Go through all ranks of the query session.
     for (int rank = 0; rank < MAX_SERP_LENGTH; rank++) {
         // Retrieve the search result at the current rank.
-        SearchResult_HST sr = query_session[rank];
+        SearchResult_Hst sr = query_session[rank];
         float click_prob{0};
 
         // Iterate over all previous ranks.
@@ -551,12 +551,12 @@ DEV void UBM_Dev::set_parameters(Param**& parameter_ptr, int* parameter_sizes) {
  * @param thread_index The index of the thread which will be estimating the
  * parameters.
  */
-DEV void UBM_Dev::process_session(SERP_DEV& query_session, int& thread_index, int& partition_size) {
+DEV void UBM_Dev::process_session(SERP_Dev& query_session, int& thread_index, int& partition_size) {
     int prev_click_rank[MAX_SERP_LENGTH] = { 0 };
     query_session.prev_clicked_rank(prev_click_rank);
 
     for (int rank = 0; rank < MAX_SERP_LENGTH; rank++) {
-        SearchResult_DEV sr = query_session[rank];
+        SearchResult_Dev sr = query_session[rank];
 
         // Get the attractiveness and examination parameters.
         float atr{this->attractiveness_parameters[sr.get_param_index()].value()};
@@ -604,7 +604,7 @@ DEV void UBM_Dev::process_session(SERP_DEV& query_session, int& thread_index, in
          * 9    [ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 ] 55 elements combined
          *
          * An example of mapping the 2D list above to a 1D list is shown below
-         * with 3 threads and a SERP_HST also of length 3.
+         * with 3 threads and a SERP_Hst also of length 3.
          * -------------------------------------
          * 1D list   = [ 9, 9, 9, 0, 0, 0, 9, 9, 9, 0, 0, 0, 1, 1, 1, 9, 9, 9 ]
          * Threads   =  T0 T1 T2 T0 T1 T2 T0 T1 T2 T0 T1 T2 T0 T1 T2 T0 T1 T2
@@ -626,7 +626,7 @@ DEV void UBM_Dev::process_session(SERP_DEV& query_session, int& thread_index, in
  * @param parameter_type The type of parameter to update.
  * @param partition_size The size of the dataset.
  */
-DEV void UBM_Dev::update_parameters(SERP_DEV& query_session, int& thread_index, int& block_index, int& partition_size) {
+DEV void UBM_Dev::update_parameters(SERP_Dev& query_session, int& thread_index, int& block_index, int& partition_size) {
     this->update_examination_parameters(query_session, thread_index, block_index, partition_size);
 
     if (thread_index < partition_size) {
@@ -643,7 +643,7 @@ DEV void UBM_Dev::update_parameters(SERP_DEV& query_session, int& thread_index, 
  * @param block_index The index of the block in which this thread exists.
  * @param partition_size The size of the dataset.
  */
-DEV void UBM_Dev::update_examination_parameters(SERP_DEV& query_session, int& thread_index, int& block_index, int& partition_size) {
+DEV void UBM_Dev::update_examination_parameters(SERP_Dev& query_session, int& thread_index, int& block_index, int& partition_size) {
     SHR float numerator[BLOCK_SIZE];
     SHR float denominator[BLOCK_SIZE];
 
@@ -712,9 +712,9 @@ DEV void UBM_Dev::update_examination_parameters(SERP_DEV& query_session, int& th
  * @param query_session The query session of this thread.
  * @param thread_index The index of this thread.
  */
-DEV void UBM_Dev::update_attractiveness_parameters(SERP_DEV& query_session, int& thread_index, int& partition_size) {
+DEV void UBM_Dev::update_attractiveness_parameters(SERP_Dev& query_session, int& thread_index, int& partition_size) {
     for (int rank = 0; rank < MAX_SERP_LENGTH; rank++) {
-        SearchResult_DEV sr = query_session[rank];
+        SearchResult_Dev sr = query_session[rank];
         this->attractiveness_parameters[sr.get_param_index()].atomic_add_to_values(
             this->tmp_attractiveness_parameters[rank * partition_size + thread_index].numerator_val(),
             1.f);

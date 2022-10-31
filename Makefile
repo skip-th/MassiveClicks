@@ -29,7 +29,7 @@ build: $(PROG)_$(VERSION)
 $(OBJ_DIR)/host.o: main.cpp utils/utility_functions.cpp data/dataset.cpp click_models/evaluation.cpp parallel_em/communicator.cpp
 	@echo "Compiling host code..."
 	@if [ ! -d "$(OBJ_DIR)" ]; then mkdir $(OBJ_DIR); fi
-	$(CC_MPI) -pthread -O3 -ffast-math -funroll-loops -std=c++11 -c *.cpp utils/*.cpp parallel_em/*.cpp data/*.cpp click_models/*.cpp
+	$(CC_MPI) -lpthread -O3 -ffast-math -funroll-loops -std=c++11 -c *.cpp utils/*.cpp parallel_em/*.cpp data/*.cpp click_models/*.cpp
 	ld -r *.o -o $(OBJ_DIR)/host.o $(DEF)
 	@rm -f *.o
 
@@ -51,7 +51,7 @@ $(OBJ_DIR)/device_link.o: $(OBJ_DIR)/device.a
 # $(CC_MPI) -O3 -ffast-math -funroll-loops -std=c++11 $(OBJ_DIR)/host.o $(OBJ_DIR)/device_link.o $(OBJ_DIR)/device.a -o $(PROG)_$(VERSION) -lcudart
 $(PROG)_$(VERSION): $(OBJ_DIR)/host.o $(OBJ_DIR)/device_link.o
 	@echo "Building executable..."
-	$(CC_MPI) -pthread -O3 -ffast-math -funroll-loops -std=c++11 $(OBJ_DIR)/host.o $(OBJ_DIR)/device_link.o $(OBJ_DIR)/device.a -o $(PROG)_$(VERSION) -lcudart
+	$(CC_MPI) -lpthread -O3 -ffast-math -funroll-loops -std=c++11 $(OBJ_DIR)/host.o $(OBJ_DIR)/device_link.o $(OBJ_DIR)/device.a -o $(PROG)_$(VERSION) -lcudart
 	@rm -f *.o
 
 cake:

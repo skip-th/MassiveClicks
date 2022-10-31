@@ -95,7 +95,7 @@ HST std::pair<int, int> CCM_Hst::get_n_cont_params(int n_queries, int n_qd) {
  * query-document pairs in the training set.
  * @param n_devices The number of devices on this node.
  */
-HST void CCM_Hst::init_attractiveness_parameters(const std::tuple<std::vector<SERP_HST>, std::vector<SERP_HST>, int>& partition, const size_t fmem) {
+HST void CCM_Hst::init_attractiveness_parameters(const std::tuple<std::vector<SERP_Hst>, std::vector<SERP_Hst>, int>& partition, const size_t fmem) {
     Param default_parameter;
     default_parameter.set_values(PARAM_DEF_NUM, PARAM_DEF_DENOM);
 
@@ -133,7 +133,7 @@ HST void CCM_Hst::init_attractiveness_parameters(const std::tuple<std::vector<SE
  * query-document pairs in the training set.
  * @param n_devices The number of devices on this node.
  */
-HST void CCM_Hst::init_tau_parameters(const std::tuple<std::vector<SERP_HST>, std::vector<SERP_HST>, int>& partition, const size_t fmem) {
+HST void CCM_Hst::init_tau_parameters(const std::tuple<std::vector<SERP_Hst>, std::vector<SERP_Hst>, int>& partition, const size_t fmem) {
     Param default_parameter;
     default_parameter.set_values(PARAM_DEF_NUM, PARAM_DEF_DENOM);
 
@@ -172,7 +172,7 @@ HST void CCM_Hst::init_tau_parameters(const std::tuple<std::vector<SERP_HST>, st
  * query-document pairs in the training set.
  * @param n_devices The number of devices on this node.
  */
-HST void CCM_Hst::init_parameters(const std::tuple<std::vector<SERP_HST>, std::vector<SERP_HST>, int>& partition, const size_t fmem) {
+HST void CCM_Hst::init_parameters(const std::tuple<std::vector<SERP_Hst>, std::vector<SERP_Hst>, int>& partition, const size_t fmem) {
     this->init_attractiveness_parameters(partition, fmem);
     this->init_tau_parameters(partition, fmem);
 }
@@ -225,11 +225,11 @@ HST void CCM_Hst::get_device_references(Param**& param_refs, int*& param_sizes) 
  * @param partition The dataset allocated on the GPU.
  * @param dataset_size The size of the allocated dataset.
  */
-HST void CCM_Hst::update_parameters(int& gridSize, int& blockSize, SERP_DEV*& partition, int& dataset_size) {
+HST void CCM_Hst::update_parameters(int& gridSize, int& blockSize, SERP_Dev*& partition, int& dataset_size) {
     Kernel::update<<<gridSize, blockSize>>>(partition, dataset_size);
 }
 
-HST void CCM_Hst::update_parameters_on_host(const int& n_threads, const int* thread_start_idx, std::vector<SERP_HST>& partition){
+HST void CCM_Hst::update_parameters_on_host(const std::vector<int>& thread_start_idx, std::vector<SERP_Hst>& partition){
     // Kernel::update<<<gridSize, blockSize>>>(partition, dataset_size);
 }
 
@@ -375,12 +375,12 @@ HST void CCM_Hst::set_parameters(std::vector<std::vector<Param>>& source, int pa
  * @param log_click_probs The vector which will store the log-likelihood for
  * the document at each rank in the query session.
  */
-HST void CCM_Hst::get_log_conditional_click_probs(SERP_HST& query_session, std::vector<float>& log_click_probs) {
+HST void CCM_Hst::get_log_conditional_click_probs(SERP_Hst& query_session, std::vector<float>& log_click_probs) {
     float atr, tau_1, tau_2, tau_3;
     float ex{1.f}, click_prob;
 
     for (int rank = 0; rank < MAX_SERP_LENGTH; rank++) {
-        SearchResult_HST sr = query_session[rank];
+        SearchResult_Hst sr = query_session[rank];
 
         atr = (float) PARAM_DEF_NUM / (float) PARAM_DEF_DENOM;
         if (sr.get_param_index() != -1)
@@ -411,14 +411,14 @@ HST void CCM_Hst::get_log_conditional_click_probs(SERP_HST& query_session, std::
  * @param full_click_probs The vector which will store the click probability
  * for the document at each rank in the query session.
  */
-HST void CCM_Hst::get_full_click_probs(SERP_HST& query_session, std::vector<float> &full_click_probs) {
+HST void CCM_Hst::get_full_click_probs(SERP_Hst& query_session, std::vector<float> &full_click_probs) {
     float atr, tau_1, tau_2, tau_3;
     float ex{1.f}, atr_mul_ex;
 
     // Go through all ranks of the query session.
     for (int rank = 0; rank < MAX_SERP_LENGTH; rank++) {
         // Retrieve the search result at the current rank.
-        SearchResult_HST sr = query_session[rank];
+        SearchResult_Hst sr = query_session[rank];
 
         atr = (float) PARAM_DEF_NUM / (float) PARAM_DEF_DENOM;
         if (sr.get_param_index() != -1)
@@ -525,7 +525,7 @@ DEV void CCM_Dev::set_parameters(Param**& parameter_ptr, int* parameter_sizes) {
  * @param thread_index The index of the thread which will be estimating the
  * parameters.
  */
-DEV void CCM_Dev::process_session(SERP_DEV& query_session, int& thread_index, int& partition_size) {
+DEV void CCM_Dev::process_session(SERP_Dev& query_session, int& thread_index, int& partition_size) {
     int last_click_rank = query_session.last_click_rank();
     float click_probs[MAX_SERP_LENGTH][MAX_SERP_LENGTH] = { 0.f };
     float exam_probs[MAX_SERP_LENGTH + 1];
@@ -556,7 +556,7 @@ DEV void CCM_Dev::process_session(SERP_DEV& query_session, int& thread_index, in
  * always examined (1).
  * @param car
  */
-DEV void CCM_Dev::compute_exam_car(int& thread_index, SERP_DEV& query_session, float (&exam)[MAX_SERP_LENGTH + 1], float (&car)[MAX_SERP_LENGTH + 1]) {
+DEV void CCM_Dev::compute_exam_car(int& thread_index, SERP_Dev& query_session, float (&exam)[MAX_SERP_LENGTH + 1], float (&car)[MAX_SERP_LENGTH + 1]) {
     // Set the default examination value for the first rank.
     exam[0] = 1.f;
 
@@ -564,7 +564,7 @@ DEV void CCM_Dev::compute_exam_car(int& thread_index, SERP_DEV& query_session, f
     float car_helper[MAX_SERP_LENGTH][2];
 
     for (int rank = 0; rank < MAX_SERP_LENGTH;) {
-        SearchResult_DEV sr = query_session[rank];
+        SearchResult_Dev sr = query_session[rank];
 
         attr_val = this->attractiveness_parameters[sr.get_param_index()].value();
         tau_1 = this->tau_parameters[0].value();
@@ -606,12 +606,12 @@ DEV void CCM_Dev::compute_exam_car(int& thread_index, SERP_DEV& query_session, f
  * always examined (1).
  * @param car
  */
-DEV void CCM_Dev::compute_ccm_attr(int& thread_index, SERP_DEV& query_session, int& last_click_rank, float (&exam)[MAX_SERP_LENGTH + 1], float (&car)[MAX_SERP_LENGTH + 1], int& partition_size) {
+DEV void CCM_Dev::compute_ccm_attr(int& thread_index, SERP_Dev& query_session, int& last_click_rank, float (&exam)[MAX_SERP_LENGTH + 1], float (&car)[MAX_SERP_LENGTH + 1], int& partition_size) {
     float numerator_update, denominator_update;
     float attr_val, exam_val, car_val;
 
     for (int rank = 0; rank < MAX_SERP_LENGTH; rank++) {
-        SearchResult_DEV sr = query_session[rank];
+        SearchResult_Dev sr = query_session[rank];
         int click = sr.get_click();
 
         numerator_update = 0.f;
@@ -649,7 +649,7 @@ DEV void CCM_Dev::compute_ccm_attr(int& thread_index, SERP_DEV& query_session, i
  * @param click_probs The probabilty of a click occurring on a rank.
  * @param exam_probs The probability of a rank being examined.
  */
-DEV void CCM_Dev::get_tail_clicks(int& thread_index, SERP_DEV& query_session, float (&click_probs)[MAX_SERP_LENGTH][MAX_SERP_LENGTH], float (&exam_probs)[MAX_SERP_LENGTH + 1]) {
+DEV void CCM_Dev::get_tail_clicks(int& thread_index, SERP_Dev& query_session, float (&click_probs)[MAX_SERP_LENGTH][MAX_SERP_LENGTH], float (&exam_probs)[MAX_SERP_LENGTH + 1]) {
     exam_probs[0] = 1.f;
     float tau_1, tau_2, tau_3;
     float exam_val, click_prob;
@@ -659,7 +659,7 @@ DEV void CCM_Dev::get_tail_clicks(int& thread_index, SERP_DEV& query_session, fl
 
         int ses_itr{0};
         for (int res_itr = start_rank; res_itr < MAX_SERP_LENGTH; res_itr++) {
-            SearchResult_DEV tmp_sr = query_session[ses_itr];
+            SearchResult_Dev tmp_sr = query_session[ses_itr];
 
             float attr_val = this->attractiveness_parameters[tmp_sr.get_param_index()].value();
             tau_1 = this->tau_parameters[0].value();
@@ -698,11 +698,11 @@ DEV void CCM_Dev::get_tail_clicks(int& thread_index, SERP_DEV& query_session, fl
  * @param click_probs The probabilty of a click occurring on a rank.
  * @param exam_probs The probability of a rank being examined.
  */
-DEV void CCM_Dev::compute_taus(int& thread_index, SERP_DEV& query_session, int& last_click_rank, float (&click_probs)[MAX_SERP_LENGTH][MAX_SERP_LENGTH], float (&exam_probs)[MAX_SERP_LENGTH + 1], int& partition_size) {
+DEV void CCM_Dev::compute_taus(int& thread_index, SERP_Dev& query_session, int& last_click_rank, float (&click_probs)[MAX_SERP_LENGTH][MAX_SERP_LENGTH], float (&exam_probs)[MAX_SERP_LENGTH + 1], int& partition_size) {
     float factor_values[8] = { 0.f };
 
     for (int rank = 0; rank < MAX_SERP_LENGTH; rank++){
-        SearchResult_DEV sr = query_session[rank];
+        SearchResult_Dev sr = query_session[rank];
 
         // Send the initialization values to the phi function.
         CCMFactor factor_func(click_probs, exam_probs, sr.get_click(),
@@ -763,7 +763,7 @@ DEV void CCM_Dev::compute_tau_3(int& thread_index, float (&factor_values)[8], fl
  * @param parameter_type The type of parameter to update.
  * @param partition_size The size of the dataset.
  */
-DEV void CCM_Dev::update_parameters(SERP_DEV& query_session, int& thread_index, int& block_index, int& partition_size) {
+DEV void CCM_Dev::update_parameters(SERP_Dev& query_session, int& thread_index, int& block_index, int& partition_size) {
     this->update_tau_parameters(query_session, thread_index, block_index, partition_size);
 
     if (thread_index < partition_size) {
@@ -780,7 +780,7 @@ DEV void CCM_Dev::update_parameters(SERP_DEV& query_session, int& thread_index, 
  * @param block_index The index of the block in which this thread exists.
  * @param partition_size The size of the dataset.
  */
-DEV void CCM_Dev::update_tau_parameters(SERP_DEV& query_session, int& thread_index, int& block_index, int& partition_size) {
+DEV void CCM_Dev::update_tau_parameters(SERP_Dev& query_session, int& thread_index, int& block_index, int& partition_size) {
     SHR float numerator[BLOCK_SIZE];
     SHR float denominator[BLOCK_SIZE];
 
@@ -846,9 +846,9 @@ DEV void CCM_Dev::update_tau_parameters(SERP_DEV& query_session, int& thread_ind
  * @param query_session The query session of this thread.
  * @param thread_index The index of this thread.
  */
-DEV void CCM_Dev::update_attractiveness_parameters(SERP_DEV& query_session, int& thread_index, int& partition_size) {
+DEV void CCM_Dev::update_attractiveness_parameters(SERP_Dev& query_session, int& thread_index, int& partition_size) {
     for (int rank = 0; rank < MAX_SERP_LENGTH; rank++) {
-        SearchResult_DEV sr = query_session[rank];
+        SearchResult_Dev sr = query_session[rank];
         Param atr_update = this->tmp_attractiveness_parameters[rank * partition_size + thread_index];
         this->attractiveness_parameters[sr.get_param_index()].atomic_add_to_values(atr_update.numerator_val(),
                                                                                    atr_update.denominator_val());

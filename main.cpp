@@ -227,7 +227,7 @@ int main(int argc, char** argv) {
     auto transfering_start_time = std::chrono::high_resolution_clock::now();
 
     // Store the train/test splits for each device on each node.
-    std::vector<std::tuple<std::vector<SERP_HST>, std::vector<SERP_HST>, int>> device_partitions(n_devices); // Device ID -> [train set, test set, size qd pairs]
+    std::vector<std::tuple<std::vector<SERP_Hst>, std::vector<SERP_Hst>, int>> device_partitions(n_devices); // Device ID -> [train set, test set, size qd pairs]
     std::vector<std::unordered_map<int, std::unordered_map<int, int>>*> root_mapping(n_devices);
 
     // Communicate the training sets for each device to their node.

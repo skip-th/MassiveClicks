@@ -27,10 +27,10 @@ public:
     HST void say_hello() override;
     HST size_t get_memory_usage(void) override;
     HST size_t compute_memory_footprint(int n_queries, int n_qd) override;
-    HST void init_parameters(const std::tuple<std::vector<SERP_HST>, std::vector<SERP_HST>, int>& partition, const size_t fmem) override;
+    HST void init_parameters(const std::tuple<std::vector<SERP_Hst>, std::vector<SERP_Hst>, int>& partition, const size_t fmem) override;
     HST void get_device_references(Param**& param_refs, int*& param_sizes) override;
-    HST void update_parameters(int& gridSize, int& blockSize, SERP_DEV*& partition, int& dataset_size) override;
-    HST void update_parameters_on_host(const int& n_threads, const int* thread_start_idx, std::vector<SERP_HST>& partition)override;
+    HST void update_parameters(int& gridSize, int& blockSize, SERP_Dev*& partition, int& dataset_size) override;
+    HST void update_parameters_on_host(const std::vector<int>& thread_start_idx, std::vector<SERP_Hst>& partition)override;
     HST void reset_parameters(void) override;
 
     HST void transfer_parameters(int parameter_type, int transfer_direction) override;
@@ -39,13 +39,13 @@ public:
     HST void set_parameters(std::vector<std::vector<Param>>& public_parameters, int parameter_type) override;
     HST void destroy_parameters(void) override;
 
-    HST void get_log_conditional_click_probs(SERP_HST& query_session, std::vector<float>& log_click_probs) override;
-    HST void get_full_click_probs(SERP_HST& search_ses, std::vector<float> &full_click_probs) override;
+    HST void get_log_conditional_click_probs(SERP_Hst& query_session, std::vector<float>& log_click_probs) override;
+    HST void get_full_click_probs(SERP_Hst& search_ses, std::vector<float> &full_click_probs) override;
 
 private:
-    HST void init_attractiveness_parameters(const std::tuple<std::vector<SERP_HST>, std::vector<SERP_HST>, int>& partition, const size_t fmem);
-    HST void init_satisfaction_parameters(const std::tuple<std::vector<SERP_HST>, std::vector<SERP_HST>, int>& partition, const size_t fmem);
-    HST void init_gamma_parameters(const std::tuple<std::vector<SERP_HST>, std::vector<SERP_HST>, int>& partition, const size_t fmem);
+    HST void init_attractiveness_parameters(const std::tuple<std::vector<SERP_Hst>, std::vector<SERP_Hst>, int>& partition, const size_t fmem);
+    HST void init_satisfaction_parameters(const std::tuple<std::vector<SERP_Hst>, std::vector<SERP_Hst>, int>& partition, const size_t fmem);
+    HST void init_gamma_parameters(const std::tuple<std::vector<SERP_Hst>, std::vector<SERP_Hst>, int>& partition, const size_t fmem);
     HST std::pair<int,int> get_n_attr_params(int n_queries, int n_qd);
     HST std::pair<int,int> get_n_sat_params(int n_queries, int n_qd);
     HST std::pair<int,int> get_n_cont_params(int n_queries, int n_qd);
@@ -89,20 +89,20 @@ public:
     DEV void say_hello() override;
     DEV DBN_Dev* clone() override;
     DEV void set_parameters(Param**& parameter_ptr, int* parameter_sizes) override;
-    DEV void process_session(SERP_DEV& query_session, int& thread_index, int& partition_size) override;
-    DEV void update_parameters(SERP_DEV& query_session, int& thread_index, int& block_index, int& partition_size) override;
+    DEV void process_session(SERP_Dev& query_session, int& thread_index, int& partition_size) override;
+    DEV void update_parameters(SERP_Dev& query_session, int& thread_index, int& block_index, int& partition_size) override;
 
 private:
-    DEV void update_examination_parameters(SERP_DEV& query_session, int& thread_index, int& block_index, int& partition_size);
-    DEV void update_attractiveness_parameters(SERP_DEV& query_session, int& thread_index, int& partition_size);
-    DEV void update_satisfaction_parameters(SERP_DEV& query_session, int& thread_index, int& partition_size);
-    DEV void update_gamma_parameters(SERP_DEV& query_session, int& thread_index, int& block_index, int& partition_size);
+    DEV void update_examination_parameters(SERP_Dev& query_session, int& thread_index, int& block_index, int& partition_size);
+    DEV void update_attractiveness_parameters(SERP_Dev& query_session, int& thread_index, int& partition_size);
+    DEV void update_satisfaction_parameters(SERP_Dev& query_session, int& thread_index, int& partition_size);
+    DEV void update_gamma_parameters(SERP_Dev& query_session, int& thread_index, int& block_index, int& partition_size);
 
-    DEV void compute_exam_car(int& thread_index, SERP_DEV& query_session, float (&exam)[MAX_SERP_LENGTH + 1], float (&car)[MAX_SERP_LENGTH + 1]);
-    DEV void compute_dbn_attr(int& thread_index, SERP_DEV& query_session, int& last_click_rank, float (&exam)[MAX_SERP_LENGTH + 1], float (&car)[MAX_SERP_LENGTH + 1], int& partition_size);
-    DEV void compute_dbn_sat(int& thread_index, SERP_DEV& query_session, int& last_click_rank, float (&car)[MAX_SERP_LENGTH + 1], int& partition_size);
-    DEV void get_tail_clicks(int& thread_index, SERP_DEV& query_session, float (&click_probs)[MAX_SERP_LENGTH][MAX_SERP_LENGTH], float (&exam_probs)[MAX_SERP_LENGTH + 1]);
-    DEV void compute_gamma(int& thread_index, SERP_DEV& query_session, int& last_click_rank, float (&click_probs)[MAX_SERP_LENGTH][MAX_SERP_LENGTH], float (&exam_probs)[MAX_SERP_LENGTH + 1]);
+    DEV void compute_exam_car(int& thread_index, SERP_Dev& query_session, float (&exam)[MAX_SERP_LENGTH + 1], float (&car)[MAX_SERP_LENGTH + 1]);
+    DEV void compute_dbn_attr(int& thread_index, SERP_Dev& query_session, int& last_click_rank, float (&exam)[MAX_SERP_LENGTH + 1], float (&car)[MAX_SERP_LENGTH + 1], int& partition_size);
+    DEV void compute_dbn_sat(int& thread_index, SERP_Dev& query_session, int& last_click_rank, float (&car)[MAX_SERP_LENGTH + 1], int& partition_size);
+    DEV void get_tail_clicks(int& thread_index, SERP_Dev& query_session, float (&click_probs)[MAX_SERP_LENGTH][MAX_SERP_LENGTH], float (&exam_probs)[MAX_SERP_LENGTH + 1]);
+    DEV void compute_gamma(int& thread_index, SERP_Dev& query_session, int& last_click_rank, float (&click_probs)[MAX_SERP_LENGTH][MAX_SERP_LENGTH], float (&exam_probs)[MAX_SERP_LENGTH + 1]);
 
     Param* attractiveness_parameters;
     Param* tmp_attractiveness_parameters;

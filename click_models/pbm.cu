@@ -96,7 +96,7 @@ HST std::pair<int, int> PBM_Hst::get_n_exam_params(int n_queries, int n_qd) {
  * query-document pairs in the training set.
  * @param n_devices The number of devices on this node.
  */
-HST void PBM_Hst::init_attractiveness_parameters(const std::tuple<std::vector<SERP_HST>, std::vector<SERP_HST>, int>& partition, const size_t fmem) {
+HST void PBM_Hst::init_attractiveness_parameters(const std::tuple<std::vector<SERP_Hst>, std::vector<SERP_Hst>, int>& partition, const size_t fmem) {
     Param default_parameter;
     default_parameter.set_values(PARAM_DEF_NUM, PARAM_DEF_DENOM);
 
@@ -134,7 +134,7 @@ HST void PBM_Hst::init_attractiveness_parameters(const std::tuple<std::vector<SE
  * query-document pairs in the training set.
  * @param n_devices The number of devices on this node.
  */
-HST void PBM_Hst::init_examination_parameters(const std::tuple<std::vector<SERP_HST>, std::vector<SERP_HST>, int>& partition, const size_t fmem) {
+HST void PBM_Hst::init_examination_parameters(const std::tuple<std::vector<SERP_Hst>, std::vector<SERP_Hst>, int>& partition, const size_t fmem) {
     Param default_parameter;
     default_parameter.set_values(PARAM_DEF_NUM, PARAM_DEF_DENOM);
 
@@ -173,7 +173,7 @@ HST void PBM_Hst::init_examination_parameters(const std::tuple<std::vector<SERP_
  * query-document pairs in the training set.
  * @param n_devices The number of devices on this node.
  */
-HST void PBM_Hst::init_parameters(const std::tuple<std::vector<SERP_HST>, std::vector<SERP_HST>, int>& partition, const size_t fmem) {
+HST void PBM_Hst::init_parameters(const std::tuple<std::vector<SERP_Hst>, std::vector<SERP_Hst>, int>& partition, const size_t fmem) {
     this->init_attractiveness_parameters(partition, fmem);
     this->init_examination_parameters(partition, fmem);
 }
@@ -226,123 +226,167 @@ HST void PBM_Hst::get_device_references(Param**& param_refs, int*& param_sizes) 
  * @param partition The dataset allocated on the GPU.
  * @param dataset_size The size of the allocated dataset.
  */
-HST void PBM_Hst::update_parameters(int& gridSize, int& blockSize, SERP_DEV*& partition, int& dataset_size) {
+HST void PBM_Hst::update_parameters(int& gridSize, int& blockSize, SERP_Dev*& partition, int& dataset_size) {
     Kernel::update<<<gridSize, blockSize>>>(partition, dataset_size);
 }
 
-struct thread_data {
-    int thread_id;
-    int start_idx;
-    int stop_idx;
-    // int n_threads;
-    // int stride;
-    std::vector<SERP_HST>* partition;
-};
+// struct thread_data {
+//     int thread_id;
+//     int start_idx;
+//     int stop_idx;
+//     std::vector<SERP_Hst>* partition;
+// };
 
-HST void* PBM_Hst::reduce_parameters(void* data) {
-    thread_data* ptr = (thread_data*) data;
-    int thread_id = ptr->thread_id;
-    int start_idx = ptr->start_idx;
-    int stop_idx = ptr->stop_idx;
-    // int n_threads = ptr->n_threads;
-    // int stride = ptr->stride;
-    std::vector<SERP_HST>* partition = ptr->partition;
+// HST void* PBM_Hst::update_examination_parameters(void* data) {
+//     thread_data* ptr = (thread_data*) data;
+//     int thread_id = ptr->thread_id;
+//     int start_idx = ptr->start_idx;
+//     int stop_idx = ptr->stop_idx;
+//     std::vector<SERP_Hst>* partition = ptr->partition;
 
-    Param* public_sum = (Param*) calloc(MAX_SERP_LENGTH, sizeof(Param));
+//     // Array to store the final parameter values, initialized at 0.
+//     Param* public_sum = (Param*) calloc(MAX_SERP_LENGTH, sizeof(Param));
 
-    // Set all public parameters to 0.
-    for (int i = 0; i < MAX_SERP_LENGTH; i++) {
-        public_sum[i].set_values(0.f, 0.f);
-    }
+//     // Sum the public parameters.
+//     for (int query_index = start_idx; query_index < stop_idx; query_index++) {
+//         for (int rank = 0; rank < MAX_SERP_LENGTH; rank++) {
+//             public_sum[rank] += this->tmp_examination_parameters[rank * partition->size() + query_index];
+//         }
+//     }
 
-    // Sum the public parameters.
-    // int thread_stride = stride / n_threads + 1;
-    for (int rank = 0; rank < MAX_SERP_LENGTH; rank++) {
-        // int start_rank = start_idx % MAX_SERP_LENGTH; // TODO: determine the start rank in range 0 to 9.
-        // Have a single thread read contiguous memory locations. (T1: 0, T2: 10, T3: 20, ...)
-        for (int array_index = start_idx; array_index < stop_idx; array_index++) {
-        // for (int rank_index = thread_id * thread_stride; rank_index < thread_index * thread_stride + thread_stride; rank_index++) {
-            // if (rank_index < stride) {
-            //     public_sum[rank] += this->tmp_examination_parameters[rank_index + stride * rank];
-            // }
-            public_sum[rank] += this->tmp_examination_parameters[array_index];
-        }
-    }
+//     // Exit the pthread and return the summed public parameters.
+//     pthread_exit(public_sum);
+// }
 
-    // // ! //////////////////////
-    // TEST ON DAS5 IF THE CHANGES WORK
-    // it is possible to use a separate temporary array like the public parameters to store the results, and then do the final sum later.
-    // // ! //////////////////////
+// HST void* PBM_Hst::update_attractiveness_parameters(void* data) {
+//     thread_data* ptr = (thread_data*) data;
+//     int thread_id = ptr->thread_id;
+//     int start_idx = ptr->start_idx;
+//     int stop_idx = ptr->stop_idx;
+//     std::vector<SERP_Hst>* partition = ptr->partition;
 
-    // ! TODO: Assign the same queries to each thread beforehand.
-    // Sum the private parameters atomically.
-    for (int rank = 0; rank < MAX_SERP_LENGTH; rank++) {
-        for (int query_index = start_idx; query_index < stop_idx; query_index++) {
-        // for (int query_index = id * thread_stride; query_index < thread_id * thread_stride + thread_stride; query_index++) {
-            // if (query_index < stride) {
-            //     SearchResult_HST sr = (*partition)[query_index][rank];
-            //     this->attractiveness_parameters[sr.get_param_index()].add_to_values(
-            //         this->tmp_attractiveness_parameters[rank * stride + query_index].numerator_val(),
-            //         1.f);
-            // }
-            SearchResult_HST sr = (*partition)[query_index][rank];
+//     // Sum the private parameters atomically.
+//     for (int query_index = start_idx; query_index < stop_idx; query_index++) {
+//         for (int rank = 0; rank < MAX_SERP_LENGTH; rank++) {
+//             SearchResult_Hst sr = (*partition)[query_index][rank];
+//             this->attractiveness_parameters[sr.get_param_index()].add_to_values(
+//                 this->tmp_attractiveness_parameters[rank * partition->size() + query_index].numerator_val(),
+//                 1.f);
+//         }
+//     }
+
+//     // Exit the pthread.
+//     pthread_exit(NULL);
+// }
+
+// HST void PBM_Hst::update_parameters_on_host(const std::vector<int>& thread_start_idx, std::vector<SERP_Hst>& partition) {
+//     // Retrieve the intermediate parameter values.
+//     CUDA_CHECK(cudaMemcpy(this->tmp_examination_parameters.data(), this->tmp_exam_param_dptr, this->n_tmp_exams_dev * sizeof(Param), cudaMemcpyDeviceToHost));
+//     CUDA_CHECK(cudaMemcpy(this->tmp_attractiveness_parameters.data(), this->tmp_attr_param_dptr, this->n_tmp_attr_dev * sizeof(Param), cudaMemcpyDeviceToHost));
+
+//     int n_threads = thread_start_idx.size();
+//     pthread_t threads[n_threads];
+//     struct thread_data data[n_threads];
+
+//     // Reset parameters on the host.
+//     Param default_parameter;
+//     default_parameter.set_values(PARAM_DEF_NUM, PARAM_DEF_DENOM);
+//     std::fill(this->examination_parameters.begin(), this->examination_parameters.end(), default_parameter);
+//     std::fill(this->attractiveness_parameters.begin(), this->attractiveness_parameters.end(), default_parameter);
+
+//     // Initialize examination parameter update threads.
+//     std::vector<Param*> public_results(n_threads);
+//     for (int i = 0; i < n_threads; i++) {
+//         data[i].thread_id = i;
+//         data[i].start_idx = thread_start_idx[i];
+//         if (i == n_threads - 1) {
+//             data[i].stop_idx = partition.size();
+//         } else {
+//             data[i].stop_idx = thread_start_idx[i + 1];
+//         }
+//         data[i].partition = &partition;
+
+//         if (pthread_create(&threads[i], NULL, update_ex_init, (void*) &data[i])) {
+//             perror("Error: failed to create examination update pthread.");
+//             mpi_abort(-1);
+//         }
+//     }
+
+//     // Wait for all threads to finish and gather the results.
+//     for (int i = 0; i < n_threads; i++) {
+//         if (pthread_join(threads[i], (void**) &public_results[i])) {
+//             perror("Error: failed to join examination update pthread.");
+//             mpi_abort(-1);
+//         }
+//     }
+
+//     // Sum the results of each thread.
+//     for (int thread_index = 0; thread_index < n_threads; thread_index++) {
+//         for (int rank = 0; rank < MAX_SERP_LENGTH; rank++) {
+//             this->examination_parameters[rank] += public_results[thread_index][rank];
+//         }
+//     }
+
+//     // Initialize attractiveness parameter update threads.
+//     for (int i = 0; i < n_threads; i++) {
+//         data[i].thread_id = i;
+//         data[i].start_idx = thread_start_idx[i];
+//         if (i == n_threads - 1) {
+//             data[i].stop_idx = partition.size();
+//         } else {
+//             data[i].stop_idx = thread_start_idx[i + 1];
+//         }
+//         data[i].partition = &partition;
+
+//         if (pthread_create(&threads[i], NULL, update_attr_init, (void*) &data[i])) {
+//             perror("Error: failed to create attractiveness update pthread.");
+//             mpi_abort(-1);
+//         }
+//     }
+
+//     // Wait for all threads to finish.
+//     for (int i = 0; i < n_threads; i++) {
+//         if (pthread_join(threads[i], NULL)) {
+//             perror("Error: failed to join attractiveness update pthread.");
+//             mpi_abort(-1);
+//         }
+//     }
+
+//     // Move the private parameters back to the GPU (the public parameters will
+//     // be moved back later).
+//     this->transfer_parameters(PRIVATE, H2D);
+// }
+
+HST void PBM_Hst::update_parameters_on_host(const std::vector<int>& thread_start_idx, std::vector<SERP_Hst>& partition) {
+    // Retrieve the intermediate parameter values.
+    this->transfer_parameters(PUBLIC, D2H);
+    this->transfer_parameters(PRIVATE, D2H);
+    CUDA_CHECK(cudaMemcpy(this->tmp_examination_parameters.data(), this->tmp_exam_param_dptr, this->n_tmp_exams_dev * sizeof(Param), cudaMemcpyDeviceToHost));
+    CUDA_CHECK(cudaMemcpy(this->tmp_attractiveness_parameters.data(), this->tmp_attr_param_dptr, this->n_tmp_attr_dev * sizeof(Param), cudaMemcpyDeviceToHost));
+
+    // Update attractiveness parameters.
+    for (int query_index = 0; query_index < partition.size(); query_index++) {
+        SERP_Hst query_session = partition[query_index];
+        for (int rank = 0; rank < MAX_SERP_LENGTH; rank++) {
+            SearchResult_Hst sr = query_session[rank];
             this->attractiveness_parameters[sr.get_param_index()].add_to_values(
-                this->tmp_attractiveness_parameters[query_index].numerator_val(),
+                this->tmp_attractiveness_parameters[rank * partition.size() + query_index].numerator_val(),
                 1.f);
         }
     }
 
-    // Exit the pthread and return the summed public parameters.
-    pthread_exit(public_sum);
-}
-
-HST void PBM_Hst::update_parameters_on_host(const int& n_threads, const int* thread_start_idx, std::vector<SERP_HST>& partition) {
-    // Retrieve the intermediate parameter values.
-    CUDA_CHECK(cudaMemcpy(this->tmp_attractiveness_parameters.data(), this->tmp_attr_param_dptr, this->n_tmp_attr_dev * sizeof(Param), cudaMemcpyDeviceToHost));
-    CUDA_CHECK(cudaMemcpy(this->tmp_examination_parameters.data(), this->tmp_exam_param_dptr, this->n_tmp_exams_dev * sizeof(Param), cudaMemcpyDeviceToHost));
-
-    struct thread_data data[n_threads];
-    std::vector<Param*> public_results(n_threads);
-    // Reset private parameters on the host.
-    std::memset(this->attractiveness_parameters.data(), 0, this->n_attr_dev * sizeof(Param));
-
-    // Initialize threads.
-    pthread_t threads[n_threads];
-    for (int i = 0; i < n_threads; i++) {
-        data[i].thread_id = i;
-        data[i].start_idx = thread_start_idx[i];
-        if (i == n_threads - 1) {
-            data[i].stop_idx = partition.size();
-        } else {
-            data[i].stop_idx = thread_start_idx[i + 1];
-        }
-        // data[i].n_threads = n_threads;
-        // data[i].stride = partition_size;
-        data[i].partition = &partition;
-
-        if (pthread_create(&threads[i], NULL, reduce_init, (void*) &data[i])) {
-            perror("Error: failed pthread_create()");
-            mpi_abort(-1);
-        }
-    }
-
-    // Wait for all threads to finish.
-    for (int i = 0; i < n_threads; i++) {
-        if (pthread_join(threads[i], (void**) &public_results[i])) {
-            perror("Error: failed pthread_join()");
-            mpi_abort(-1);
-        }
-    }
-
-    // Compute the public parameters result.
-    for (int thread_index = 0; thread_index < n_threads; thread_index++) {
+    // Update examination parameters.
+    for (int query_index = 0; query_index < partition.size(); query_index++) {
         for (int rank = 0; rank < MAX_SERP_LENGTH; rank++) {
-            this->examination_parameters[rank] += public_results[thread_index][rank];
+            Param* tmp_param = &this->tmp_examination_parameters[rank * partition.size() + query_index];
+            this->examination_parameters[rank].add_to_values(tmp_param->numerator_val(),
+                                                             tmp_param->denominator_val());
         }
     }
 
     // Move the private parameters back to the GPU (the public parameters will
     // be moved back later).
+    this->transfer_parameters(PUBLIC, H2D);
     this->transfer_parameters(PRIVATE, H2D);
 }
 
@@ -488,9 +532,9 @@ HST void PBM_Hst::set_parameters(std::vector<std::vector<Param>>& source, int pa
  * @param log_click_probs The vector which will store the log-likelihood for
  * the document at each rank in the query session.
  */
-HST void PBM_Hst::get_log_conditional_click_probs(SERP_HST& query_session, std::vector<float>& log_click_probs) {
+HST void PBM_Hst::get_log_conditional_click_probs(SERP_Hst& query_session, std::vector<float>& log_click_probs) {
     for (int rank = 0; rank < MAX_SERP_LENGTH; rank++) {
-        SearchResult_HST sr = query_session[rank];
+        SearchResult_Hst sr = query_session[rank];
 
         // Get the parameters corresponding to the current search result.
         // Return the default parameter value if the qd-pair was not found in
@@ -523,11 +567,11 @@ HST void PBM_Hst::get_log_conditional_click_probs(SERP_HST& query_session, std::
  * @param full_click_probs The vector which will store the click probability
  * for the document at each rank in the query session.
  */
-HST void PBM_Hst::get_full_click_probs(SERP_HST& query_session, std::vector<float> &full_click_probs) {
+HST void PBM_Hst::get_full_click_probs(SERP_Hst& query_session, std::vector<float> &full_click_probs) {
     // Go through all ranks of the query session.
     for (int rank = 0; rank < MAX_SERP_LENGTH; rank++) {
         // Retrieve the search result at the current rank.
-        SearchResult_HST sr = query_session[rank];
+        SearchResult_Hst sr = query_session[rank];
 
         // Get the parameters corresponding to the current search result.
         // Return the default parameter value if the qd-pair was not found in
@@ -632,9 +676,9 @@ DEV void PBM_Dev::set_parameters(Param**& parameter_ptr, int* parameter_sizes) {
  * @param thread_index The index of the thread which will be estimating the
  * parameters.
  */
-DEV void PBM_Dev::process_session(SERP_DEV& query_session, int& thread_index, int& partition_size) {
+DEV void PBM_Dev::process_session(SERP_Dev& query_session, int& thread_index, int& partition_size) {
     for (int rank = 0; rank < MAX_SERP_LENGTH; rank++) {
-        SearchResult_DEV sr = query_session[rank];
+        SearchResult_Dev sr = query_session[rank];
 
         // Get the attractiveness and examination parameters.
         float atr{this->attractiveness_parameters[sr.get_param_index()].value()};
@@ -674,7 +718,7 @@ DEV void PBM_Dev::process_session(SERP_DEV& query_session, int& thread_index, in
  * @param parameter_type The type of parameter to update.
  * @param partition_size The size of the dataset.
  */
-DEV void PBM_Dev::update_parameters(SERP_DEV& query_session, int& thread_index, int& block_index, int& partition_size) {
+DEV void PBM_Dev::update_parameters(SERP_Dev& query_session, int& thread_index, int& block_index, int& partition_size) {
     this->update_examination_parameters(query_session, thread_index, block_index, partition_size);
 
     if (thread_index < partition_size) {
@@ -691,7 +735,7 @@ DEV void PBM_Dev::update_parameters(SERP_DEV& query_session, int& thread_index, 
  * @param block_index The index of the block in which this thread exists.
  * @param partition_size The size of the dataset.
  */
-DEV void PBM_Dev::update_examination_parameters(SERP_DEV& query_session, int& thread_index, int& block_index, int& partition_size) {
+DEV void PBM_Dev::update_examination_parameters(SERP_Dev& query_session, int& thread_index, int& block_index, int& partition_size) {
     SHR float numerator[BLOCK_SIZE];
     SHR float denominator[BLOCK_SIZE];
 
@@ -757,9 +801,9 @@ DEV void PBM_Dev::update_examination_parameters(SERP_DEV& query_session, int& th
  * @param query_session The query session of this thread.
  * @param thread_index The index of this thread.
  */
-DEV void PBM_Dev::update_attractiveness_parameters(SERP_DEV& query_session, int& thread_index, int& partition_size) {
+DEV void PBM_Dev::update_attractiveness_parameters(SERP_Dev& query_session, int& thread_index, int& partition_size) {
     for (int rank = 0; rank < MAX_SERP_LENGTH; rank++) {
-        SearchResult_DEV sr = query_session[rank];
+        SearchResult_Dev sr = query_session[rank];
         this->attractiveness_parameters[sr.get_param_index()].atomic_add_to_values(
             this->tmp_attractiveness_parameters[rank * partition_size + thread_index].numerator_val(),
             1.f);

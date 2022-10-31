@@ -72,10 +72,10 @@ namespace Communicate
     /**
      * @brief Communicate the training sets for each device to their node.
      */
-    void send_partitions(const int& node_id, const int& n_nodes, const int& n_devices, const int& total_n_devices, const int* n_devices_network, Dataset& dataset, std::vector<std::tuple<std::vector<SERP_HST>, std::vector<SERP_HST>, int>>& device_partitions, std::vector<std::unordered_map<int, std::unordered_map<int, int>>*>& root_mapping) {
-        // Create SERP_HST MPI datatype.
+    void send_partitions(const int& node_id, const int& n_nodes, const int& n_devices, const int& total_n_devices, const int* n_devices_network, Dataset& dataset, std::vector<std::tuple<std::vector<SERP_Hst>, std::vector<SERP_Hst>, int>>& device_partitions, std::vector<std::unordered_map<int, std::unordered_map<int, int>>*>& root_mapping) {
+        // Create SERP_Hst MPI datatype.
         MPI_Datatype MPI_SERP;
-        MPI_CHECK(MPI_Type_contiguous(sizeof(SERP_HST) / sizeof(int), MPI_INT, &MPI_SERP));
+        MPI_CHECK(MPI_Type_contiguous(sizeof(SERP_Hst) / sizeof(int), MPI_INT, &MPI_SERP));
         MPI_CHECK(MPI_Type_commit(&MPI_SERP));
 
         // Communicate the training sets for each device to their node.
@@ -121,7 +121,7 @@ namespace Communicate
                     MPI_CHECK(MPI_Get_count(&status, MPI_SERP, &msg_length));
 
                     // Select the train or test partition depending on the received tag.
-                    std::vector<SERP_HST>* partition_ptr;
+                    std::vector<SERP_Hst>* partition_ptr;
                     if (i == 0) {
                         partition_ptr = &(std::get<0>(device_partitions[device_id]));
                         std::get<2>(device_partitions[device_id]) = status.MPI_TAG;
