@@ -28,7 +28,6 @@ public:
     HST size_t compute_memory_footprint(int n_queries, int n_qd) override;
     HST void init_parameters(const std::tuple<std::vector<SERP_Hst>, std::vector<SERP_Hst>, int>& partition, const size_t fmem) override;
     HST void get_device_references(Param**& param_refs, int*& param_sizes) override;
-    HST void update_parameters(int& gridSize, int& blockSize, SERP_Dev*& partition, int& dataset_size) override;
     HST void update_parameters_on_host(const std::vector<int>& thread_start_idx, std::vector<SERP_Hst>& partition) override;
     HST void reset_parameters(void) override;
 

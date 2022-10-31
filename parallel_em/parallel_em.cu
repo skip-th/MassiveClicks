@@ -337,7 +337,7 @@ void em_parallel(const int model_type, const int node_id, const int n_nodes,
             int dataset_size = std::get<0>(device_partitions[device_id]).size();
 
             CUDA_CHECK(cudaEventRecord(start_events[device_id], 0));
-            cm_hosts[device_id]->update_parameters(grid_size, block_size, dataset_dev[device_id], dataset_size);
+            Kernel::update<<<grid_size, block_size>>>(dataset_dev[device_id], dataset_size);
             // cm_hosts[device_id]->update_parameters_on_host(thread_start_idx[device_id], std::get<0>(device_partitions[device_id]));
 
             CUDA_CHECK(cudaEventRecord(end_events[device_id], 0));

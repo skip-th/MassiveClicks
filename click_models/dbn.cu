@@ -275,24 +275,6 @@ HST void DBN_Hst::get_device_references(Param**& param_refs, int*& param_sizes) 
     this->cm_memory_usage += n_references * sizeof(Param*) + n_references * sizeof(int);
 }
 
-/**
- * @brief Update the global parameter values with the temporarily stored new
- * local parameter values on each thread.
- *
- * @param gridSize The size of kernel blocks on the GPU.
- * @param blockSize The number of kernel threads per block on the GPU.
- * @param partition The dataset allocated on the GPU.
- * @param dataset_size The size of the allocated dataset.
- */
-HST void DBN_Hst::update_parameters(int& gridSize, int& blockSize, SERP_Dev*& partition, int& dataset_size) {
-    Kernel::update<<<gridSize, blockSize>>>(partition, dataset_size);
-
-    // Use CUDA Thrust to reduce the sum of the temporary public parameter values.
-    // Param init_val(0.f, 0.f);
-    // thrust::device_ptr<Param> dptr = thrust::device_pointer_cast(tmp_gamma_param_dptr);
-    // gamma_parameters[0] = thrust::reduce(dptr, dptr + this->n_tmp_gamma_dev, init_val, Param_add());
-}
-
 HST void DBN_Hst::update_parameters_on_host(const std::vector<int>& thread_start_idx, std::vector<SERP_Hst>& partition){
     // Kernel::update<<<gridSize, blockSize>>>(partition, dataset_size);
 }

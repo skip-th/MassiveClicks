@@ -23,6 +23,7 @@
 #include "param.cuh"
 #include "../parallel_em/kernel.cuh"
 
+
 //---------------------------------------------------------------------------//
 // Host-side click model functions.                                          //
 //---------------------------------------------------------------------------//
@@ -35,7 +36,6 @@ public:
     HST virtual size_t compute_memory_footprint(int n_queries, int n_qd) = 0;
     HST virtual void init_parameters(const std::tuple<std::vector<SERP_Hst>, std::vector<SERP_Hst>, int>& partition, const size_t fmem) = 0;
     HST virtual void get_device_references(Param**& param_refs, int*& param_sizes) = 0;
-    HST virtual void update_parameters(int& gridSize, int& blockSize, SERP_Dev*& partition, int& dataset_size) = 0;
     HST virtual void update_parameters_on_host(const std::vector<int>& thread_start_idx, std::vector<SERP_Hst>& partition) = 0;
     HST virtual void reset_parameters(void) = 0;
 

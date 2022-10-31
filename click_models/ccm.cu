@@ -216,19 +216,6 @@ HST void CCM_Hst::get_device_references(Param**& param_refs, int*& param_sizes) 
     this->cm_memory_usage += n_references * sizeof(Param*) + n_references * sizeof(int);
 }
 
-/**
- * @brief Update the global parameter values with the temporarily stored new
- * local parameter values on each thread.
- *
- * @param gridSize The size of kernel blocks on the GPU.
- * @param blockSize The number of kernel threads per block on the GPU.
- * @param partition The dataset allocated on the GPU.
- * @param dataset_size The size of the allocated dataset.
- */
-HST void CCM_Hst::update_parameters(int& gridSize, int& blockSize, SERP_Dev*& partition, int& dataset_size) {
-    Kernel::update<<<gridSize, blockSize>>>(partition, dataset_size);
-}
-
 HST void CCM_Hst::update_parameters_on_host(const std::vector<int>& thread_start_idx, std::vector<SERP_Hst>& partition){
     // Kernel::update<<<gridSize, blockSize>>>(partition, dataset_size);
 }
