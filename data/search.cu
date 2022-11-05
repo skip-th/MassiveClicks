@@ -198,7 +198,7 @@ HST void SERP_Hst::prev_clicked_rank(int (&prev_click_rank)[MAX_SERP_LENGTH]) {
 // A single search result (document) from a search result page (query).      //
 //---------------------------------------------------------------------------//
 
-HST SearchResult_Dev::SearchResult_Dev() = default;
+DEV HST SearchResult_Dev::SearchResult_Dev() = default;
 
 /**
  * @brief Construct a new Search Result object.
@@ -238,7 +238,7 @@ DEV int SearchResult_Dev::get_param_index() const{
 // A search engine result page (query) containing 10 documents.              //
 //---------------------------------------------------------------------------//
 
-HST SERP_Dev::SERP_Dev() = default;
+DEV HST SERP_Dev::SERP_Dev() = default;
 
 /**
  * @brief Get a copy of a search result at a given rank within this session.
@@ -259,6 +259,17 @@ HST SERP_Dev::SERP_Dev(const SERP_Hst serp) {
     for (int i = 0; i < MAX_SERP_LENGTH; i++) {
         SearchResult_Hst serp_tmp = serp[i];
         session[i] = SearchResult_Dev(serp_tmp.get_click(), serp_tmp.get_param_index());
+    }
+}
+
+/**
+ * @brief Construct a new SERP_Dev object from a SearchResult_Dev object array.
+ *
+ * @param serp A SERP_Hst object.
+ */
+DEV SERP_Dev::SERP_Dev(SearchResult_Dev*& partition, int& partition_size, int& thread_index) {
+    for (int rank = 0; rank < MAX_SERP_LENGTH; rank++) {
+        this->session[rank] = partition[rank * partition_size + thread_index];
     }
 }
 
@@ -312,17 +323,25 @@ DEV void SERP_Dev::prev_clicked_rank(int (&prev_click_rank)[MAX_SERP_LENGTH]) {
 //---------------------------------------------------------------------------//
 
 /**
- * @brief Convert a host-side array of SERP_Hst objects to a smaller SERP_Dev array
- * whcih can be used on the device.
+ * @brief Convert a host-side array of SERP_Hst objects to a smaller
+ * SearchResult_Dev array which can be used on the device. Also change the
+ * indexing scheme so that "neighboring" threads read from contiguous memory.
  *
  * @param dataset_hst The host-side array of SERP_Hst objects.
  * @param dataset_dev The SERP_Dev array which will be transfered to the
  * device.
  */
-HST void convert_to_device(std::vector<SERP_Hst>& dataset_hst, std::vector<SERP_Dev>& dataset_dev) {
+HST void convert_to_device(std::vector<SERP_Hst>& dataset_hst, std::vector<SearchResult_Dev>& dataset_dev) {
+    dataset_dev.resize(dataset_hst.size() * MAX_SERP_LENGTH);
+    int n_queries = dataset_hst.size();
+
     // Convert the host-side dataset to a smaller device-side dataset.
-    dataset_dev.resize(dataset_hst.size());
-    for (int i = 0; i < dataset_hst.size(); i++) {
-        dataset_dev[i] = SERP_Dev(dataset_hst[i]);
+    for (int query_index = 0; query_index < dataset_hst.size(); query_index++) {
+        SERP_Dev serp_tmp = SERP_Dev(dataset_hst[query_index]);
+        for (int rank = 0; rank < MAX_SERP_LENGTH; rank++) {
+            // Change the indexing scheme so separate threads read from
+            // contiguous memory.
+            dataset_dev[rank * n_queries + query_index] = serp_tmp[rank];
+        }
     }
 }

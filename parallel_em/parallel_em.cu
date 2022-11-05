@@ -161,7 +161,7 @@ void em_parallel(const int model_type, const int node_id, const int n_nodes,
     auto h2d_init_start_time = std::chrono::high_resolution_clock::now();
 
     // Allocate memory on the device.
-    SERP_Dev* dataset_dev[n_devices];
+    SearchResult_Dev* dataset_dev[n_devices];
     size_t fmem_dev[n_devices * 2];
     for (int device_id = 0; device_id < n_devices; device_id++) {
         CUDA_CHECK(cudaSetDevice(device_id));
@@ -173,11 +173,11 @@ void em_parallel(const int model_type, const int node_id, const int n_nodes,
         fmem_dev[device_id * 2 + 1] = fmem; // Total available memory.
 
         // Convert the host-side dataset to a smaller device-side dataset.
-        std::vector<SERP_Dev> dataset_dev_tmp;
+        std::vector<SearchResult_Dev> dataset_dev_tmp;
         convert_to_device(std::get<0>(device_partitions[device_id]), dataset_dev_tmp);
 
         // Check whether the current device has enough free memory available.
-        double dataset_size = dataset_dev_tmp.size() * sizeof(SERP_Dev);
+        double dataset_size = dataset_dev_tmp.size() * sizeof(SearchResult_Dev);
         if (dataset_size * 1.001 > fmem) {
             std::cout << "Error: Insufficient GPU memory!\n\tAllocating dataset requires an additional " <<
             (dataset_size - fmem_dev[device_id * 2 + 1]) / 1e6 << " MB of GPU memory." << std::endl;
@@ -188,6 +188,7 @@ void em_parallel(const int model_type, const int node_id, const int n_nodes,
         CUDA_CHECK(cudaMalloc(&dataset_dev[device_id], dataset_size));
         CUDA_CHECK(cudaMemcpy(dataset_dev[device_id], dataset_dev_tmp.data(),
                               dataset_size, cudaMemcpyHostToDevice));
+        dataset_dev_tmp.clear();
 
         fmem_dev[device_id * 2] += dataset_size;
 

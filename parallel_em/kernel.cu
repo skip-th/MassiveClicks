@@ -39,7 +39,7 @@ namespace Kernel {
      * @param partition A pointer to the partition containing the dataset to train the click model on.
      * @param partition_size The size of the partition containin the dataset.
      */
-    GLB void em_training(SERP_Dev* partition, int partition_size) {
+    GLB void em_training(SearchResult_Dev* partition, int partition_size) {
         // Calculate the starting index within the query session array for this thread.
         int thread_index = blockDim.x * blockIdx.x + threadIdx.x; // Global index.
 
@@ -47,8 +47,12 @@ namespace Kernel {
         if (thread_index >= partition_size)
             return;
 
+        // Retrieve the search results corresponding to the current query from
+        // the dataset.
+        SERP_Dev query_session = SERP_Dev(partition, partition_size, thread_index);
+
         // Estimate click model parameters for the given query session.
-        cm_dev->process_session(partition[thread_index], thread_index, partition_size);
+        cm_dev->process_session(query_session, thread_index, partition_size);
     }
 
     /**
@@ -59,12 +63,16 @@ namespace Kernel {
      * @param partition_size The size of the partition containin the dataset.
      * @param parameter_type The type of parameter being updated.
      */
-    GLB void update(SERP_Dev* partition, int partition_size) {
+    GLB void update(SearchResult_Dev* partition, int partition_size) {
         // Calculate the starting index within the query session array for this thread.
         int thread_index = blockDim.x * blockIdx.x + threadIdx.x; // Global index.
         int block_index = threadIdx.x; // Local index (local to thread block).
 
+        // Retrieve the search results corresponding to the current query from
+        // the dataset.
+        SERP_Dev query_session = SERP_Dev(partition, partition_size, thread_index);
+
         // Estimate click model examination parameters.
-        cm_dev->update_parameters(partition[thread_index], thread_index, block_index, partition_size);
+        cm_dev->update_parameters(query_session, thread_index, block_index, partition_size);
     }
 }

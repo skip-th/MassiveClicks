@@ -63,7 +63,7 @@ private:
 // A SearchResult_Dev contains a query-document pair from within a session/SERP.
 class SearchResult_Dev {
 public:
-    HST SearchResult_Dev();
+    DEV HST SearchResult_Dev();
     HST SearchResult_Dev(const int& click, const int& param);
 
     DEV int get_click() const;
@@ -77,8 +77,9 @@ private:
 // related to a given query, and whether those documents have been clicked.
 class SERP_Dev {
 public:
-    HST SERP_Dev();
+    DEV HST SERP_Dev();
     HST explicit SERP_Dev(const SERP_Hst serp);
+    DEV explicit SERP_Dev(SearchResult_Dev*& partition, int& partition_size, int& thread_index);
     HST DEV SearchResult_Dev operator[] (const int& rank) const;
     DEV void prev_clicked_rank(int (&prev_click_rank)[MAX_SERP_LENGTH]);
     DEV int last_click_rank(void);
@@ -86,6 +87,6 @@ private:
     SearchResult_Dev session[MAX_SERP_LENGTH]{};
 };
 
-HST void convert_to_device(std::vector<SERP_Hst>& dataset_hst, std::vector<SERP_Dev>& dataset_dev);
+HST void convert_to_device(std::vector<SERP_Hst>& dataset_hst, std::vector<SearchResult_Dev>& dataset_dev);
 
 #endif // CLICK_MODEL_SESSION_H
