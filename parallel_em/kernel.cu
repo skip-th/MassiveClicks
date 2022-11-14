@@ -36,43 +36,52 @@ namespace Kernel {
      * @brief A CUDA kernel which performs the Expectation-Maximization training
      * steps for the chosen click model.
      *
-     * @param partition A pointer to the partition containing the dataset to train the click model on.
-     * @param partition_size The size of the partition containin the dataset.
+     * @param dataset A pointer to the dataset used to train the click model on.
+     * @param dataset_size The size of the dataset containin the dataset.
      */
-    GLB void em_training(SearchResult_Dev* partition, int partition_size) {
+    GLB void em_training(SearchResult_Dev* dataset, int dataset_size) {
         // Calculate the starting index within the query session array for this thread.
         int thread_index = blockDim.x * blockIdx.x + threadIdx.x; // Global index.
 
         // End this thread if it can't be assigned a query session.
-        if (thread_index >= partition_size)
+        if (thread_index >= dataset_size)
             return;
 
         // Retrieve the search results corresponding to the current query from
         // the dataset.
-        SERP_Dev query_session = SERP_Dev(partition, partition_size, thread_index);
+        SERP_Dev query_session = SERP_Dev(dataset, dataset_size, thread_index);
+        SHR char clicks[BLOCK_SIZE * MAX_SERP];
+        SHR int pidx[BLOCK_SIZE * MAX_SERP];
+        for (int rank = 0; rank < MAX_SERP; rank++) {
+            clicks[rank * BLOCK_SIZE + threadIdx.x] = query_session[rank].get_click();
+            pidx[rank * BLOCK_SIZE + threadIdx.x] = query_session[rank].get_param_index();
+        }
 
         // Estimate click model parameters for the given query session.
-        cm_dev->process_session(query_session, thread_index, partition_size);
+        cm_dev->process_session(query_session, thread_index, dataset_size, clicks, pidx);
     }
 
     /**
      * @brief A CUDA kernel which updates the global parameter values using the
      * parameters estimated locally on each thread.
      *
-     * @param partition A pointer to the partition containing the dataset to train the click model on.
-     * @param partition_size The size of the partition containin the dataset.
+     * @param dataset A pointer to the dataset used to train the click model on.
+     * @param dataset_size The size of the dataset containin the dataset.
      * @param parameter_type The type of parameter being updated.
      */
-    GLB void update(SearchResult_Dev* partition, int partition_size) {
+    GLB void update(SearchResult_Dev* dataset, int dataset_size) {
         // Calculate the starting index within the query session array for this thread.
         int thread_index = blockDim.x * blockIdx.x + threadIdx.x; // Global index.
         int block_index = threadIdx.x; // Local index (local to thread block).
 
-        // Retrieve the search results corresponding to the current query from
+        // Retrieve the parameter indices shared between similar qd-pairs from
         // the dataset.
-        SERP_Dev query_session = SERP_Dev(partition, partition_size, thread_index);
+        SHR int pidx[BLOCK_SIZE * MAX_SERP];
+        for (int rank = 0; rank < MAX_SERP; rank++) {
+            pidx[rank * BLOCK_SIZE + threadIdx.x] = dataset[rank * dataset_size + thread_index].get_param_index();
+        }
 
         // Estimate click model examination parameters.
-        cm_dev->update_parameters(query_session, thread_index, block_index, partition_size);
+        cm_dev->update_parameters(thread_index, block_index, dataset_size, pidx);
     }
 }

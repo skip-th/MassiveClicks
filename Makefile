@@ -26,7 +26,7 @@ all: clean build
 build: $(PROG)_$(VERSION)
 
 # $(CC_MPI) -O3 $(CU_OPT) -ffast-math -funroll-loops -std=c++11 -c *.cpp utils/*.cpp data/*.cpp click_models/*.cpp
-$(OBJ_DIR)/host.o: main.cpp utils/utility_functions.cpp data/dataset.cpp click_models/evaluation.cpp parallel_em/communicator.cpp
+$(OBJ_DIR)/host.o: main.cpp data/dataset.cpp click_models/evaluation.cpp parallel_em/communicator.cpp
 	@echo "Compiling host code..."
 	@if [ ! -d "$(OBJ_DIR)" ]; then mkdir $(OBJ_DIR); fi
 	$(CC_MPI) -lpthread -O3 -ffast-math -funroll-loops -std=c++11 -c *.cpp utils/*.cpp parallel_em/*.cpp data/*.cpp click_models/*.cpp
@@ -34,7 +34,7 @@ $(OBJ_DIR)/host.o: main.cpp utils/utility_functions.cpp data/dataset.cpp click_m
 	@rm -f *.o
 
 # $(CC_CU) -O3 $(CU_OPT) -std=c++11 -rdc=true -lineinfo -c utils/*.cu parallel_em/*.cu data/*.cu click_models/*.cu
-$(OBJ_DIR)/device.a: utils/cuda_utils.cu parallel_em/parallel_em.cu data/search.cu click_models/base.cu click_models/pbm.cu click_models/param.cu
+$(OBJ_DIR)/device.a: utils/utils.cu parallel_em/parallel_em.cu data/search.cu click_models/base.cu click_models/pbm.cu click_models/param.cu click_models/common.cu
 	@echo "Compiling device code..."
 	@if [ ! -d "$(OBJ_DIR)" ]; then mkdir $(OBJ_DIR); fi
 	$(CC_CU) -O3 $(CU_OPT) -std=c++11 -rdc=true -lineinfo -c utils/*.cu parallel_em/*.cu data/*.cu click_models/*.cu

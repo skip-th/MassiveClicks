@@ -5,7 +5,6 @@
  */
 
 #include <mpi.h>
-
 #include "macros.cuh"
 
 /**

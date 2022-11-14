@@ -26,14 +26,14 @@ LogLikelihood::LogLikelihood(ClickModel_Hst *cm) {
 float LogLikelihood::evaluate(std::vector<SERP_Hst>& testing_queries) {
     // Go through all query sessions in the test set.
     for (SERP_Hst query_session : testing_queries) {
-        std::vector<float> log_click_probs; //(MAX_SERP_LENGTH, 0);
-        log_click_probs.reserve(MAX_SERP_LENGTH);
+        std::vector<float> log_click_probs; //(MAX_SERP, 0);
+        log_click_probs.reserve(MAX_SERP);
 
         // Get the log conditional click probability for each search result.
         this->cm->get_log_conditional_click_probs(query_session, log_click_probs);
 
         // Take the average of the log conditional click probabilities for this query session.
-        this->llh_values.push_back(std::accumulate(log_click_probs.begin(), log_click_probs.end(), 0.f) / MAX_SERP_LENGTH);
+        this->llh_values.push_back(std::accumulate(log_click_probs.begin(), log_click_probs.end(), 0.f) / MAX_SERP);
     }
 
     // Sum all the log conditional click probabilities. The average will be taken later too using the size of the test task.
@@ -54,13 +54,13 @@ void Perplexity::evaluate(ClickModel_Hst* cm, std::vector<SERP_Hst>& testing_que
     // Go through all sessions in the test set.
     for (SERP_Hst query_session : testing_queries) {
         std::vector<float> full_click_probs;
-        full_click_probs.reserve(MAX_SERP_LENGTH);
+        full_click_probs.reserve(MAX_SERP);
 
         // Get the full click probability for each search result.
         cm->get_full_click_probs(query_session, full_click_probs);
 
         // Add the full click probability to each rank.
-        for (int i{0}; i < MAX_SERP_LENGTH; i++) {
+        for (int i{0}; i < MAX_SERP; i++) {
             this->task_rank_perplexities[i] += std::log2(full_click_probs[i]);
         }
     }
@@ -72,7 +72,7 @@ void Perplexity::evaluate(ClickModel_Hst* cm, std::vector<SERP_Hst>& testing_que
  * @param task_rank_perplexities The new perplexity values for rank 1 to 10.
  * @param task_size The new task size.
  */
-void Perplexity::import(std::array<float, MAX_SERP_LENGTH>& task_rank_perplexities, float& task_size) {
+void Perplexity::import(std::array<float, MAX_SERP>& task_rank_perplexities, float& task_size) {
     this->task_rank_perplexities = task_rank_perplexities;
     this->task_size = task_size;
 }

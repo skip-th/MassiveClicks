@@ -41,7 +41,7 @@ namespace Communicate
         if (node_id == ROOT) {
             // Calculate the displacements of each node's device information. Use
             // this to allow variable length received messages.
-            int displacements[n_nodes], cumm = 0, t_devices = Utils::sum(n_devices_network, n_nodes);
+            int displacements[n_nodes], cumm = 0, t_devices = std::accumulate(n_devices_network, n_devices_network+sizeof(n_devices_network)/sizeof(n_devices_network[0]), 0);
             for (int nid = 0; nid < n_nodes; nid++) {
                 displacements[nid] = cumm;
                 cumm += n_devices_network[nid];
@@ -187,6 +187,31 @@ namespace Communicate
 
                 dest[nid][param_type][param_index] = param;
                 param_index++;
+            }
+        }
+    }
+
+    /**
+     * @brief Compute the result of combining the PBM parameters from other nodes
+     * or devices.
+     *
+     * @param parameters A multi-dimensional vector containing the parameters to be
+     * combined. The vector is structured as follows: Node/Device ID -> Parameter
+     * type -> Parameters.
+     */
+    void sync_parameters(std::vector<std::vector<std::vector<Param>>>& parameters) {
+        for (int rank = 0; rank < parameters[0][0].size(); rank++) {
+            for (int param_type = 0; param_type < parameters[0].size(); param_type++) {
+                Param base = parameters[0][param_type][rank];
+                // Subtract the starting values of other datasets.
+                parameters[0][param_type][rank].set_values(base.numerator_val() - (parameters.size() - 1),
+                                                        base.denominator_val() - 2 * (parameters.size() - 1));
+
+                for (int device_id = 1; device_id < parameters.size(); device_id++) {
+                    Param ex = parameters[device_id][param_type][rank];
+                    parameters[0][param_type][rank].add_to_values(ex.numerator_val(),
+                                                                ex.denominator_val());
+                }
             }
         }
     }

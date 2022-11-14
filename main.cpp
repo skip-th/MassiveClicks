@@ -21,11 +21,12 @@
 #include <iomanip>
 #include <cmath>
 #include <thread>
+#include <numeric>
 
 // User include.
 #include "utils/definitions.h"
 #include "utils/macros.cuh"
-#include "utils/utility_functions.h"
+#include "utils/utils.cuh"
 #include "parallel_em/parallel_em.cuh"
 #include "parallel_em/communicator.h"
 #include "data/dataset.h"
@@ -50,22 +51,7 @@ int main(int argc, char** argv) {
 
     // Get number of devices on this node and their compute capability.
     get_number_devices(&n_devices);
-
-    // Communicate the number of devices to the root node.
-    Communicate::get_n_devices(n_devices, n_devices_network);
-
-    // Get the compute architecture and free memory of each device on this node.
-    int device_architecture[n_devices], free_memory[n_devices];
-    for (int device_id = 0; device_id < n_devices; device_id++) {
-        device_architecture[device_id] = get_compute_capability(device_id);
-
-        size_t fmem, tmem;
-        get_device_memory(device_id, fmem, tmem, 1e6);
-        free_memory[device_id] = fmem;
-    }
-
-    // Gather the compute architectures and free memory on the root node.
-    Communicate::gather_properties(node_id, n_nodes, n_devices, n_devices_network, network_properties, device_architecture, free_memory);
+    int processing_units = n_devices > 0 ? n_devices : 1;
 
 
     //-----------------------------------------------------------------------//
@@ -86,7 +72,13 @@ int main(int argc, char** argv) {
         {3, "Newest architecture first"},
     };
 
-    std::string raw_dataset_path{"YandexRelPredChallenge100k.txt"}; // "/var/scratch/pkhandel/yandex/YandexClicks.txt"
+    std::map<int, std::string> execution_modes {
+        {0, "GPU-only"},
+        {1, "CPU-only"},
+        {2, "Hybrid"},
+    };
+
+    std::string raw_dataset_path{"YandexRelPredChallenge100k.txt"};
     int n_threads = std::thread::hardware_concurrency();
     int n_iterations{50};
     int max_sessions{40000};
@@ -94,14 +86,15 @@ int main(int argc, char** argv) {
     int partitioning_type{0};
     int job_id{0};
     float test_share{0.2};
-    int total_n_devices{Utils::sum(n_devices_network, n_nodes)};
+    int total_n_devices{0};
+    int exec_mode{n_devices > 0 ? 0 : 1}; // GPU-only: 0, CPU-only: 1.
     bool help{false};
 
     // Parse input parameters.
     if (argc > 1) {
         for (int i = 1; i < argc; ++i) {
             try {
-                if (std::string(argv[i]) == "--n-threads"){
+                if (std::string(argv[i]) == "--n-threads" || std::string(argv[i]) == "-n") {
                     n_threads = std::stoi(argv[i+1]);
                 }
                 else if (std::string(argv[i]) == "--raw-path" || std::string(argv[i]) == "-r") {
@@ -124,6 +117,9 @@ int main(int argc, char** argv) {
                 }
                 else if (std::string(argv[i]) == "--job-id" || std::string(argv[i]) == "-j") {
                     job_id = std::stoi(argv[i + 1]);
+                }
+                else if (std::string(argv[i]) == "--exec-mode" || std::string(argv[i]) == "-e") {
+                    exec_mode = std::stoi(argv[i + 1]);
                 }
                 else if (std::string(argv[i]) == "--help" || std::string(argv[i]) == "-h") {
                     help = true;
@@ -154,8 +150,66 @@ int main(int argc, char** argv) {
 
         // End MPI communication and exit.
         Communicate::finalize();
-        return EXIT_FAILURE;
+        return EXIT_SUCCESS;
     }
+
+    // Ensure that the execution mode can be executed.
+    if ((exec_mode == 0 || exec_mode == 2) && n_devices == 0) {
+        std::cerr << "[" << node_id << "] Error: No GPU devices found for GPU-only or hybrid execution." << std::endl;
+        mpi_abort(-1);
+    }
+    else if (exec_mode == 1) {
+        n_devices = 0;
+        processing_units = 1;
+    }
+
+    // Ensure that the number of threads is valid.
+    if (n_threads < 1) {
+        std::cerr << "[" << node_id << "] Error: Invalid number of threads: " << n_threads << std::endl;
+        mpi_abort(-1);
+    }
+    else if (n_threads > std::thread::hardware_concurrency()) {
+        std::cout << "[" << node_id << "] Warning: " << n_threads <<
+        " threads exceeds hardware concurrency of " <<
+        std::thread::hardware_concurrency() << " threads!" << std::endl;
+    }
+
+
+    //-----------------------------------------------------------------------//
+    // Communicate system properties                                         //
+    //-----------------------------------------------------------------------//
+
+    // Communicate the number of devices to the root node.
+    if (exec_mode == 0) {
+        Communicate::get_n_devices(processing_units, n_devices_network);
+    }
+    else if (exec_mode == 1) {
+        Communicate::get_n_devices(1, n_devices_network);
+    }
+
+    // Get the compute architecture and free memory of each device on this node.
+    int device_architecture[processing_units], free_memory[processing_units];
+    if (exec_mode == 0 || exec_mode == 2) {
+        for (int device_id = 0; device_id < n_devices; device_id++) {
+            device_architecture[device_id] = get_compute_capability(device_id);
+
+            size_t fmem, tmem;
+            get_device_memory(device_id, fmem, tmem, 1e6);
+            free_memory[device_id] = fmem;
+        }
+    }
+    else {
+        // Retrieve the available system memory instead of GPU memory.
+        device_architecture[0] = -1;
+
+        size_t fmem, tmem;
+        get_host_memory(fmem, tmem, 1e6);
+        free_memory[0] = fmem;
+    }
+
+    // Gather the compute architectures and free memory on the root node.
+    Communicate::gather_properties(node_id, n_nodes, processing_units, n_devices_network, network_properties, device_architecture, free_memory);
+    total_n_devices = std::accumulate(n_devices_network, n_devices_network+sizeof(n_devices_network)/sizeof(n_devices_network[0]), 0);
 
     // Show job information on the root node.
     if (node_id == ROOT) {
@@ -163,6 +217,7 @@ int main(int argc, char** argv) {
         "\nNumber of machines: " << n_nodes <<
         "\nNumber of devices in total: " << total_n_devices <<
         "\nNumber of threads: " << n_threads <<
+        "\nExecution mode: " << execution_modes[exec_mode] <<
         "\nRaw data path: " << raw_dataset_path <<
         "\nNumber of EM iterations: " << n_iterations <<
         "\nShare of data used for testing: " << test_share * 100 << "%" <<
@@ -175,7 +230,7 @@ int main(int argc, char** argv) {
         for (int node_rank = 0; node_rank < n_nodes; node_rank++) {
             for (int device_id = 0; device_id < n_devices_network[node_rank]; device_id++) {
                 std::cout << std::left << std::setw(5) << node_rank << "| " <<
-                std::left << std::setw(7) << device_id << "| " <<
+                std::left << std::setw(7) << ((exec_mode == 0 || exec_mode == 2) ? device_id : -1) << "| " <<
                 std::left << std::setw(5) << network_properties[node_rank][device_id][0] << "| " <<
                 network_properties[node_rank][device_id][1] << std::endl;
             }
@@ -227,11 +282,11 @@ int main(int argc, char** argv) {
     auto transfering_start_time = std::chrono::high_resolution_clock::now();
 
     // Store the train/test splits for each device on each node.
-    std::vector<std::tuple<std::vector<SERP_Hst>, std::vector<SERP_Hst>, int>> device_partitions(n_devices); // Device ID -> [train set, test set, size qd pairs]
-    std::vector<std::unordered_map<int, std::unordered_map<int, int>>*> root_mapping(n_devices);
+    std::vector<std::tuple<std::vector<SERP_Hst>, std::vector<SERP_Hst>, int>> device_partitions(processing_units); // Device ID -> [train set, test set, size qd pairs]
+    std::vector<std::unordered_map<int, std::unordered_map<int, int>>*> root_mapping(processing_units);
 
     // Communicate the training sets for each device to their node.
-    Communicate::send_partitions(node_id, n_nodes, n_devices, total_n_devices, n_devices_network, dataset, device_partitions, root_mapping);
+    Communicate::send_partitions(node_id, n_nodes, processing_units, total_n_devices, n_devices_network, dataset, device_partitions, root_mapping);
 
     // Show information about the distributed partitions on the root node.
     if (node_id == ROOT) {
@@ -241,14 +296,14 @@ int main(int argc, char** argv) {
             for (int did = 0; did < n_devices_network[nid]; did++) {
                 if (nid == 0) {
                     std::cout << std::left << std::setw(5) << nid << "| " <<
-                    std::left << std::setw(7) << did << "| " <<
+                    std::left << std::setw(7) << ((exec_mode == 0 || exec_mode == 2) ? did : -1) << "| " <<
                     std::left << std::setw(14) << std::get<0>(device_partitions[did]).size() << "| " <<
                     std::left << std::setw(13) << std::get<1>(device_partitions[did]).size() << "| " <<
                     std::get<2>(device_partitions[did]) << std::endl;
                 }
                 else {
                     std::cout << std::left << std::setw(5) << nid << "| " <<
-                    std::left << std::setw(7) << did << "| " <<
+                    std::left << std::setw(7) << ((exec_mode == 0 || exec_mode == 2) ? did : -1) << "| " <<
                     std::left << std::setw(14) << dataset.size_train(nid, did) << "| " <<
                     std::left << std::setw(13) << dataset.size_test(nid, did) << "| " <<
                     dataset.size_qd(nid, did) << std::endl;
@@ -270,14 +325,15 @@ int main(int argc, char** argv) {
 
     auto sorting_start_time = std::chrono::high_resolution_clock::now();
 
-    // TODO: Only necessary when the CPU is used.
-
-    // Sort the training sets for each device by query so a multiple sessions
-    // with the same query can be assigned to a single cpu thread.
-    if (node_id == ROOT) {
-        std::cout << "\nSorting dataset partitions..." << std::endl;
+    // Sorting the dataset is only necessary when the CPU is used.
+    if (exec_mode == 1 || exec_mode == 2) {
+        // Sort the training sets for each device by query so a multiple sessions
+        // with the same query can be assigned to a single cpu thread.
+        if (node_id == ROOT) {
+            std::cout << "\nSorting dataset partitions..." << std::endl;
+        }
+        sort_partitions(device_partitions, n_threads);
     }
-    sort_partitions(device_partitions, n_threads);
 
     auto sorting_stop_time = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> elapsed_sorting = sorting_stop_time - sorting_start_time;
@@ -295,7 +351,7 @@ int main(int argc, char** argv) {
     // Run click model parameter estimation computation using the generic EM
     // algorithm.
     em_parallel(model_type, node_id, n_nodes, n_threads, n_devices_network, n_iterations,
-                device_partitions, root_mapping);
+                exec_mode, n_devices, processing_units, device_partitions, root_mapping);
 
     auto estimating_stop_time = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> elapsed_estimating = estimating_stop_time - estimating_start_time;
@@ -310,27 +366,23 @@ int main(int argc, char** argv) {
 
     // Show timing metrics on the root node.
     if (node_id == ROOT) {
-        int preproc_sz = 4, combined_sz = 2;
-        double timings_preproc[preproc_sz];
-        timings_preproc[0] = elapsed_parsing.count();
-        timings_preproc[1] = elapsed_partitioning.count();
-        timings_preproc[2] = elapsed_transfering.count();
-        timings_preproc[3] = elapsed_sorting.count();
-        double timings_combined[combined_sz];
-        timings_combined[0] = elapsed_preprocessing.count();
-        timings_combined[1] = elapsed_estimating.count();
+        std::vector<double> percent_preproc = { elapsed_parsing.count(), elapsed_partitioning.count(), elapsed_transfering.count(), elapsed_sorting.count() };
+        std::vector<double> percent_combined = { elapsed_preprocessing.count(), elapsed_estimating.count() };
+        double preproc_total = std::accumulate(percent_preproc.begin(), percent_preproc.end(), 0.0);
+        double combined_total = std::accumulate(percent_combined.begin(), percent_combined.end(), 0.0);
+        for (int i = 0; i < percent_preproc.size(); i++) { percent_preproc[i] = (percent_preproc[i] / preproc_total); }
+        for (int i = 0; i < percent_combined.size(); i++) { percent_combined[i] = (percent_combined[i] / combined_total); }
+        auto digit_cutoff = [](double digit, int size) { return std::to_string(digit).substr(0, std::to_string(digit).find(".") + size + 1);};
 
-        double percent_preproc[preproc_sz], percent_combined[combined_sz];
-        Utils::percent_dist(timings_preproc, percent_preproc, preproc_sz);
-        Utils::percent_dist(timings_combined, percent_combined, combined_sz);
-
-        std::cout << std::endl << std::left << std::setw(27) << "Total pre-processing time: " << std::left << std::setw(7) << Utils::digit_len(elapsed_preprocessing.count(), 7) << " seconds, " << std::right << std::setw(3) << round(percent_combined[0] * 100) << " %" << std::endl;
-        std::cout << std::left << std::setw(27) << "  Parsing time: " << std::left << std::setw(7) << Utils::digit_len(elapsed_parsing.count(), 7) << " seconds, " << std::right << std::setw(3) << round(percent_preproc[0] * 100) << " %" << std::endl;
-        std::cout << std::left << std::setw(27) << "  Partitioning time: " << std::left << std::setw(7) << Utils::digit_len(elapsed_partitioning.count(), 7) << " seconds, " << std::right << std::setw(3) << round(percent_preproc[1] * 100) << " %" << std::endl;
-        std::cout << std::left << std::setw(27) << "  Communication time: " << std::left << std::setw(7) << Utils::digit_len(elapsed_transfering.count(), 7) << " seconds, " << std::right << std::setw(3) << round(percent_preproc[2] * 100) << " %" << std::endl;
-        std::cout << std::left << std::setw(27) << "  Sorting time: " << std::left << std::setw(7) << Utils::digit_len(elapsed_sorting.count(), 7) << " seconds, " << std::right << std::setw(3) << round(percent_preproc[3] * 100) << " %" << std::endl;
-        std::cout << std::left << std::setw(27) << "Parameter estimation time: " << std::left << std::setw(7) << Utils::digit_len(elapsed_estimating.count(), 7) << " seconds, " << std::right << std::setw(3) << round(percent_combined[1] * 100) << " %" << std::endl;
-        std::cout << std::left << std::setw(27) << "Total elapsed time: " << std::left << std::setw(7) << Utils::digit_len(elapsed.count(), 7) << " seconds, 100 %" << std::endl << std::endl;
+        std::cout << std::endl << std::left << std::setw(27) << "Total pre-processing time: " << std::left << std::setw(7) << digit_cutoff(elapsed_preprocessing.count(), 7) << " seconds, " << std::right << std::setw(3) << std::round(percent_combined[0] * 100) << " %" << std::endl;
+        std::cout << std::left << std::setw(27) << "  Parsing time: " << std::left << std::setw(7) << digit_cutoff(elapsed_parsing.count(), 7) << " seconds, " << std::right << std::setw(3) << std::round(percent_preproc[0] * 100) << " %" << std::endl;
+        std::cout << std::left << std::setw(27) << "  Partitioning time: " << std::left << std::setw(7) << digit_cutoff(elapsed_partitioning.count(), 7) << " seconds, " << std::right << std::setw(3) << std::round(percent_preproc[1] * 100) << " %" << std::endl;
+        std::cout << std::left << std::setw(27) << "  Communication time: " << std::left << std::setw(7) << digit_cutoff(elapsed_transfering.count(), 7) << " seconds, " << std::right << std::setw(3) << std::round(percent_preproc[2] * 100) << " %" << std::endl;
+        if (exec_mode == 1 || exec_mode == 2) {
+            std::cout << std::left << std::setw(27) << "  Sorting time: " << std::left << std::setw(7) << digit_cutoff(elapsed_sorting.count(), 7) << " seconds, " << std::right << std::setw(3) << std::round(percent_preproc[3] * 100) << " %" << std::endl;
+        }
+        std::cout << std::left << std::setw(27) << "Parameter estimation time: " << std::left << std::setw(7) << digit_cutoff(elapsed_estimating.count(), 7) << " seconds, " << std::right << std::setw(3) << std::round(percent_combined[1] * 100) << " %" << std::endl;
+        std::cout << std::left << std::setw(27) << "Total elapsed time: " << std::left << std::setw(7) << digit_cutoff(elapsed.count(), 7) << " seconds, 100 %" << std::endl << std::endl;
     }
 
     // End MPI communication.

@@ -153,7 +153,7 @@ bool Dataset::add_parameter_test(SERP_Hst& query_session, const int& node_id, co
     // Iterate over all ranks in the query session.
     std::unordered_map<int, std::unordered_map<int, int>>::iterator qitr;
     bool found_match = false;
-    for (int rank = 0; rank < MAX_SERP_LENGTH; rank++) {
+    for (int rank = 0; rank < MAX_SERP; rank++) {
         qitr = local_params->find(query_session.get_query());
 
         // If the query exists in the map, check if the document exists.
@@ -195,7 +195,7 @@ void Dataset::add_parameter_train(SERP_Hst& query_session, const int& node_id, c
 
     // Iterate over all ranks in the query session.
     std::unordered_map<int, std::unordered_map<int, int>>::iterator qitr;
-    for (int rank = 0; rank < MAX_SERP_LENGTH; rank++) {
+    for (int rank = 0; rank < MAX_SERP; rank++) {
         qitr = local_params->find(query);
 
         // If the query exists in the map, check if the document exists.
@@ -462,54 +462,35 @@ void Dataset::make_splits(const NetworkMap<std::vector<int>>& network_properties
 //---------------------------------------------------------------------------//
 
 /**
- * @brief Sort the training set of the dataset by query id using quicksort.
- *
- * @param data The dataset partition to sort.
- */
-void* quicksort_partition(void* data) {
-    std::vector<SERP_Hst>* partition = (std::vector<SERP_Hst>*) data;
-    std::sort(partition->begin(), partition->end(),
-              [](const SERP_Hst& a, const SERP_Hst& b) { return a.get_query() < b.get_query(); });
-    // pthread_exit(NULL);
-    return NULL;
-}
-
-/**
  * @brief Sort a device's training set by query id using quicksort.
  *
  * @param device_partitions The partitions to sort.
  * @param n_threads The number of threads to available.
  */
 void sort_partitions(std::vector<std::tuple<std::vector<SERP_Hst>, std::vector<SERP_Hst>, int>>& device_partitions, int n_threads) {
-    int n_devices = device_partitions.size();
+    auto sort_partition = [](std::vector<SERP_Hst>& partition) {
+        std::sort(partition.begin(), partition.end(),
+                [](const SERP_Hst& a, const SERP_Hst& b) { return a.get_query() < b.get_query(); });
+    };
 
     // Check whether there are enough threads to sort the partitions in parallel.
-    if (n_threads >= n_devices) {
+    int n_partitions = device_partitions.size();
+    if (n_threads >= n_partitions) {
         // Sort the partitions in parallel.
-        pthread_t threads[n_devices];
-        for (int i = 0; i < n_devices; i++) {
-            // std::thread t(quicksort_partition, &std::get<0>(device_partitions[i]));
-            // t.join();
-            if (pthread_create(&threads[i], NULL, quicksort_partition, (void*) &std::get<0>(device_partitions[i]))) {
-                perror("Error: failed create threads");
-                mpi_abort(-1);
-            }
+        std::thread threads[n_partitions];
+        for (int i = 0; i < n_partitions; i++) {
+            threads[i] = std::thread(sort_partition, std::ref(std::get<0>(device_partitions[i])));
         }
 
         // Wait for all threads to finish.
-        for (int i = 0; i < n_devices; i++) {
-            if (pthread_join(threads[i], NULL)) {
-                perror("Error: failed to join threads");
-                mpi_abort(-1);
-            }
+        for (int i = 0; i < n_partitions; i++) {
+            threads[i].join();
         }
     }
     else {
         // Sort the partitions sequentially.
-        for (int did = 0; did < n_devices; did++) {
-            // quicksort_partition(&std::get<0>(device_partitions[did]));
-            std::sort(std::get<0>(device_partitions[did]).begin(), std::get<0>(device_partitions[did]).end(),
-                [](const SERP_Hst& a, const SERP_Hst& b) { return a.get_query() < b.get_query(); });
+        for (int did = 0; did < n_partitions; did++) {
+            sort_partition(std::get<0>(device_partitions[did]));
         }
     }
 }
@@ -563,7 +544,7 @@ void parse_dataset(Dataset &dataset, const std::string& raw_dataset_path, int ma
 
             // If this line contains 15 elements, then it describes a query action.
             // Vector elements: session id, time passed, Q, query id, region id,
-            // document id (rank = 1), ..., document id (rank = MAX_SERP_LENGTH).
+            // document id (rank = 1), ..., document id (rank = MAX_SERP).
             if (line_vec.size() == QUERY_LINE_LENGTH) {
                 // Add the previous query to the parsed dataset. Ensure that
                 // this query session has actually been filled by checking
@@ -597,7 +578,7 @@ void parse_dataset(Dataset &dataset, const std::string& raw_dataset_path, int ma
         }
     }
     else {
-        std::cout << "Error: Unable to open the raw dataset.\n" << std::endl;
+        std::cerr<< "Error: Unable to open the raw dataset.\n" << std::endl;
         mpi_abort(-1);
     }
 

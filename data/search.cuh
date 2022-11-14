@@ -47,13 +47,13 @@ public:
 
     HST bool update_click_res(const std::vector<std::string>& line);
     HST int get_query() const;
-    HST void prev_clicked_rank(int (&prev_click_rank)[MAX_SERP_LENGTH]);
+    HST void prev_clicked_rank(int (&prev_click_rank)[MAX_SERP]);
     HST int last_click_rank(void);
     HST SearchResult_Hst& access_sr(const int& rank);
 
 private:
     int query{-1};
-    SearchResult_Hst session[MAX_SERP_LENGTH]{};
+    SearchResult_Hst session[MAX_SERP]{};
 };
 
 //---------------------------------------------------------------------------//
@@ -79,12 +79,12 @@ class SERP_Dev {
 public:
     DEV HST SERP_Dev();
     HST explicit SERP_Dev(const SERP_Hst serp);
-    DEV explicit SERP_Dev(SearchResult_Dev*& partition, int& partition_size, int& thread_index);
+    DEV explicit SERP_Dev(SearchResult_Dev*& dataset, int& dataset_size, int& thread_index);
     HST DEV SearchResult_Dev operator[] (const int& rank) const;
-    DEV void prev_clicked_rank(int (&prev_click_rank)[MAX_SERP_LENGTH]);
+    DEV void prev_clicked_rank(int (&prev_click_rank)[MAX_SERP]);
     DEV int last_click_rank(void);
 private:
-    SearchResult_Dev session[MAX_SERP_LENGTH]{};
+    SearchResult_Dev session[MAX_SERP]{};
 };
 
 HST void convert_to_device(std::vector<SERP_Hst>& dataset_hst, std::vector<SearchResult_Dev>& dataset_dev);

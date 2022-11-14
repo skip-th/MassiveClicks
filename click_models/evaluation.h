@@ -32,12 +32,12 @@ public:
 
 class Perplexity {
 public:
-    std::array<float, MAX_SERP_LENGTH> task_rank_perplexities{{0}};
+    std::array<float, MAX_SERP> task_rank_perplexities{{0}};
     float task_size{0};
     Perplexity() = default;
     Perplexity(Perplexity const &ppl_obj);
     void evaluate(ClickModel_Hst* cm, std::vector<SERP_Hst>& testing_queries);
-    void import(std::array<float, MAX_SERP_LENGTH>& task_rank_perplexities, float& task_size);
+    void import(std::array<float, MAX_SERP>& task_rank_perplexities, float& task_size);
 };
 
 #endif //CLICK_MODEL_EVALUATION

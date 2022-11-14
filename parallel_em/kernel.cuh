@@ -11,7 +11,7 @@
 // User include.
 #include "../utils/definitions.h"
 #include "../utils/macros.cuh"
-#include "../utils/cuda_utils.cuh"
+#include "../utils/utils.cuh"
 #include "../click_models/base.cuh"
 #include "../click_models/param.cuh"
 #include "../data/search.cuh"

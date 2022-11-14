@@ -91,7 +91,7 @@ HST SERP_Hst::SERP_Hst() = default;
 HST SERP_Hst::SERP_Hst(const std::vector<std::string>& line) {
     query = std::stoi(line[3]);
 
-    for(int i = 0; i < MAX_SERP_LENGTH; i++) {
+    for(int i = 0; i < MAX_SERP; i++) {
         session[i] = SearchResult_Hst(std::stoi(line[i + 5]), 0, -1);
     }
 }
@@ -109,7 +109,7 @@ HST SERP_Hst::SERP_Hst(const std::vector<std::string>& line) {
 HST bool SERP_Hst::update_click_res(const std::vector<std::string>& line){
     int doc_id = std::stoi(line[3]);
 
-    for (int j = 0; j < MAX_SERP_LENGTH; j++) {
+    for (int j = 0; j < MAX_SERP; j++) {
         if (session[j].get_doc_id() == doc_id) {
             session[j].update_click(1);
             return true;
@@ -156,9 +156,9 @@ HST SearchResult_Hst& SERP_Hst::access_sr(const int& rank) {
  * @return int The rank of the last clicked document.
  */
 HST int SERP_Hst::last_click_rank(void) {
-    int last_click_rank = MAX_SERP_LENGTH;
+    int last_click_rank = MAX_SERP;
 
-    for (int rank = MAX_SERP_LENGTH - 1; rank >= 0; --rank) {
+    for (int rank = MAX_SERP - 1; rank >= 0; --rank) {
         // If the current rank has been clicked, the preceding ranks don't need
         // to be checked.
         if (this->session[rank].get_click() == 1) {
@@ -178,10 +178,10 @@ HST int SERP_Hst::last_click_rank(void) {
  * @return std::array<int, 10> The clicks on each of the documents in this
  * query session.
  */
-HST void SERP_Hst::prev_clicked_rank(int (&prev_click_rank)[MAX_SERP_LENGTH]) {
-    int last_click_rank{MAX_SERP_LENGTH - 1};
+HST void SERP_Hst::prev_clicked_rank(int (&prev_click_rank)[MAX_SERP]) {
+    int last_click_rank{MAX_SERP - 1};
 
-    for (int rank = 0; rank < MAX_SERP_LENGTH; rank++) {
+    for (int rank = 0; rank < MAX_SERP; rank++) {
         // Store a previous click. The last rank will be stored if no click has
         // happened before.
         prev_click_rank[rank] = last_click_rank;
@@ -256,7 +256,7 @@ HST SearchResult_Dev SERP_Dev::operator[] (const int& rank) const{
  * @param serp A SERP_Hst object.
  */
 HST SERP_Dev::SERP_Dev(const SERP_Hst serp) {
-    for (int i = 0; i < MAX_SERP_LENGTH; i++) {
+    for (int i = 0; i < MAX_SERP; i++) {
         SearchResult_Hst serp_tmp = serp[i];
         session[i] = SearchResult_Dev(serp_tmp.get_click(), serp_tmp.get_param_index());
     }
@@ -267,9 +267,9 @@ HST SERP_Dev::SERP_Dev(const SERP_Hst serp) {
  *
  * @param serp A SERP_Hst object.
  */
-DEV SERP_Dev::SERP_Dev(SearchResult_Dev*& partition, int& partition_size, int& thread_index) {
-    for (int rank = 0; rank < MAX_SERP_LENGTH; rank++) {
-        this->session[rank] = partition[rank * partition_size + thread_index];
+DEV SERP_Dev::SERP_Dev(SearchResult_Dev*& dataset, int& dataset_size, int& thread_index) {
+    for (int rank = 0; rank < MAX_SERP; rank++) {
+        this->session[rank] = dataset[rank * dataset_size + thread_index];
     }
 }
 
@@ -280,9 +280,9 @@ DEV SERP_Dev::SERP_Dev(SearchResult_Dev*& partition, int& partition_size, int& t
  * @return int The rank of the last clicked document.
  */
 DEV int SERP_Dev::last_click_rank(void) {
-    int last_click_rank = MAX_SERP_LENGTH;
+    int last_click_rank = MAX_SERP;
 
-    for (int rank = MAX_SERP_LENGTH - 1; rank >= 0; --rank) {
+    for (int rank = MAX_SERP - 1; rank >= 0; --rank) {
         // If the current rank has been clicked, the preceding ranks don't need
         // to be checked.
         if (this->session[rank].get_click() == 1) {
@@ -302,10 +302,10 @@ DEV int SERP_Dev::last_click_rank(void) {
  * @return std::array<int, 10> The clicks on each of the documents in this
  * query session.
  */
-DEV void SERP_Dev::prev_clicked_rank(int (&prev_click_rank)[MAX_SERP_LENGTH]) {
-    int last_click_rank{MAX_SERP_LENGTH - 1};
+DEV void SERP_Dev::prev_clicked_rank(int (&prev_click_rank)[MAX_SERP]) {
+    int last_click_rank{MAX_SERP - 1};
 
-    for (int rank = 0; rank < MAX_SERP_LENGTH; rank++) {
+    for (int rank = 0; rank < MAX_SERP; rank++) {
         // Store a previous click. The last rank will be stored if no click has
         // happened before.
         prev_click_rank[rank] = last_click_rank;
@@ -332,13 +332,13 @@ DEV void SERP_Dev::prev_clicked_rank(int (&prev_click_rank)[MAX_SERP_LENGTH]) {
  * device.
  */
 HST void convert_to_device(std::vector<SERP_Hst>& dataset_hst, std::vector<SearchResult_Dev>& dataset_dev) {
-    dataset_dev.resize(dataset_hst.size() * MAX_SERP_LENGTH);
+    dataset_dev.resize(dataset_hst.size() * MAX_SERP);
     int n_queries = dataset_hst.size();
 
     // Convert the host-side dataset to a smaller device-side dataset.
     for (int query_index = 0; query_index < dataset_hst.size(); query_index++) {
         SERP_Dev serp_tmp = SERP_Dev(dataset_hst[query_index]);
-        for (int rank = 0; rank < MAX_SERP_LENGTH; rank++) {
+        for (int rank = 0; rank < MAX_SERP; rank++) {
             // Change the indexing scheme so separate threads read from
             // contiguous memory.
             dataset_dev[rank * n_queries + query_index] = serp_tmp[rank];

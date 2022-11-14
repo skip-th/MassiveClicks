@@ -10,10 +10,10 @@
 
 DEV HST Param::Param() = default;
 
-// DEV HST Param::Param(const float& numerator, const float& denominator) {
-//     this->numerator = numerator;
-//     this->denominator = denominator;
-// }
+DEV HST Param::Param(const float& numerator, const float& denominator) {
+    this->numerator = numerator;
+    this->denominator = denominator;
+}
 
 /**
  * @brief Add two parameters.

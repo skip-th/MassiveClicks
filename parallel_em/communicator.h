@@ -19,8 +19,7 @@
 // User include.
 #include "../utils/definitions.h"
 #include "../utils/macros.cuh"
-#include "../utils/cuda_utils.cuh"
-#include "../utils/utility_functions.h"
+#include "../utils/utils.cuh"
 #include "../click_models/param.cuh"
 #include "../click_models/evaluation.h"
 #include "../data/dataset.h"
@@ -40,6 +39,7 @@ namespace Communicate
         std::vector<std::unordered_map<int, std::unordered_map<int, int>>*>& root_mapping);
     void exchange_parameters(std::vector<std::vector<std::vector<Param>>>& dest,
         const std::vector<std::vector<Param>>& my_params, const int n_nodes, const int node_id);
+    void sync_parameters(std::vector<std::vector<std::vector<Param>>>& parameters);
     void gather_evaluations(std::map<int, std::array<float, 2>>& loglikelihood,
         std::map<int, Perplexity>& perplexity, const int n_nodes, const int node_id, const int* n_devices_network);
 }
