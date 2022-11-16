@@ -29,7 +29,8 @@ void em_parallel(const int model_type, const int node_id, const int n_nodes,
     const int n_threads, const int* n_devices_network, const int n_itr,
     const int exec_mode, const int n_devices, const int processing_units,
     std::vector<std::tuple<std::vector<SERP_Hst>, std::vector<SERP_Hst>, int>>& device_partitions,
-    const std::vector<std::unordered_map<int, std::unordered_map<int, int>>*>& root_mapping) {
+    const std::vector<std::unordered_map<int, std::unordered_map<int, int>>*>& root_mapping,
+    std::string output_path) {
 
     if (node_id == ROOT) {
         std::cout << "\nExpectation Maximization (EM) in parallel ..." << std::endl;
@@ -541,16 +542,79 @@ void em_parallel(const int model_type, const int node_id, const int n_nodes,
 
 
     //-----------------------------------------------------------------------//
-    // Create complete click model.                                          //
+    // Output trained click model.                                           //
     //-----------------------------------------------------------------------//
-    // Gather public and private parameters and log-likelihood and perplexity
-    // from all nodes and devices.
 
-    // Create complete click model on root node.
-    if (node_id == ROOT) {
-        // TODO: Gather public and private parameters from all nodes and devices.
-        // TODO: The root-side param hash-map (root_mapping) can be used to lookup specific qd-pairs.
-        // TODO: Gather log-likelihood and perplexity from all nodes and devices.
+    if (!output_path.empty()) {
+        std::vector<QDP> qdp_output;
+        std::ofstream output_file;
+
+        // Create a new text file for the output on the root node.
+        if (node_id == ROOT) {
+            output_file.open(output_path);
+            output_file << "query,document,probability" << std::endl;
+        }
+
+        // Fill the qdp_output vector with the query-document pairs.
+        auto get_qdp_output = [](std::vector<SERP_Hst>& dataset, std::vector<QDP>& qdp_output, ClickModel_Hst& cm_host, int start_idx, int stop_idx) {
+            qdp_output.resize((stop_idx - start_idx) * MAX_SERP);
+            float probabilities[MAX_SERP];
+            for (int i = start_idx, j = 0; i < stop_idx; i++) {
+                SERP_Hst query_session = dataset[i];
+                int query = query_session.get_query();
+                cm_host.get_serp_probability(query_session, probabilities);
+                for (int rank = 0; rank < MAX_SERP; rank++) {
+                    int document = query_session[rank].get_doc_id();
+                    qdp_output[j].query = query;
+                    qdp_output[j].document = document;
+                    qdp_output[j].probability = probabilities[rank];
+                    j++;
+                }
+            }
+        };
+
+        // Send the query-document pairs and their probability to the root node
+        // and write it there to the output file.
+        if (node_id == ROOT) {
+            std::cout << "\nWriting output to file..." << std::endl;
+
+            // Iterate over all nodes' results and write them to a file.
+            for (int nid = 1; nid < n_nodes; nid++) {
+                for (int did = 0; did < n_devices_network[nid]; did++) {
+                    // Receive the queries, documents, and probabilities from
+                    // the node.
+                    Communicate::gather_results(node_id, nid, qdp_output);
+
+                    // Write the received results to a file.
+                    for (auto QDP : qdp_output) {
+                        output_file << QDP.query << "," << QDP.document << "," << QDP.probability << std::endl;
+                    }
+                }
+            }
+        }
+
+        // Iterate over the datasets assigned to each of this node's devices.
+        for (int unit = 0; unit < processing_units; unit++) {
+            // Fill the qdp_output vector with the probability of each
+            // query-document pair in a part of the dataset being clicked.
+            get_qdp_output(std::get<0>(device_partitions[unit]), qdp_output,
+                            *cm_hosts[unit], 0, std::get<0>(device_partitions[unit]).size());
+
+            if (node_id != ROOT) { // Have the root node write the results to a file.
+                // Send the qdp_output vector to the root node.
+                Communicate::gather_results(node_id, ROOT, qdp_output);
+            }
+            else { // Write the resuts to a file on the root node.
+                for (auto QDP : qdp_output) {
+                    output_file << QDP.query << "," << QDP.document << "," << QDP.probability << std::endl;
+                }
+            }
+        }
+
+        if (node_id == ROOT) {
+            // Close the file.
+            output_file.close();
+        }
     }
 
 

@@ -79,6 +79,7 @@ int main(int argc, char** argv) {
     };
 
     std::string raw_dataset_path{"YandexRelPredChallenge100k.txt"};
+    std::string output_path{""};
     int n_threads = std::thread::hardware_concurrency();
     int n_iterations{50};
     int max_sessions{40000};
@@ -99,6 +100,9 @@ int main(int argc, char** argv) {
                 }
                 else if (std::string(argv[i]) == "--raw-path" || std::string(argv[i]) == "-r") {
                     raw_dataset_path = argv[i + 1];
+                }
+                else if (std::string(argv[i]) == "--output" || std::string(argv[i]) == "-o") {
+                    output_path = argv[i + 1];
                 }
                 else if (std::string(argv[i]) == "--itr" || std::string(argv[i]) == "-i") {
                     n_iterations = std::stoi(argv[i + 1]);
@@ -227,12 +231,13 @@ int main(int argc, char** argv) {
 
         std::cout << "Node | Device | Arch | Free memory" << std::endl <<
                      "-----+--------+------+------------" << std::endl;
-        for (int node_rank = 0; node_rank < n_nodes; node_rank++) {
-            for (int device_id = 0; device_id < n_devices_network[node_rank]; device_id++) {
-                std::cout << std::left << std::setw(5) << node_rank << "| " <<
-                std::left << std::setw(7) << ((exec_mode == 0 || exec_mode == 2) ? device_id : -1) << "| " <<
-                std::left << std::setw(5) << network_properties[node_rank][device_id][0] << "| " <<
-                network_properties[node_rank][device_id][1] << std::endl;
+        for (int nid = 0; nid < n_nodes; nid++) {
+            for (int did = 0; did < n_devices_network[nid]; did++) {
+                int architecture = network_properties[nid][did][0];
+                std::cout << std::left << std::setw(5) << "N" + std::to_string(nid) << "| " <<
+                std::left << std::setw(7) << ((exec_mode == 0 || exec_mode == 2) ? "G" + std::to_string(did) : "C" + std::to_string(did)) << "| " <<
+                std::left << std::setw(5) << (architecture == -1 ? " " : std::to_string(architecture)) << "| " <<
+                network_properties[nid][did][1] << std::endl;
             }
         }
         std::cout << std::endl;
@@ -294,20 +299,11 @@ int main(int argc, char** argv) {
                        "-----+--------+---------------+--------------+---------" << std::endl;
         for (int nid = 0; nid < n_nodes; nid++) {
             for (int did = 0; did < n_devices_network[nid]; did++) {
-                if (nid == 0) {
-                    std::cout << std::left << std::setw(5) << nid << "| " <<
-                    std::left << std::setw(7) << ((exec_mode == 0 || exec_mode == 2) ? did : -1) << "| " <<
-                    std::left << std::setw(14) << std::get<0>(device_partitions[did]).size() << "| " <<
-                    std::left << std::setw(13) << std::get<1>(device_partitions[did]).size() << "| " <<
-                    std::get<2>(device_partitions[did]) << std::endl;
-                }
-                else {
-                    std::cout << std::left << std::setw(5) << nid << "| " <<
-                    std::left << std::setw(7) << ((exec_mode == 0 || exec_mode == 2) ? did : -1) << "| " <<
-                    std::left << std::setw(14) << dataset.size_train(nid, did) << "| " <<
-                    std::left << std::setw(13) << dataset.size_test(nid, did) << "| " <<
-                    dataset.size_qd(nid, did) << std::endl;
-                }
+                std::cout << std::left << std::setw(5) << "N" + std::to_string(nid) << "| " <<
+                std::left << std::setw(7) << ((exec_mode == 0 || exec_mode == 2) ? "G" + std::to_string(did) : "C" + std::to_string(did)) << "| " <<
+                std::left << std::setw(14) << (nid == ROOT ? std::get<0>(device_partitions[did]).size() : dataset.size_train(nid, did)) << "| " <<
+                std::left << std::setw(13) << (nid == ROOT ? std::get<1>(device_partitions[did]).size() : dataset.size_test(nid, did)) << "| " <<
+                (nid == ROOT ? std::get<2>(device_partitions[did]) : dataset.size_qd(nid, did)) << std::endl;
             }
         }
     }
@@ -351,7 +347,8 @@ int main(int argc, char** argv) {
     // Run click model parameter estimation computation using the generic EM
     // algorithm.
     em_parallel(model_type, node_id, n_nodes, n_threads, n_devices_network, n_iterations,
-                exec_mode, n_devices, processing_units, device_partitions, root_mapping);
+                exec_mode, n_devices, processing_units, device_partitions, root_mapping,
+                output_path);
 
     auto estimating_stop_time = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> elapsed_estimating = estimating_stop_time - estimating_start_time;

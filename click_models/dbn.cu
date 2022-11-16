@@ -538,6 +538,41 @@ HST void DBN_Hst::set_parameters(std::vector<std::vector<Param>>& source, int pa
 }
 
 /**
+ * @brief Get probability of a click on a search result.
+ *
+ * @param serp The SERP corresponding to a query.
+ * @param probabilities The probabilities of a click on each search result.
+ */
+HST void DBN_Hst::get_serp_probability(SERP_Hst& query_session, float (&probablities)[MAX_SERP]) {
+    float ex{1.f}, click_prob;
+
+    for (int rank = 0; rank < MAX_SERP; rank++) {
+        SearchResult_Hst sr = query_session[rank];
+
+        // Get the parameters corresponding to the current search result.
+        // Return the default parameter value if the qd-pair was not found in
+        // the training set.
+        float attr_val{(float) PARAM_DEF_NUM / (float) PARAM_DEF_DENOM};
+        float sat_val{(float) PARAM_DEF_NUM / (float) PARAM_DEF_DENOM};
+        if (sr.get_param_index() != -1) {
+            attr_val = this->atr_parameters[sr.get_param_index()].value();
+            sat_val = this->sat_parameters[sr.get_param_index()].value();
+        }
+        float gamma_val{this->gam_parameters[0].value()};
+
+        if (sr.get_click() == 1) {
+            click_prob = attr_val * ex;
+            ex = gamma_val * ( 1- sat_val);
+        } else{
+            click_prob = 1 - attr_val * ex;
+            ex *= gamma_val * ( 1 - attr_val) / click_prob;
+        }
+        // Calculate the click probability.
+        probablities[rank] = click_prob;
+    }
+}
+
+/**
  * @brief Compute the log-likelihood of the current DBN for the given query
  * session.
  *

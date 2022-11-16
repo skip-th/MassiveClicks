@@ -11,6 +11,6 @@ the training process. The following click models are supported:
 
 ## TODO
 
-- Retrieve distributed parameters and combine them on the root node into a complete click model.
 - Update function descriptions with new arguments.
 - Change add_to_values() to += operator.
+- Compile using CMake instead of Makefile.

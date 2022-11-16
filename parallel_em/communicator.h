@@ -8,13 +8,17 @@
 #ifndef CLICK_MODEL_MPI_H
 #define CLICK_MODEL_MPI_H
 
-// System include.
+// MPI include.
 #ifndef __CUDACC__
     // Include MPI only on non-CUDA files.
     #include <mpi.h>
 #endif
+
+// System include.
 #include <map>
 #include <climits>
+#include <iostream>
+#include <fstream>
 
 // User include.
 #include "../utils/definitions.h"
@@ -24,8 +28,13 @@
 #include "../click_models/evaluation.h"
 #include "../data/dataset.h"
 
-namespace Communicate
-{
+struct QDP {
+    int query;
+    int document;
+    float probability;
+};
+
+namespace Communicate {
     void initiate(int& argc, char**& argv, int& n_nodes, int& node_id);
     void finalize(void);
     void barrier(void);
@@ -42,6 +51,8 @@ namespace Communicate
     void sync_parameters(std::vector<std::vector<std::vector<Param>>>& parameters);
     void gather_evaluations(std::map<int, std::array<float, 2>>& loglikelihood,
         std::map<int, Perplexity>& perplexity, const int n_nodes, const int node_id, const int* n_devices_network);
+    void gather_results(const int node_id, const int target_id, std::vector<QDP>& parameters);
 }
+
 
 #endif // CLICK_MODEL_MPI_H

@@ -41,8 +41,9 @@ public:
     HST void reset_parameters(bool device) override;
     HST void destroy_parameters(void) override;
 
+    HST void get_serp_probability(SERP_Hst& query_session, float (&probablities)[MAX_SERP]) override;
     HST void get_log_conditional_click_probs(SERP_Hst& query_session, std::vector<float>& log_click_probs) override;
-    HST void get_full_click_probs(SERP_Hst& search_ses, std::vector<float> &full_click_probs) override;
+    HST void get_full_click_probs(SERP_Hst& query_session, std::vector<float> &full_click_probs) override;
 
 private:
     HST void compute_exm_car(SERP_Hst& query_session, float (&exam)[MAX_SERP + 1], float (&car)[MAX_SERP + 1]);

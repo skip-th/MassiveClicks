@@ -48,8 +48,9 @@ public:
     HST virtual void reset_parameters(bool device) = 0;
     HST virtual void destroy_parameters(void) = 0;
 
+    HST virtual void get_serp_probability(SERP_Hst& query_session, float (&probablities)[MAX_SERP]) = 0;
     HST virtual void get_log_conditional_click_probs(SERP_Hst& query_session, std::vector<float>& log_click_probs) = 0;
-    HST virtual void get_full_click_probs(SERP_Hst& search_ses, std::vector<float> &full_click_probs) = 0;
+    HST virtual void get_full_click_probs(SERP_Hst& query_session, std::vector<float> &full_click_probs) = 0;
 };
 
 //---------------------------------------------------------------------------//

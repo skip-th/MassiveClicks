@@ -10,6 +10,11 @@ namespace Communicate
 {
     /**
      * @brief Initiates MPI state. Sets the number of nodes and this node's ID.
+     *
+     * @param argc Number of arguments passed to the program.
+     * @param argv Arguments passed to the program.
+     * @param n_nodes The number of nodes in the network.
+     * @param node_id The ID of the current node.
      */
     void initiate(int& argc, char**& argv, int& n_nodes, int& node_id) {
         // Initialize MPI state.
@@ -29,16 +34,28 @@ namespace Communicate
 
     /**
      * @brief Communicate the number of devices to the root node.
+     *
+     * @param n_devices The number of devices on the current node.
+     * @param n_devices_network The number of devices on each node.
      */
     void get_n_devices(const int& n_devices, int* n_devices_network) {
-        MPI_CHECK(MPI_Gather(&n_devices, 1, MPI_INT, n_devices_network, 1, MPI_INT, ROOT, MPI_COMM_WORLD));
+        MPI_CHECK(MPI_Gather(&n_devices, 1, MPI_INT, n_devices_network, 1, MPI_INT, ROOT, MPI_COMM_WORLD)); // Sender & Receiver
     }
 
     /**
      * @brief Gather the compute architectures and free memory on the root node.
+     *
+     * @param node_id The ID of the current node.
+     * @param n_nodes The number of nodes in the network.
+     * @param n_devices The number of devices on the current node.
+     * @param n_devices_network The number of devices on each node.
+     * @param network_properties The number of devices per node.
+     * @param device_architectures The compute architectures of the devices on
+     * each node.
+     * @param free_memory The free memory on each device on each node.
      */
     void gather_properties(const int& node_id, const int& n_nodes, const int& n_devices, int* n_devices_network, std::vector<std::vector<std::vector<int>>>& network_properties, const int* device_architecture, const int* free_memory) {
-        if (node_id == ROOT) {
+        if (node_id == ROOT) { // Receiver
             // Calculate the displacements of each node's device information. Use
             // this to allow variable length received messages.
             int displacements[n_nodes], cumm = 0, t_devices = std::accumulate(n_devices_network, n_devices_network+sizeof(n_devices_network)/sizeof(n_devices_network[0]), 0);
@@ -62,7 +79,7 @@ namespace Communicate
                 network_properties[nid] = node_devices;
             }
         }
-        else {
+        else { // Sender
             // Send the device architecture and free memory to the root node.
             MPI_CHECK(MPI_Gatherv(device_architecture, n_devices, MPI_INT, NULL, NULL, NULL, MPI_INT, ROOT, MPI_COMM_WORLD));
             MPI_CHECK(MPI_Gatherv(free_memory, n_devices, MPI_INT, NULL, NULL, NULL, MPI_INT, ROOT, MPI_COMM_WORLD));
@@ -71,6 +88,16 @@ namespace Communicate
 
     /**
      * @brief Communicate the training sets for each device to their node.
+     *
+     * @param node_id The ID of the current node.
+     * @param n_nodes The number of nodes in the network.
+     * @param n_devices The number of devices on the current node.
+     * @param n_devices_network The number of devices on each node.
+     * @param dataset The source training set to be distributed.
+     * @param device_partitions The destination training set partitions for
+     * each device.
+     * @param root_mapping The root-side mapping of parameters to the node and
+     * device containing the training set and parameters.
      */
     void send_partitions(const int& node_id, const int& n_nodes, const int& n_devices, const int& total_n_devices, const int* n_devices_network, Dataset& dataset, std::vector<std::tuple<std::vector<SERP_Hst>, std::vector<SERP_Hst>, int>>& device_partitions, std::vector<std::unordered_map<int, std::unordered_map<int, int>>*>& root_mapping) {
         // Create SERP_Hst MPI datatype.
@@ -79,7 +106,7 @@ namespace Communicate
         MPI_CHECK(MPI_Type_commit(&MPI_SERP));
 
         // Communicate the training sets for each device to their node.
-        if (node_id == ROOT) {
+        if (node_id == ROOT) { // Sender
             std::cout << "\nCommunicating " << total_n_devices << " partitions to " << n_nodes << " machines." << std::endl;
             MPI_Request request = MPI_REQUEST_NULL;
 
@@ -108,7 +135,7 @@ namespace Communicate
                 root_mapping[did] = dataset.get_mapping(node_id, did);
             }
         }
-        else {
+        else { // Receiver
             // Receive the train and test sets from the root node.
             for (int device_id = 0; device_id < n_devices; device_id++) {
 
@@ -166,7 +193,7 @@ namespace Communicate
 
         // Send this node's synchronized public device parameters to all other
         std::vector<Param> receive_buffer; // Parameter type -> Parameters.
-        for (int param_type = 0; param_type < my_params.size(); param_type++) {
+        for (int param_type = 0; param_type < my_params.size(); param_type++) { // Sender & Receiver
             receive_buffer.resize(n_nodes * my_params[param_type].size());
 
             // Gather the results from all other nodes.
@@ -256,7 +283,7 @@ namespace Communicate
         }
 
         // Gather the log-likelihood and perplexity on the root node.
-        if (node_id == ROOT) {
+        if (node_id == ROOT) { // Receiver
             // Calculate the displacements of each node's evaluations.
             int t_devices{0};
             for (int nid = 0; nid < n_nodes; nid++) { t_devices += n_devices_network[nid]; }
@@ -289,10 +316,52 @@ namespace Communicate
                 perplexity[did] = new_ppl;
             }
         }
-        else {
+        else { // Sender
             // Send the device architecture and free memory to the root node.
             MPI_CHECK(MPI_Gatherv(tmp_llh_vals.data(), tmp_llh_vals.size(), MPI_LLH, NULL, NULL, NULL, MPI_LLH, ROOT, MPI_COMM_WORLD));
             MPI_CHECK(MPI_Gatherv(tmp_ppl_vals.data(), tmp_ppl_vals.size(), MPI_PPL, NULL, NULL, NULL, MPI_PPL, ROOT, MPI_COMM_WORLD));
+        }
+    }
+
+    /**
+     * @brief Communicate the query-document pairs and their corresponding
+     * probability to the root node.
+     *
+     * @param node_id The ID of the current node.
+     * @param target_id The ID of the node sending or receiving the message.
+     * @param parameters The array to store the send/received parameters.
+     */
+    void gather_results(const int node_id, const int target_id, std::vector<QDP>& parameters) {
+        // Create QDP (Query-Document-Probability/Parameter) MPI datatype.
+        struct QDP tmp;
+        int lengths[3] = { 1, 1, 1 };
+        MPI_Datatype types[3] = { MPI_INT, MPI_INT, MPI_FLOAT };
+        MPI_Datatype MPI_QDP;
+        MPI_Aint displacements[3], base_address;
+        MPI_CHECK(MPI_Get_address(&tmp, &base_address));
+        MPI_CHECK(MPI_Get_address(&tmp.query, &displacements[0]));
+        MPI_CHECK(MPI_Get_address(&tmp.document, &displacements[1]));
+        MPI_CHECK(MPI_Get_address(&tmp.probability, &displacements[2]));
+        displacements[0] = MPI_Aint_diff(displacements[0], base_address);
+        displacements[1] = MPI_Aint_diff(displacements[1], base_address);
+        displacements[2] = MPI_Aint_diff(displacements[2], base_address);
+
+        MPI_CHECK(MPI_Type_create_struct(3, lengths, displacements, types, &MPI_QDP));
+        MPI_CHECK(MPI_Type_commit(&MPI_QDP));
+
+        // Gather the device parameters on the root node.
+        if (node_id == ROOT) { // Receiver
+            // Receive parameters from a node.
+            MPI_Status status;
+            MPI_CHECK(MPI_Probe(target_id, 0, MPI_COMM_WORLD, &status));
+            int msg_len;
+            MPI_CHECK(MPI_Get_count(&status, MPI_QDP, &msg_len));
+            parameters.resize(msg_len);
+            MPI_CHECK(MPI_Recv(parameters.data(), parameters.size(), MPI_QDP, target_id, 0, MPI_COMM_WORLD, &status));
+        }
+        else { // Sender
+            // Send parameters to root node.
+            MPI_CHECK(MPI_Send(parameters.data(), parameters.size(), MPI_QDP, target_id, 0, MPI_COMM_WORLD));
         }
     }
 }

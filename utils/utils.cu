@@ -144,6 +144,8 @@ HST void show_help_msg(void) {
     "Options:\n" <<
     "  -h, --help\t\t\tDisplay this help message.\n" <<
     "  -r, --raw-path\t\tPath to the dataset to use.\n" <<
+    "  -o, --output-path\t\tPath to the output file for the trained\n" <<
+    "\t\t\t\tparameters.\n" <<
     "  -s, --max-sessions\t\tMaximum number of query sessions to read from\n" <<
     "\t\t\t\tthe dataset.\n" <<
     "  -n, --n-threads\t\tNumber of threads per machine.\n" <<

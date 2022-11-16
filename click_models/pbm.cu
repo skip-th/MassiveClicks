@@ -311,6 +311,27 @@ HST void PBM_Hst::set_parameters(std::vector<std::vector<Param>>& source, int pa
 }
 
 /**
+ * @brief Get probability of a click on a search result.
+ *
+ * @param serp The SERP corresponding to a query.
+ * @param probabilities The probabilities of a click on each search result.
+ */
+HST void PBM_Hst::get_serp_probability(SERP_Hst& query_session, float (&probablities)[MAX_SERP]) {
+    for (int rank = 0; rank < MAX_SERP; rank++) {
+        SearchResult_Hst sr = query_session[rank];
+
+        // Get the parameters corresponding to the current search result.
+        float atr{(float) PARAM_DEF_NUM / (float) PARAM_DEF_DENOM};
+        if (sr.get_param_index() != -1)
+            atr = this->atr_parameters[sr.get_param_index()].value();
+        float ex{this->exm_parameters[rank].value()};
+
+        // Calculate the click probability.
+        probablities[rank] = atr * ex;
+    }
+}
+
+/**
  * @brief Compute the log-likelihood of the current PBM for the given query
  * session.
  *
