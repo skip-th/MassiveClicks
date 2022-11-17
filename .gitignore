@@ -17,6 +17,7 @@
 *.txt
 *.pyc
 *.vscode
+*.csv
 
 # Special cases.
 !*/CMakeLists.txt

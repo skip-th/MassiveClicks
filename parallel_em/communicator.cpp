@@ -58,7 +58,7 @@ namespace Communicate
         if (node_id == ROOT) { // Receiver
             // Calculate the displacements of each node's device information. Use
             // this to allow variable length received messages.
-            int displacements[n_nodes], cumm = 0, t_devices = std::accumulate(n_devices_network, n_devices_network+sizeof(n_devices_network)/sizeof(n_devices_network[0]), 0);
+            int displacements[n_nodes], cumm = 0, t_devices = std::accumulate(n_devices_network, n_devices_network+n_nodes, 0);
             for (int nid = 0; nid < n_nodes; nid++) {
                 displacements[nid] = cumm;
                 cumm += n_devices_network[nid];

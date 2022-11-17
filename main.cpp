@@ -213,7 +213,7 @@ int main(int argc, char** argv) {
 
     // Gather the compute architectures and free memory on the root node.
     Communicate::gather_properties(node_id, n_nodes, processing_units, n_devices_network, network_properties, device_architecture, free_memory);
-    total_n_devices = std::accumulate(n_devices_network, n_devices_network+sizeof(n_devices_network)/sizeof(n_devices_network[0]), 0);
+    total_n_devices = std::accumulate(n_devices_network, n_devices_network+n_nodes, 0);
 
     // Show job information on the root node.
     if (node_id == ROOT) {
