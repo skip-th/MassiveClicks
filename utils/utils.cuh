@@ -1,7 +1,7 @@
 /** CUDA utility functions.
  *
  * utils.cuh:
- *  - Defines several utility functions to prevent code duplication.
+ *  - Defines several host- and device-side (CUDA) utility functions.
  */
 
 #ifndef CLICK_MODEL_UTILS_H

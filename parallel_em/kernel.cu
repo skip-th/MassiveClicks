@@ -67,7 +67,6 @@ namespace Kernel {
      *
      * @param dataset A pointer to the dataset used to train the click model on.
      * @param dataset_size The size of the dataset containin the dataset.
-     * @param parameter_type The type of parameter being updated.
      */
     GLB void update(SearchResult_Dev* dataset, int dataset_size) {
         // Calculate the starting index within the query session array for this thread.

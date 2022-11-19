@@ -82,6 +82,12 @@ HST int get_compute_capability(const int device) {
     return std::stoi(std::to_string(dprop.major) + std::to_string(dprop.minor));
 }
 
+/**
+ * @brief Get the size of a warp on a specific GPU device.
+ *
+ * @param device The ID of the GPU device.
+ * @return int The size of a warp (e.g. 32).
+ */
 HST int get_warp_size(const int device) {
     cudaDeviceProp dprop;
     CUDA_CHECK(cudaGetDeviceProperties(&dprop, device));

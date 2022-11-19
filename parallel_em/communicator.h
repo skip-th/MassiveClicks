@@ -44,8 +44,7 @@ namespace Communicate {
         const int* free_memory);
     void send_partitions(const int& node_id, const int& n_nodes, const int& n_devices, const int& total_n_devices,
         const int* n_devices_network, Dataset& dataset,
-        std::vector<std::tuple<std::vector<SERP_Hst>, std::vector<SERP_Hst>, int>>& device_partitions,
-        std::vector<std::unordered_map<int, std::unordered_map<int, int>>*>& root_mapping);
+        std::vector<std::tuple<std::vector<SERP_Hst>, std::vector<SERP_Hst>, int>>& device_partitions);
     void exchange_parameters(std::vector<std::vector<std::vector<Param>>>& dest,
         const std::vector<std::vector<Param>>& my_params, const int n_nodes, const int node_id);
     void sync_parameters(std::vector<std::vector<std::vector<Param>>>& parameters);

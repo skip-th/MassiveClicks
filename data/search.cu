@@ -61,6 +61,9 @@ HST int SearchResult_Hst::get_click() const{
  * @brief Sets the value of the parameter index attribute of the search result.
  * The parameter index is a unique number associated with all search results
  * with the same query-document pair.
+ *
+ * @param index The index of this search result's parameter unqiue to all
+ * search results with the same query-document pair.
  */
 HST void SearchResult_Hst::set_param_index(const int& index) {
     this->param_index = index;
@@ -175,6 +178,7 @@ HST int SERP_Hst::last_click_rank(void) {
  * occured for each document in this SERP_Hst. Documents without a previous click
  * get assigned the last rank (9).
  *
+ * @param prev_click_rank The array which stores the rank of the previous click.
  * @return std::array<int, 10> The clicks on each of the documents in this
  * query session.
  */
@@ -265,7 +269,9 @@ HST SERP_Dev::SERP_Dev(const SERP_Hst serp) {
 /**
  * @brief Construct a new SERP_Dev object from a SearchResult_Dev object array.
  *
- * @param serp A SERP_Hst object.
+ * @param dataset A SearchResult_Dev object array.
+ * @param dataset_size The size of the SearchResult_Dev object array.
+ * @param thread_index The index of the thread.
  */
 DEV SERP_Dev::SERP_Dev(SearchResult_Dev*& dataset, int& dataset_size, int& thread_index) {
     for (int rank = 0; rank < MAX_SERP; rank++) {
@@ -299,6 +305,7 @@ DEV int SERP_Dev::last_click_rank(void) {
  * occured for each document in this SERP_Hst. Documents without a previous click
  * get assigned the last rank (9).
  *
+ * @param prev_click_rank The array which stores the rank of the previous click.
  * @return std::array<int, 10> The clicks on each of the documents in this
  * query session.
  */

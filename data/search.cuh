@@ -33,8 +33,7 @@ public:
     HST int get_click() const;
     HST int get_param_index() const;
 private:
-    int click;
-    int doc_id, param_index;
+    int click, doc_id, param_index;
 };
 
 // A Search Engine Result Page (SERP_Hst). A set of 10 documents (SearchResult_Hst)

@@ -288,10 +288,9 @@ int main(int argc, char** argv) {
 
     // Store the train/test splits for each device on each node.
     std::vector<std::tuple<std::vector<SERP_Hst>, std::vector<SERP_Hst>, int>> device_partitions(processing_units); // Device ID -> [train set, test set, size qd pairs]
-    std::vector<std::unordered_map<int, std::unordered_map<int, int>>*> root_mapping(processing_units);
 
     // Communicate the training sets for each device to their node.
-    Communicate::send_partitions(node_id, n_nodes, processing_units, total_n_devices, n_devices_network, dataset, device_partitions, root_mapping);
+    Communicate::send_partitions(node_id, n_nodes, processing_units, total_n_devices, n_devices_network, dataset, device_partitions);
 
     // Show information about the distributed partitions on the root node.
     if (node_id == ROOT) {
@@ -347,8 +346,7 @@ int main(int argc, char** argv) {
     // Run click model parameter estimation computation using the generic EM
     // algorithm.
     em_parallel(model_type, node_id, n_nodes, n_threads, n_devices_network, n_iterations,
-                exec_mode, n_devices, processing_units, device_partitions, root_mapping,
-                output_path);
+                exec_mode, n_devices, processing_units, device_partitions, output_path);
 
     auto estimating_stop_time = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> elapsed_estimating = estimating_stop_time - estimating_start_time;

@@ -56,7 +56,7 @@ DEV HST float Param::value() const{
 /**
  * @brief The numerator of this parameter.
  *
- * @return float
+ * @return float The numerator.
  */
 DEV HST float Param::numerator_val() const{
     return this->numerator;
@@ -65,7 +65,7 @@ DEV HST float Param::numerator_val() const{
 /**
  * @brief The denominator of this parameter.
  *
- * @return float
+ * @return float The denominator.
  */
 DEV HST float Param::denominator_val() const{
     return this->denominator;

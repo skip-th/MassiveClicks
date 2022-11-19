@@ -25,54 +25,33 @@ all: clean build
 
 build: $(PROG)_$(VERSION)
 
-# $(CC_MPI) -O3 $(CU_OPT) -ffast-math -funroll-loops -std=c++11 -c *.cpp utils/*.cpp data/*.cpp click_models/*.cpp
 $(OBJ_DIR)/host.o: main.cpp data/dataset.cpp click_models/evaluation.cpp parallel_em/communicator.cpp
 	@echo "Compiling host code..."
 	@if [ ! -d "$(OBJ_DIR)" ]; then mkdir $(OBJ_DIR); fi
-	$(CC_MPI) -lpthread -O3 -ffast-math -funroll-loops -std=c++11 -c *.cpp utils/*.cpp parallel_em/*.cpp data/*.cpp click_models/*.cpp
+	$(CC_MPI) -lpthread -O3 -ffast-math -std=c++11 -c *.cpp utils/*.cpp parallel_em/*.cpp data/*.cpp click_models/*.cpp
 	ld -r *.o -o $(OBJ_DIR)/host.o $(DEF)
 	@rm -f *.o
 
-# $(CC_CU) -O3 $(CU_OPT) -std=c++11 -rdc=true -lineinfo -c utils/*.cu parallel_em/*.cu data/*.cu click_models/*.cu
 $(OBJ_DIR)/device.a: utils/utils.cu parallel_em/parallel_em.cu data/search.cu click_models/base.cu click_models/pbm.cu click_models/param.cu click_models/common.cu
 	@echo "Compiling device code..."
 	@if [ ! -d "$(OBJ_DIR)" ]; then mkdir $(OBJ_DIR); fi
-	$(CC_CU) -O3 $(CU_OPT) -std=c++11 -rdc=true -lineinfo -c utils/*.cu parallel_em/*.cu data/*.cu click_models/*.cu
+	$(CC_CU) -O3 --use_fast_math --extra-device-vectorization $(CU_OPT) -std=c++11 -rdc=true -lineinfo -c utils/*.cu parallel_em/*.cu data/*.cu click_models/*.cu
 	@rm -f $(OBJ_DIR)/device.a
 	ar cr $(OBJ_DIR)/device.a *.o
 	@ranlib $(OBJ_DIR)/device.a
 
-# $(CC_CU) -O3 $(CU_OPT) -std=c++11 --device-link *.o -o $(OBJ_DIR)/device_link.o -lcudart
 $(OBJ_DIR)/device_link.o: $(OBJ_DIR)/device.a
 	@echo "Linking device code..."
 	@if [ ! -d "$(OBJ_DIR)" ]; then mkdir $(OBJ_DIR); fi
-	$(CC_CU) -O3 $(CU_OPT) -std=c++11 --device-link *.o -o $(OBJ_DIR)/device_link.o -lcudart
+	$(CC_CU) -O3 --use_fast_math --extra-device-vectorization $(CU_OPT) -std=c++11 --device-link *.o -o $(OBJ_DIR)/device_link.o -lcudart
 
-# $(CC_MPI) -O3 -ffast-math -funroll-loops -std=c++11 $(OBJ_DIR)/host.o $(OBJ_DIR)/device_link.o $(OBJ_DIR)/device.a -o $(PROG)_$(VERSION) -lcudart
 $(PROG)_$(VERSION): $(OBJ_DIR)/host.o $(OBJ_DIR)/device_link.o
 	@echo "Building executable..."
-	$(CC_MPI) -lpthread -O3 -ffast-math -funroll-loops -std=c++11 $(OBJ_DIR)/host.o $(OBJ_DIR)/device_link.o $(OBJ_DIR)/device.a -o $(PROG)_$(VERSION) -lcudart
+	$(CC_MPI) -lpthread -O3 -ffast-math -std=c++11 $(OBJ_DIR)/host.o $(OBJ_DIR)/device_link.o $(OBJ_DIR)/device.a -o $(PROG)_$(VERSION) -lcudart
 	@rm -f *.o
 
 cake:
 	@printf '  )  (  )  (\n (^)(^)(^)(^)\n _i__i__i__i_\n(____________)\n|############|\n(____________)\n'
-
-nompi: clean build
-	@echo "\nRunning without prun or MPI..."
-	./$(PROG)_$(VERSION)
-
-cuda: clean build
-	@echo "\nTesting without MPI..."
-	cuda-memcheck ./$(PROG)_$(VERSION) | more
-
-valgrind: clean build
-	@echo "\nTesting without MPI using valgrind..."
-	valgrind --leak-check=full \
-         --show-leak-kinds=all \
-         --track-origins=yes \
-         --verbose \
-         --log-file=valgrind-out.txt \
-	./$(PROG)_$(VERSION)
 
 run:
 	@echo "Scheduling job..."

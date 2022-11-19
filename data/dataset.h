@@ -34,9 +34,12 @@ public:
     int size_test(const int& nid, const int& did) const;
     int size_qd(const int& nid, const int& did) const;
     void increment_queries(const int& value);
+
     void add_session(const int session_id, const std::vector<SERP_Hst>& session);
     void add_query_session(const SERP_Hst& query_session);
+
     void make_splits(const NetworkMap<std::vector<int>>& network_properties, const float test_share, const int partitioning_type, const int model_type);
+
     std::vector<SERP_Hst>* get_train_set(const int& nid, const int& did);
     std::vector<SERP_Hst>* get_test_set(const int& nid, const int& did);
     std::unordered_map<int, std::unordered_map<int, int>>* get_mapping(const int& nid, const int& did);
@@ -44,13 +47,15 @@ public:
 private:
     void make_partitions(const NetworkMap<std::vector<int>>& network_properties, const float test_share, const int partitioning_type, const int model_type);
     void reshape_pvar(const NetworkMap<std::vector<int>>& network_properties);
+
     void add_parameter_train(SERP_Hst& query_session, const int& node_id, const int& device_id);
     bool add_parameter_test(SERP_Hst& query_session, const int& node_id, const int& device_id);
+
     std::pair<int,int> get_smallest_train(const NetworkMap<std::vector<SERP_Hst>>& training_queries);
     std::pair<int,int> get_smallest_relative_train(const NetworkMap<std::vector<SERP_Hst>>& training_queries, const NetworkMap<std::vector<int>>& network_properties);
     std::pair<int,int> get_smallest_arch_train(const NetworkMap<std::vector<SERP_Hst>>& training_queries, const NetworkMap<std::vector<int>>& network_properties);
-    int n_queries{0};
-    int n_qd_pairs{0};
+
+    int n_queries{0},  n_qd_pairs{0};
     ClickModel_Hst* cm;
 
     std::vector<SERP_Hst> sessions;

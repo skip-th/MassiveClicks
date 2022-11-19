@@ -96,10 +96,8 @@ namespace Communicate
      * @param dataset The source training set to be distributed.
      * @param device_partitions The destination training set partitions for
      * each device.
-     * @param root_mapping The root-side mapping of parameters to the node and
-     * device containing the training set and parameters.
      */
-    void send_partitions(const int& node_id, const int& n_nodes, const int& n_devices, const int& total_n_devices, const int* n_devices_network, Dataset& dataset, std::vector<std::tuple<std::vector<SERP_Hst>, std::vector<SERP_Hst>, int>>& device_partitions, std::vector<std::unordered_map<int, std::unordered_map<int, int>>*>& root_mapping) {
+    void send_partitions(const int& node_id, const int& n_nodes, const int& n_devices, const int& total_n_devices, const int* n_devices_network, Dataset& dataset, std::vector<std::tuple<std::vector<SERP_Hst>, std::vector<SERP_Hst>, int>>& device_partitions) {
         // Create SERP_Hst MPI datatype.
         MPI_Datatype MPI_SERP;
         MPI_CHECK(MPI_Type_contiguous(sizeof(SERP_Hst) / sizeof(int), MPI_INT, &MPI_SERP));
@@ -110,15 +108,14 @@ namespace Communicate
             std::cout << "\nCommunicating " << total_n_devices << " partitions to " << n_nodes << " machines." << std::endl;
             MPI_Request request = MPI_REQUEST_NULL;
 
-            // Send the partitions to the other nodes.
-            for (int nid = 0; nid < n_nodes; nid++) {
+            // Send the partitions to the other nodes excluding the root node.
+            for (int nid = 1; nid < n_nodes; nid++) {
                 for (int did = 0; did < n_devices_network[nid]; did++) {
-                    // Exclude the root node from sending targets.
-                    if (nid != ROOT) {
-                        // Send the train set to the node.
-                        MPI_CHECK(MPI_Isend(dataset.get_train_set(nid, did)->data(), dataset.get_train_set(nid, did)->size(), MPI_SERP, nid, dataset.size_qd(nid, did), MPI_COMM_WORLD, &request));
-                        MPI_CHECK(MPI_Isend(dataset.get_test_set(nid, did)->data(), dataset.get_test_set(nid, did)->size(), MPI_SERP, nid, dataset.size_qd(nid, did), MPI_COMM_WORLD, &request));
-                    }
+                    // Send the train set to the node.
+                    int size_qd = dataset.size_qd(nid, did);
+                    MPI_CHECK(MPI_Isend(dataset.get_train_set(nid, did)->data(), (int) dataset.get_train_set(nid, did)->size(), MPI_SERP, nid, 0, MPI_COMM_WORLD, &request));
+                    MPI_CHECK(MPI_Isend(dataset.get_test_set(nid, did)->data(), (int) dataset.get_test_set(nid, did)->size(), MPI_SERP, nid, 0, MPI_COMM_WORLD, &request));
+                    MPI_CHECK(MPI_Isend(&size_qd, 1, MPI_INT, nid, 0, MPI_COMM_WORLD, &request));
                 }
             }
             MPI_CHECK(MPI_Wait(&request, MPI_STATUS_IGNORE));
@@ -131,36 +128,38 @@ namespace Communicate
                 std::get<1>(device_partitions[did]) = std::move(*dataset.get_test_set(node_id, did));
                 (*dataset.get_test_set(node_id, did)).erase(std::begin(*dataset.get_test_set(node_id, did)), std::end(*dataset.get_test_set(node_id, did)));
                 std::get<2>(device_partitions[did]) = dataset.size_qd(node_id, did);
-
-                root_mapping[did] = dataset.get_mapping(node_id, did);
             }
         }
         else { // Receiver
             // Receive the train and test sets from the root node.
-            for (int device_id = 0; device_id < n_devices; device_id++) {
+            for (int did = 0; did < n_devices; did++) {
+                for (int msg_type = 0; msg_type < 3; msg_type++) {
+                    // Select the train or test partition according to message ordering (uses FIFO).
+                    if (msg_type == 0 || msg_type == 1) {
+                        std::vector<SERP_Hst>* dataset_ptr;
 
-                // Receive twice for every device. Both the train and test sets.
-                for (int i = 0; i < 2; i++) {
-                    // Probe for the size of the message.
-                    MPI_Status status;
-                    MPI_CHECK(MPI_Probe(ROOT, MPI_ANY_TAG, MPI_COMM_WORLD, &status));
-                    int msg_length;
-                    MPI_CHECK(MPI_Get_count(&status, MPI_SERP, &msg_length));
+                        // Probe for the size of the message.
+                        MPI_Status status;
+                        MPI_CHECK(MPI_Probe(ROOT, MPI_ANY_TAG, MPI_COMM_WORLD, &status));
+                        int msg_length;
+                        MPI_CHECK(MPI_Get_count(&status, MPI_SERP, &msg_length));
 
-                    // Select the train or test partition depending on the received tag.
-                    std::vector<SERP_Hst>* partition_ptr;
-                    if (i == 0) {
-                        partition_ptr = &(std::get<0>(device_partitions[device_id]));
-                        std::get<2>(device_partitions[device_id]) = status.MPI_TAG;
+                        if (msg_type == 0) { // Train set.
+                            dataset_ptr = &(std::get<0>(device_partitions[did]));
+                        }
+                        else { // Test set.
+                            dataset_ptr = &(std::get<1>(device_partitions[did]));
+                        }
+
+                        // Allocate memory for the set.
+                        dataset_ptr->resize(msg_length);
+                        // Receive the set.
+                        MPI_CHECK(MPI_Recv(dataset_ptr->data(), msg_length, MPI_SERP, ROOT, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE));
                     }
-                    else if (i == 1) {
-                        partition_ptr = &(std::get<1>(device_partitions[device_id]));
+                    else if (msg_type == 2) { // Number of the query-document parameters.
+                        // Receive the parameter size.
+                        MPI_CHECK(MPI_Recv(&std::get<2>(device_partitions[did]), 1, MPI_INT, ROOT, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE));
                     }
-
-                    // Allocate memory for the set.
-                    partition_ptr->resize(msg_length);
-                    // Receive the set.
-                    MPI_CHECK(MPI_Recv(partition_ptr->data(), msg_length, MPI_SERP, ROOT, status.MPI_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE));
                 }
             }
         }

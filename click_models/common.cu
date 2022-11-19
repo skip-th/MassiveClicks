@@ -50,11 +50,8 @@ HST void init_parameters_hst(std::vector<Param>& params, std::vector<Param>& par
     params.resize(n_params_dev, default_parameter);
     if (device) {
         CUDA_CHECK(cudaMalloc(&param_dptr, n_params_dev * sizeof(Param)));
-        // CUDA_CHECK(cudaMalloc(&this->exm_dptr, this->n_exm_params * sizeof(Param)));
         CUDA_CHECK(cudaMemcpy(param_dptr, params.data(),
                               n_params_dev * sizeof(Param), cudaMemcpyHostToDevice));
-        // CUDA_CHECK(cudaMemcpy(this->exm_dptr, this->exm_parameters.data(),
-        //                       this->n_exm_params * sizeof(Param), cudaMemcpyHostToDevice));
     }
 
     // Allocate memory for the temporary parameters on the device.
@@ -63,7 +60,6 @@ HST void init_parameters_hst(std::vector<Param>& params, std::vector<Param>& par
     params_tmp.resize(n_params_tmp_dev);
     if (device) {
         CUDA_CHECK(cudaMalloc(&param_tmp_dptr, n_params_tmp_dev * sizeof(Param)));
-        // CUDA_CHECK(cudaMalloc(&this->exm_tmp_dptr, this->n_exm_tmp_params * sizeof(Param)));
     }
 }
 
@@ -115,9 +111,8 @@ HST void transfer_parameters_hst(int transfer_direction, std::vector<Param>& par
  * @param src The (temporary) parameters used to update dst.
  * @param dst The parameter array to be updated.
  * @param dataset The training set.
- * @param thread_id The ID of the thread.
- * @param start_idx The index of the first query-document pair to update.
- * @param stop_idx The index of the last query-document pair to update.
+ * @param thread_start_idx The dataset starting index of the range of query
+ * sessions updated by each thread.
  */
 HST void update_unique_parameters_hst(std::vector<Param>& src, std::vector<Param>& dst, const std::vector<SERP_Hst>& dataset,  const std::vector<int>& thread_start_idx) {
     auto update_thread = [](std::vector<Param>& src, std::vector<Param>& dst, const std::vector<SERP_Hst>& dataset, const int thread_id, const int start_idx, const int stop_idx) {
@@ -154,10 +149,8 @@ HST void update_unique_parameters_hst(std::vector<Param>& src, std::vector<Param
  * @param src The (temporary) parameters used to update dst.
  * @param dst The parameter array to be updated.
  * @param dataset The training set.
- * @param thread_id The ID of the thread.
- * @param start_idx The index of the first query-document pair to update.
- * @param stop_idx The index of the last query-document pair to update.
- * @param mtx The mutex used to lock the global parameter array.
+ * @param thread_start_idx The dataset starting index of the range of query
+ * sessions updated by each thread.
  */
 HST void update_shared_parameters_hst(std::vector<Param>& src, std::vector<Param>& dst, const std::vector<SERP_Hst>& dataset, const std::vector<int>& thread_start_idx) {
     auto update_thread = [](std::vector<Param>& src, std::vector<Param>& dst, const std::vector<SERP_Hst>& dataset, const int thread_id, const int start_idx, const int stop_idx, std::vector<std::mutex>& mtx) {
@@ -274,6 +267,7 @@ DEV void update_shared_parameters_dev(Param*& src, Param*& dst, int& thread_inde
  *
  * @param query_session The query session of this thread.
  * @param thread_index The index of this thread.
+ * @param pidx The index of each search result's parameters to update.
  */
 DEV void update_unique_parameters_dev(Param*& src, Param*& dst, int& thread_index, int& dataset_size, const int (&pidx)[BLOCK_SIZE * MAX_SERP]) {
     for (int rank = 0; rank < MAX_SERP; rank++) {

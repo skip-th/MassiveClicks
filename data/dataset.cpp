@@ -84,7 +84,6 @@ void Dataset::add_session(const int session_id, const std::vector<SERP_Hst>& ses
 /**
  * @brief Add the given query session to the dataset.
  *
- * @param session_id The session id shared by all provided query sessions.
  * @param query_session The query session which will be added.
  */
 void Dataset::add_query_session(const SERP_Hst& query_session) {
@@ -230,7 +229,6 @@ void Dataset::add_parameter_train(SERP_Hst& query_session, const int& node_id, c
  *
  *
  * @param training_queries A vector containing SERP_Hsts grouped by query.
- * @param network_properties The properties of the devices within the network.
  *
  * @return std::pair<int,int> The node id and device id of smallest training vector.
  */
@@ -325,6 +323,8 @@ std::pair<int,int> Dataset::get_smallest_arch_train(const NetworkMap<std::vector
  * @param network_properties The properties of the devices within the network.
  * @param test_share The share of the dataset that will be used for testing.
  * @param partitioning_type The partitioning scheme to use (e.g. Round-Robin).
+ * @param model_type The type of click model to measure the memory footprint
+ * with (e.g. 0 = PBM, 1 = CCM).
  */
 void Dataset::make_partitions(const NetworkMap<std::vector<int>>& network_properties, const float test_share, const int partitioning_type, const int model_type) {
     int node_id{0}, device_id{0}, n_nodes = network_properties.size();
@@ -446,6 +446,8 @@ void Dataset::reshape_pvar(const NetworkMap<std::vector<int>>& network_propertie
  * @param network_properties The properties of the devices within the network.
  * @param test_share The share of the dataset that will be used for testing.
  * @param partitioning_type The partitioning scheme to use (e.g. Round-Robin).
+ * @param model_type The type of click model to measure the memory footprint
+ * with (e.g. 0 = PBM, 1 = CCM).
  */
 void Dataset::make_splits(const NetworkMap<std::vector<int>>& network_properties, const float test_share, const int partitioning_type, const int model_type) {
     // Shape the multi-dimensional arrays training, testing and parameter arrays

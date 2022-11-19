@@ -20,16 +20,21 @@
  * @param model_type The type of click model (e.g. 0 = PBM).
  * @param node_id The MPI communication rank of this node.
  * @param n_nodes The number of nodes in the network.
+ * @param n_threads The number of CPU threads on this node.
  * @param n_devices_network The number of devices per node in the network.
  * @param n_itr The number of iterations for which the EM algorithm should run.
- * @param device_partitions The training and testing sets and the number of query
- * document pairs in the training set, for each device on this node.
+ * @param exec_mode The mode of execution (e.g. 0 = CPU, 1 = GPU).
+ * @param n_devices The number of GPU devices on this node.
+ * @param processing_units The number of compute devices on this node (incuding
+ * CPU depending on the execution mode).
+ * @param device_partitions The training and testing sets and the number of
+ * query document pairs in the training set, for each device on this node.
+ * @param output_path The path to the output file.
  */
 void em_parallel(const int model_type, const int node_id, const int n_nodes,
     const int n_threads, const int* n_devices_network, const int n_itr,
     const int exec_mode, const int n_devices, const int processing_units,
     std::vector<std::tuple<std::vector<SERP_Hst>, std::vector<SERP_Hst>, int>>& device_partitions,
-    const std::vector<std::unordered_map<int, std::unordered_map<int, int>>*>& root_mapping,
     std::string output_path) {
 
     if (node_id == ROOT) {
