@@ -154,6 +154,7 @@ HST void show_help_msg(void) {
     "\t\t\t\tparameters.\n" <<
     "  -s, --max-sessions\t\tMaximum number of query sessions to read from\n" <<
     "\t\t\t\tthe dataset.\n" <<
+    "  -g, --n-gpus\t\tMaximum number of GPUs per machine.\n" <<
     "  -n, --n-threads\t\tNumber of threads per machine.\n" <<
     "  -i, --itr\t\t\tNumber of iterations to run.\n" <<
     "  -m, --model-type\t\tClick model type to use.\n" <<

@@ -80,7 +80,8 @@ int main(int argc, char** argv) {
 
     std::string raw_dataset_path{"YandexRelPredChallenge100k.txt"};
     std::string output_path{""};
-    int n_threads = std::thread::hardware_concurrency();
+    int n_threads{static_cast<int>(std::thread::hardware_concurrency())};
+    int n_gpus{n_devices};
     int n_iterations{50};
     int max_sessions{40000};
     int model_type{0};
@@ -97,6 +98,9 @@ int main(int argc, char** argv) {
             try {
                 if (std::string(argv[i]) == "--n-threads" || std::string(argv[i]) == "-n") {
                     n_threads = std::stoi(argv[i+1]);
+                }
+                else if (std::string(argv[i]) == "--n-gpus" || std::string(argv[i]) == "-g") {
+                    n_gpus = std::stoi(argv[i+1]);
                 }
                 else if (std::string(argv[i]) == "--raw-path" || std::string(argv[i]) == "-r") {
                     raw_dataset_path = argv[i + 1];
@@ -146,7 +150,12 @@ int main(int argc, char** argv) {
         }
     }
 
-    // Display help message and shutdown execution.
+
+    //-----------------------------------------------------------------------//
+    // Error check the input                                                 //
+    //-----------------------------------------------------------------------//
+
+    // Display help message and shutdown.
     if (help) {
         if (node_id == ROOT) {
             show_help_msg();
@@ -157,25 +166,33 @@ int main(int argc, char** argv) {
         return EXIT_SUCCESS;
     }
 
-    // Ensure that the execution mode can be executed.
-    if ((exec_mode == 0 || exec_mode == 2) && n_devices == 0) {
-        std::cerr << "[" << node_id << "] Error: No GPU devices found for GPU-only or hybrid execution." << std::endl;
-        mpi_abort(-1);
+    // Ensure that the execution mode can be used.
+    if (exec_mode == 0 || exec_mode == 2) {\
+        if (n_devices == 0 || n_gpus <= 0) {
+            Communicate::error_check("[" + std::to_string(node_id) + "] Error: No GPU devices found for GPU-only or hybrid execution.");
+        }
+        else if (n_gpus > n_devices) {
+            std::cerr << "[" << node_id << "] Warning: Number of GPUs requested (" << n_gpus << ") exceeds number of available devices (" << n_devices << ")." << std::endl;
+        }
     }
     else if (exec_mode == 1) {
         n_devices = 0;
         processing_units = 1;
     }
+    Communicate::error_check();
 
     // Ensure that the number of threads is valid.
     if (n_threads < 1) {
-        std::cerr << "[" << node_id << "] Error: Invalid number of threads: " << n_threads << std::endl;
-        mpi_abort(-1);
+        if (node_id == ROOT) {
+            std::cerr << "[" << node_id << "] Error: Invalid number of threads: " << n_threads << std::endl;
+        }
+
+        // End MPI communication and exit.
+        Communicate::finalize();
+        return EXIT_SUCCESS;
     }
     else if (n_threads > std::thread::hardware_concurrency()) {
-        std::cout << "[" << node_id << "] Warning: " << n_threads <<
-        " threads exceeds hardware concurrency of " <<
-        std::thread::hardware_concurrency() << " threads!" << std::endl;
+        std::cout << "[" << node_id << "] Warning: " << n_threads << " threads exceeds hardware concurrency of " << std::thread::hardware_concurrency() << " threads!" << std::endl;
     }
 
 
@@ -184,7 +201,9 @@ int main(int argc, char** argv) {
     //-----------------------------------------------------------------------//
 
     // Communicate the number of devices to the root node.
-    if (exec_mode == 0) {
+    if (exec_mode == 0 || exec_mode == 2) {
+        n_devices = std::min(n_devices, n_gpus);
+        processing_units = std::min(processing_units, n_gpus);
         Communicate::get_n_devices(processing_units, n_devices_network);
     }
     else if (exec_mode == 1) {
@@ -256,9 +275,15 @@ int main(int argc, char** argv) {
     if (node_id == ROOT) {
         std::cout << "Parsing dataset." << std::endl;
 
-        parse_dataset(dataset, raw_dataset_path, max_sessions);
+        if (parse_dataset(dataset, raw_dataset_path, max_sessions)) {
+            Communicate::error_check("[" + std::to_string(node_id) + "] Error: Unable to open the raw dataset.\n");
+        }
 
         std::cout << "Found " << dataset.size_queries() << " query sessions." << std::endl;
+    }
+    else {
+        // Check if parsing failed on the root node.
+        Communicate::error_check();
     }
 
     auto parse_stop_time = std::chrono::high_resolution_clock::now();

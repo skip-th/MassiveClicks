@@ -37,6 +37,7 @@ struct QDP {
 namespace Communicate {
     void initiate(int& argc, char**& argv, int& n_nodes, int& node_id);
     void finalize(void);
+    void error_check(std::string err_msg = "");
     void barrier(void);
     void get_n_devices(const int& n_devices, int* n_devices_network);
     void gather_properties(const int& node_id, const int& n_nodes, const int& n_devices, int* n_devices_network,

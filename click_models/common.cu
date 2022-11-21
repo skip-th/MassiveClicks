@@ -40,10 +40,11 @@ HST void init_parameters_hst(std::vector<Param>& params, std::vector<Param>& par
 
     // Check if the new parameters will fit in GPU memory using a 0.1% error margin.
     if (cm_memory_usage * 1.001 > fmem) {
-        std::cerr<< "Error: Insufficient memory!\n" <<
-        "\tAllocating parameters requires an additional " <<
-        (cm_memory_usage - fmem) / 1e6 << " MB of memory." << std::endl;
-        mpi_abort(-1);
+        Communicate::error_check("Error: Insufficient memory!\n\tAllocating parameters requires an additional " + std::to_string((cm_memory_usage - fmem) / 1e6) + " MB of memory.");
+        // std::cerr << "Error: Insufficient memory!\n" <<
+        // "\tAllocating parameters requires an additional " <<
+        // (cm_memory_usage - fmem) / 1e6 << " MB of memory." << std::endl;
+        // mpi_abort(-1);
     }
 
     // Allocate memory for the parameters on the device.

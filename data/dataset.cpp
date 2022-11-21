@@ -510,8 +510,10 @@ void sort_partitions(std::vector<std::tuple<std::vector<SERP_Hst>, std::vector<S
  * @param raw_dataset_path The path to the raw dataset text file.
  * @param max_sessions The maximum number of sessions to parse. This does not
  * equal the number of lines in the file.
+ *
+ * @return Success of the parsing operation. (0 = success, 1 = failure)
  */
-void parse_dataset(Dataset &dataset, const std::string& raw_dataset_path, int max_sessions) {
+int parse_dataset(Dataset &dataset, const std::string& raw_dataset_path, int max_sessions) {
     // Open an input file stream using the given dataset path.
     std::ifstream raw_file(raw_dataset_path);
     std::string line;
@@ -580,10 +582,10 @@ void parse_dataset(Dataset &dataset, const std::string& raw_dataset_path, int ma
         }
     }
     else {
-        std::cerr<< "Error: Unable to open the raw dataset.\n" << std::endl;
-        mpi_abort(-1);
+        return 1;
     }
 
     dataset.increment_queries(n_queries);
     std::cout << "\rRead " << n_lines << " lines." << std::string(15, ' ') << std::endl;
+    return 0;
 }

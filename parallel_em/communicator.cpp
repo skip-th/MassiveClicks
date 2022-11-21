@@ -33,6 +33,29 @@ namespace Communicate
     }
 
     /**
+     * @brief Check if any node has raised a non-critical error. If so, print
+     * the error on the failed node and have all nodes exit.
+     *
+     * @param err_msg The error message if there is any.
+     */
+    void error_check(std::string err_msg /* = "" */) {
+        int error = !err_msg.empty() ? 1 : 0;
+        if (!err_msg.empty()) {
+            std::cerr << err_msg << std::endl;
+        }
+
+        // Use MPI_Allreduce to check if any node has send a non-zero error
+        // code.
+        MPI_CHECK(MPI_Allreduce(MPI_IN_PLACE, &error, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD));
+
+        // Exit if any node has raised an error.
+        if (error) {
+            finalize();
+            exit(EXIT_SUCCESS);
+        }
+    }
+
+    /**
      * @brief Communicate the number of devices to the root node.
      *
      * @param n_devices The number of devices on the current node.

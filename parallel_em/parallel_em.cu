@@ -189,9 +189,7 @@ void em_parallel(const int model_type, const int node_id, const int n_nodes,
             // Check whether the current device has enough free memory available.
             double dataset_size = dataset_dev_tmp.size() * sizeof(SearchResult_Dev);
             if (dataset_size * 1.001 > fmem) {
-                std::cerr << "Error: Insufficient GPU memory!\n\tAllocating dataset requires an additional " <<
-                (dataset_size - fmem_dev[device_id * 2 + 1]) / 1e6 << " MB of GPU memory." << std::endl;
-                mpi_abort(-1);
+                Communicate::error_check("[" + std::to_string(node_id) + "] Error: Insufficient GPU memory!\n\tAllocating dataset requires an additional " + std::to_string((dataset_size - fmem_dev[device_id * 2 + 1]) / 1e6) + " MB of GPU memory.");
             }
 
             // Allocate memory for the dataset on the current device.
@@ -204,6 +202,7 @@ void em_parallel(const int model_type, const int node_id, const int n_nodes,
 
             // Allocate memory for the query dependent parameters on both the current device and host.
             cm_hosts[device_id]->init_parameters(device_partitions[device_id], fmem_dev[device_id * 2 + 1] - fmem_dev[device_id * 2], true);
+            Communicate::error_check();
             fmem_dev[device_id * 2] += cm_hosts[device_id]->get_memory_usage();
 
             // Show memory usage.
@@ -221,13 +220,12 @@ void em_parallel(const int model_type, const int node_id, const int n_nodes,
 
             fmem_dev[device_id * 2] += dataset_size;
             if (dataset_size * 1.001 > fmem) {
-                std::cerr << "Error: Insufficient system memory!\n\tAllocating dataset requires an additional " <<
-                (dataset_size - fmem_dev[device_id * 2 + 1]) / 1e6 << " MB of system memory." << std::endl;
-                mpi_abort(-1);
+                Communicate::error_check("[" + std::to_string(node_id) + "] Error: Insufficient system memory!\n\tAllocating dataset requires an additional " + std::to_string((dataset_size - fmem_dev[device_id * 2 + 1]) / 1e6) + " MB of system memory.");
             }
 
             // Allocate memory for the query dependent parameters on both the current device and host.
             cm_hosts[device_id]->init_parameters(device_partitions[device_id], fmem_dev[device_id * 2 + 1] - fmem_dev[device_id * 2], false);
+            Communicate::error_check();
             fmem_dev[device_id * 2] += cm_hosts[device_id]->get_memory_usage();
 
             // Show memory usage.
@@ -241,6 +239,9 @@ void em_parallel(const int model_type, const int node_id, const int n_nodes,
         (int) ((float) (fmem - fmem_new) / (float) fmem_dev[device_id * 2 + 1] * 100) << "%)" << std::endl;
     }
 
+    // Wait for all nodes to finish allocating memory and check if any node
+    // raised an error while doing so.
+    Communicate::error_check();
     Communicate::barrier();
 
     auto h2d_init_stop_time = std::chrono::high_resolution_clock::now();

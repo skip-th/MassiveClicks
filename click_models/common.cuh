@@ -13,6 +13,7 @@
 
 #include "../utils/definitions.h"
 #include "base.cuh"
+#include "../parallel_em/communicator.h"
 
 HST void init_parameters_hst(std::vector<Param>& params, std::vector<Param>& params_tmp, Param*& param_dptr, Param*& param_tmp_dptr, std::pair<int, int> n_params, int& n_params_dev, int& n_tmp_params_dev,
                              size_t& cm_memory_usage, const std::tuple<std::vector<SERP_Hst>, std::vector<SERP_Hst>, int>& dataset, const size_t fmem, const bool device);
