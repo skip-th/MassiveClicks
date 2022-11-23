@@ -281,14 +281,11 @@ int main(int argc, char** argv) {
 
         std::cout << "Found " << dataset.size_queries() << " query sessions." << std::endl;
     }
-    else {
-        // Check if parsing failed on the root node.
-        Communicate::error_check();
-    }
+    // Check if parsing failed on the root node.
+    Communicate::error_check();
 
     auto parse_stop_time = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> elapsed_parsing = parse_stop_time - parse_start_time;
-
 
     //-----------------------------------------------------------------------//
     // Partition parsed dataset                                              //
@@ -303,7 +300,6 @@ int main(int argc, char** argv) {
 
     auto partitioning_stop_time = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> elapsed_partitioning = partitioning_stop_time - partitioning_start_time;
-
 
     //-----------------------------------------------------------------------//
     // Send/Retrieve partitions                                              //

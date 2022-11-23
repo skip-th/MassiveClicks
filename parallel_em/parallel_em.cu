@@ -41,7 +41,6 @@ void em_parallel(const int model_type, const int node_id, const int n_nodes,
         std::cout << "\nExpectation Maximization (EM) in parallel ..." << std::endl;
     }
 
-
     //-----------------------------------------------------------------------//
     // Initate host-side click model.                                        //
     //-----------------------------------------------------------------------//
@@ -56,7 +55,6 @@ void em_parallel(const int model_type, const int node_id, const int n_nodes,
             cm_hosts[unit]->say_hello();
         }
     }
-
 
     //-----------------------------------------------------------------------//
     // Assign queries to CPU threads.                                        //
@@ -208,7 +206,7 @@ void em_parallel(const int model_type, const int node_id, const int n_nodes,
             // Show memory usage.
             get_device_memory(device_id, fmem_new, tmem_new, 1);
         }
-        else {
+
             // Retrieve avaliable memory in bytes.
             get_host_memory(fmem, tmem, 1);
 
