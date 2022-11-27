@@ -388,7 +388,7 @@ int main(int argc, char** argv) {
         double combined_total = std::accumulate(percent_combined.begin(), percent_combined.end(), 0.0);
         for (int i = 0; i < percent_preproc.size(); i++) { percent_preproc[i] = (percent_preproc[i] / preproc_total); }
         for (int i = 0; i < percent_combined.size(); i++) { percent_combined[i] = (percent_combined[i] / combined_total); }
-        auto digit_cutoff = [](double digit, int size) { return std::to_string(digit).substr(0, std::to_string(digit).find(".") + size + 1);};
+        auto digit_cutoff = [](double digit, int size) { return std::to_string(digit).substr(0, std::to_string(digit).find(".") + size + 1); };
 
         std::cout << std::endl << std::left << std::setw(27) << "Total pre-processing time: " << std::left << std::setw(7) << digit_cutoff(elapsed_preprocessing.count(), 7) << " seconds, " << std::right << std::setw(3) << std::round(percent_combined[0] * 100) << " %" << std::endl;
         std::cout << std::left << std::setw(27) << "  Parsing time: " << std::left << std::setw(7) << digit_cutoff(elapsed_parsing.count(), 7) << " seconds, " << std::right << std::setw(3) << std::round(percent_preproc[0] * 100) << " %" << std::endl;

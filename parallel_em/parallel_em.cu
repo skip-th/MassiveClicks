@@ -66,75 +66,80 @@ void em_parallel(const int model_type, const int node_id, const int n_nodes,
             [](int sum, const std::tuple<std::vector<SERP_Hst>, std::vector<SERP_Hst>, int>& partition) {
             return sum + std::get<0>(partition).size();});
         int available_threads = n_threads;
-        int device_id = 0;
+
         // Allocate CPU threads to each device based on the number of assigned
-        // queries.
+        // queries to the device.
+        int device_id = 0; // Start thread assignment with device 0.
         while (available_threads > 0) {
             int n_queries = std::get<0>(device_partitions[device_id]).size();
             float ratio = (float) n_queries / (float) n_queries_total;
-            int n_threads_device = std::round(ratio * n_threads);
+            int n_threads_per_device = std::round(ratio * n_threads);
 
-            if (thread_start_idx[device_id].size() < 1) {
-                thread_start_idx[device_id].push_back(-1);
-                available_threads--;
-            }
-            else if (thread_start_idx[device_id].size() < n_threads_device) {
+            // Ensure that each device always gets at least one thread and that
+            // the assigned threads do not exceed the available threads.
+            if (thread_start_idx[device_id].size() < 1 || thread_start_idx[device_id].size() < n_threads_per_device) {
                 thread_start_idx[device_id].push_back(-1);
                 available_threads--;
             }
 
+            // Select next device.
             device_id = (device_id + 1) % processing_units;
         }
 
         // Determine the number of queries per thread for each device.
         for (int did = 0; did < processing_units; did++) {
-            int n_threads_device = thread_start_idx[did].size();
+            int n_threads_per_device = thread_start_idx[did].size();
             int n_queries = std::get<0>(device_partitions[did]).size();
-            int stride = (float) n_queries / (float) n_threads_device;
+            int stride = (float) n_queries / (float) n_threads_per_device; // Approximate number of queries per thread.
 
             // Use only a single thread if there are not enough queries to
             // distribute over all threads.
-            if (n_queries < n_threads_device) {
+            if (n_queries < n_threads_per_device) {
                 thread_start_idx[did].resize(1);
                 thread_start_idx[did][0] = 0;
             }
             else {
                 int n_unused_threads = 0;
                 // Determine the starting query index for each thread.
-                for (int tid = 0; tid < n_threads_device; tid++) {
+                for (int tid = 0; tid < n_threads_per_device; tid++) {
                     int curr_query = std::get<0>(device_partitions[did])[tid * stride].get_query();
                     int start_index = tid * stride;
 
                     // Check if the current query has been assigned to a previous
                     // thread. If so, assign the next query to the current thread.
                     bool duplicate = false;
-                    if (tid - 1 > 0) {
+                    if (tid - 1 > 0) { // Check if there are any threads before the current thread.
                         int prev_query = std::get<0>(device_partitions[did])[thread_start_idx[did][tid - 1]].get_query();
+
+                        // If the current query has already been assigned, then
+                        // find the next available query in the dataset.
                         if (curr_query == prev_query) {
                             duplicate = true;
+                            // Search through the remaining queries.
                             for (int i = start_index; i < n_queries; i++) {
                                 // If a query is found that is not assigned to a
                                 // previous thread, assign it to the current thread.
                                 if (std::get<0>(device_partitions[did])[i].get_query() != curr_query) {
-                                    // Reassign the current query and starting index.
+                                    // Reassign this thread's query and
+                                    // starting index.
                                     duplicate = false;
                                     start_index = i;
                                     curr_query = std::get<0>(device_partitions[did])[i].get_query();
                                     break;
                                 }
                             }
+
+                            // If no query is found that is not assigned to a
+                            // previous thread, increase the number of unused
+                            // threads. These will be reassigned later.
                             if (duplicate) {
-                                // If no query is found that is not assigned to a
-                                // previous thread, increase the number of unused
-                                // threads. These will be removed later.
                                 n_unused_threads++;
                             }
-                            break;
                         }
                     }
 
-                    // Look behind in the partition to find the start of the current
-                    // set of similar queries.
+                    // Find the start of the current set of similar queries in
+                    // this device's dataset.
                     for (int i = start_index; i >= 0; i--) {
                         if (std::get<0>(device_partitions[did])[i].get_query() != curr_query) {
                             thread_start_idx[did][tid] = i + 1;
@@ -149,7 +154,7 @@ void em_parallel(const int model_type, const int node_id, const int n_nodes,
                 // Remove unused threads from the current partition and assign them
                 // to the next partition, if possible.
                 if (n_unused_threads > 0) {
-                    thread_start_idx[did].resize(n_threads_device - n_unused_threads);
+                    thread_start_idx[did].resize(n_threads_per_device - n_unused_threads);
                     // Add the removed threads to the next partition.
                     if (did < processing_units - 1) {
                         thread_start_idx[did + 1].resize(thread_start_idx[did + 1].size() + n_unused_threads, -1);
@@ -317,9 +322,10 @@ void em_parallel(const int model_type, const int node_id, const int n_nodes,
             int grid_size = kernel_dims[device_id * 2];
             int block_size = kernel_dims[device_id * 2 + 1];
             int dataset_size = std::get<0>(device_partitions[device_id]).size();
+            size_t shr_mem_size = BLOCK_SIZE * MAX_SERP * sizeof(char) + BLOCK_SIZE * MAX_SERP * sizeof(int);
 
             CUDA_CHECK(cudaEventRecord(start_events[device_id], 0));
-            Kernel::em_training<<<grid_size, block_size>>>(dataset_dev[device_id], dataset_size);
+            Kernel::em_training<<<grid_size, block_size, shr_mem_size>>>(dataset_dev[device_id], dataset_size);
             CUDA_CHECK(cudaEventRecord(end_events[device_id], 0));
         }
 
@@ -379,9 +385,10 @@ void em_parallel(const int model_type, const int node_id, const int n_nodes,
             int grid_size = kernel_dims[device_id * 2];
             int block_size = kernel_dims[device_id * 2 + 1];
             int dataset_size = std::get<0>(device_partitions[device_id]).size();
+            size_t shr_mem_size = BLOCK_SIZE * MAX_SERP * sizeof(int);
 
             CUDA_CHECK(cudaEventRecord(start_events[device_id], 0));
-            Kernel::update<<<grid_size, block_size>>>(dataset_dev[device_id], dataset_size);
+            Kernel::update<<<grid_size, block_size, shr_mem_size>>>(dataset_dev[device_id], dataset_size);
 
             CUDA_CHECK(cudaEventRecord(end_events[device_id], 0));
         }
