@@ -1,0 +1,31 @@
+Job ID: 0
+Number of threads: 48
+Raw data path: /var/scratch/pkhandel/YandexClicks.txt
+Number of EM iterations: 50
+Number of sessions: 50000000
+Filter unseen test queries: 1
+Partitioning type: 1
+Model type: DBN
+Raw dataset file is opened ...!
+Number of session available: 50000000
+DBN says hello!
+Expectation Maximization (EM) in parallel ...
+Itr: 0 Itr-time: 917.199 Itr-EM_COMP: 910.145 Itr-EM_UPDATE: 7.01613 Itr-Sync: 0.0377079
+Itr: 1 Itr-time: 949.732 Itr-EM_COMP: 938.791 Itr-EM_UPDATE: 10.3017 Itr-Sync: 0.639152
+Itr: 2 Itr-time: 984.069 Itr-EM_COMP: 968.44 Itr-EM_UPDATE: 14.6122 Itr-Sync: 1.01656
+Itr: 3 Itr-time: 1009.19 Itr-EM_COMP: 971.452 Itr-EM_UPDATE: 30.3049 Itr-Sync: 7.4326
+Itr: 4 Itr-time: 1028.35 Itr-EM_COMP: 938.947 Itr-EM_UPDATE: 34.474 Itr-Sync: 54.9253
+Itr: 5 Itr-time: 1037.46 Itr-EM_COMP: 1034.73 Itr-EM_UPDATE: 2.30103 Itr-Sync: 0.429904
+Itr: 6 Itr-time: 1048.86 Itr-EM_COMP: 1040.13 Itr-EM_UPDATE: 4.39037 Itr-Sync: 4.33768
+Itr: 7 Itr-time: 1075.08 Itr-EM_COMP: 1062.89 Itr-EM_UPDATE: 3.5148 Itr-Sync: 8.6743
+Itr: 8 Itr-time: 1071.26 Itr-EM_COMP: 1062.82 Itr-EM_UPDATE: 4.64583 Itr-Sync: 3.79371
+Itr: 9 Itr-time: 1117.94 Itr-EM_COMP: 1101.25 Itr-EM_UPDATE: 9.19192 Itr-Sync: 7.49823
+Itr: 10 Itr-time: 1129.06 Itr-EM_COMP: 963.694 Itr-EM_UPDATE: 33.3299 Itr-Sync: 132.036
+Itr: 11 Itr-time: 1127.31 Itr-EM_COMP: 1003.9 Itr-EM_UPDATE: 33.1098 Itr-Sync: 90.294
+Itr: 12 Itr-time: 1130.56 Itr-EM_COMP: 964.052 Itr-EM_UPDATE: 32.7478 Itr-Sync: 133.76
+Itr: 13 Itr-time: 1155.59 Itr-EM_COMP: 1140.17 Itr-EM_UPDATE: 7.058 Itr-Sync: 8.36287
+Itr: 14 Itr-time: 1144.7 Itr-EM_COMP: 1074.46 Itr-EM_UPDATE: 15.8151 Itr-Sync: 54.4266
+Itr: 15 Itr-time: 1147.79 Itr-EM_COMP: 984.4 Itr-EM_UPDATE: 33.4257 Itr-Sync: 129.964
+
+
+Total time of training: 55000

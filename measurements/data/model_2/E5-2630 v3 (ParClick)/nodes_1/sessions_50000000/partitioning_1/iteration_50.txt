@@ -1,0 +1,16 @@
+Job ID: 0
+Number of threads: 32
+Raw data path: /var/scratch/pkhandel/yandex/YandexClicks.txt
+Number of EM iterations: 50
+Number of sessions: 50000000
+Filter unseen test queries: 1
+Partitioning type: 1
+Model type: DBN
+Raw dataset file is opened ...!
+Number of session available: 50000000
+DBN says hello!
+Expectation Maximization (EM) in parallel ...
+Itr: 0 Itr-time: 2438.75 Itr-EM_COMP: 2160.57 Itr-EM_UPDATE: 226.307 Itr-Sync: 51.8692
+
+
+Total time of training: 121937.5

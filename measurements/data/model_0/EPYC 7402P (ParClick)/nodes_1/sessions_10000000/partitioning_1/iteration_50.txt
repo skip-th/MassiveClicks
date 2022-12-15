@@ -1,0 +1,183 @@
+Job ID: 0
+Number of threads: 48
+Raw data path: /var/scratch/pkhandel/YandexClicks.txt
+Number of EM iterations: 50
+Number of sessions: 10000000
+Filter unseen test queries: 1
+Partitioning type: 1
+Model type: PBM
+Raw dataset file is opened ...!
+Number of session available: 10000000
+Expectation Maximization (EM) in parallel ...
+Itr: 0 Itr-time: 12.6814 Itr-EM_COMP: 8.6677 Itr-EM_UPDATE: 1.79745 Itr-Sync: 2.21627
+Itr: 1 Itr-time: 13.5259 Itr-EM_COMP: 10.9599 Itr-EM_UPDATE: 2.35951 Itr-Sync: 0.206535
+Itr: 2 Itr-time: 15.4249 Itr-EM_COMP: 11.6579 Itr-EM_UPDATE: 3.40726 Itr-Sync: 0.359784
+Itr: 3 Itr-time: 17.2819 Itr-EM_COMP: 13.5628 Itr-EM_UPDATE: 3.70131 Itr-Sync: 0.0178666
+Itr: 4 Itr-time: 17.2909 Itr-EM_COMP: 13.1556 Itr-EM_UPDATE: 3.71492 Itr-Sync: 0.420451
+Itr: 5 Itr-time: 17.8763 Itr-EM_COMP: 14.4388 Itr-EM_UPDATE: 3.42622 Itr-Sync: 0.0112551
+Itr: 6 Itr-time: 18.1006 Itr-EM_COMP: 13.6888 Itr-EM_UPDATE: 3.95079 Itr-Sync: 0.460986
+Itr: 7 Itr-time: 18.2739 Itr-EM_COMP: 14.78 Itr-EM_UPDATE: 3.44392 Itr-Sync: 0.0500307
+Itr: 8 Itr-time: 18.5779 Itr-EM_COMP: 14.7901 Itr-EM_UPDATE: 3.71977 Itr-Sync: 0.0680745
+Itr: 9 Itr-time: 18.3429 Itr-EM_COMP: 13.9453 Itr-EM_UPDATE: 3.46582 Itr-Sync: 0.93183
+Itr: 10 Itr-time: 18.6109 Itr-EM_COMP: 15.1298 Itr-EM_UPDATE: 3.46336 Itr-Sync: 0.0178092
+Itr: 11 Itr-time: 18.819 Itr-EM_COMP: 14.7069 Itr-EM_UPDATE: 4.01637 Itr-Sync: 0.0956391
+Itr: 12 Itr-time: 18.8129 Itr-EM_COMP: 14.703 Itr-EM_UPDATE: 4.09519 Itr-Sync: 0.0147653
+Itr: 13 Itr-time: 18.8299 Itr-EM_COMP: 15.2011 Itr-EM_UPDATE: 3.6116 Itr-Sync: 0.017263
+Itr: 14 Itr-time: 18.9509 Itr-EM_COMP: 14.9625 Itr-EM_UPDATE: 3.96 Itr-Sync: 0.0284314
+Itr: 15 Itr-time: 19.114 Itr-EM_COMP: 15.5268 Itr-EM_UPDATE: 3.58556 Itr-Sync: 0.00159782
+Itr: 16 Itr-time: 19.1069 Itr-EM_COMP: 15.0772 Itr-EM_UPDATE: 4.02547 Itr-Sync: 0.00423185
+Itr: 17 Itr-time: 19.0949 Itr-EM_COMP: 15.093 Itr-EM_UPDATE: 3.97272 Itr-Sync: 0.0292402
+Itr: 18 Itr-time: 19.0069 Itr-EM_COMP: 15.1646 Itr-EM_UPDATE: 3.80511 Itr-Sync: 0.0371914
+Itr: 19 Itr-time: 19.184 Itr-EM_COMP: 15.213 Itr-EM_UPDATE: 3.94076 Itr-Sync: 0.0302202
+Itr: 20 Itr-time: 19.3209 Itr-EM_COMP: 15.2391 Itr-EM_UPDATE: 3.97718 Itr-Sync: 0.104623
+Itr: 21 Itr-time: 19.3409 Itr-EM_COMP: 15.3161 Itr-EM_UPDATE: 3.98432 Itr-Sync: 0.0404998
+Itr: 22 Itr-time: 19.3479 Itr-EM_COMP: 15.2493 Itr-EM_UPDATE: 4.033 Itr-Sync: 0.0656147
+Itr: 23 Itr-time: 19.5129 Itr-EM_COMP: 14.8902 Itr-EM_UPDATE: 3.93945 Itr-Sync: 0.683306
+Itr: 24 Itr-time: 19.172 Itr-EM_COMP: 14.5547 Itr-EM_UPDATE: 3.82859 Itr-Sync: 0.788725
+Itr: 25 Itr-time: 19.3159 Itr-EM_COMP: 14.74 Itr-EM_UPDATE: 3.82874 Itr-Sync: 0.747224
+Itr: 26 Itr-time: 19.5137 Itr-EM_COMP: 15.3343 Itr-EM_UPDATE: 4.02934 Itr-Sync: 0.150109
+Itr: 27 Itr-time: 19.5512 Itr-EM_COMP: 15.9998 Itr-EM_UPDATE: 3.52456 Itr-Sync: 0.0267957
+Itr: 28 Itr-time: 19.5049 Itr-EM_COMP: 15.4092 Itr-EM_UPDATE: 4.01744 Itr-Sync: 0.0782971
+Itr: 29 Itr-time: 19.68 Itr-EM_COMP: 15.5429 Itr-EM_UPDATE: 4.10774 Itr-Sync: 0.0292834
+Itr: 30 Itr-time: 19.5359 Itr-EM_COMP: 15.9798 Itr-EM_UPDATE: 3.4549 Itr-Sync: 0.101274
+Itr: 31 Itr-time: 19.5699 Itr-EM_COMP: 14.9903 Itr-EM_UPDATE: 3.81955 Itr-Sync: 0.760085
+Itr: 32 Itr-time: 19.6687 Itr-EM_COMP: 14.9271 Itr-EM_UPDATE: 4.03307 Itr-Sync: 0.708605
+Itr: 33 Itr-time: 19.6792 Itr-EM_COMP: 15.0427 Itr-EM_UPDATE: 4.1619 Itr-Sync: 0.474542
+Itr: 34 Itr-time: 19.6629 Itr-EM_COMP: 14.6523 Itr-EM_UPDATE: 4.07736 Itr-Sync: 0.933266
+Itr: 35 Itr-time: 19.646 Itr-EM_COMP: 13.8677 Itr-EM_UPDATE: 3.94556 Itr-Sync: 1.83267
+Itr: 36 Itr-time: 19.5097 Itr-EM_COMP: 13.9075 Itr-EM_UPDATE: 3.86322 Itr-Sync: 1.73905
+Itr: 37 Itr-time: 19.7672 Itr-EM_COMP: 14.566 Itr-EM_UPDATE: 4.10052 Itr-Sync: 1.10069
+Itr: 38 Itr-time: 19.619 Itr-EM_COMP: 14.4195 Itr-EM_UPDATE: 4.15378 Itr-Sync: 1.04564
+Itr: 39 Itr-time: 19.7189 Itr-EM_COMP: 14.6831 Itr-EM_UPDATE: 4.14034 Itr-Sync: 0.895532
+Itr: 40 Itr-time: 19.6999 Itr-EM_COMP: 14.622 Itr-EM_UPDATE: 4.09913 Itr-Sync: 0.978822
+Itr: 41 Itr-time: 19.7489 Itr-EM_COMP: 14.6388 Itr-EM_UPDATE: 4.16464 Itr-Sync: 0.945517
+Itr: 42 Itr-time: 19.7299 Itr-EM_COMP: 14.6634 Itr-EM_UPDATE: 4.17694 Itr-Sync: 0.889662
+Itr: 43 Itr-time: 19.5789 Itr-EM_COMP: 14.0892 Itr-EM_UPDATE: 3.95892 Itr-Sync: 1.53079
+Itr: 44 Itr-time: 19.781 Itr-EM_COMP: 14.7111 Itr-EM_UPDATE: 4.16458 Itr-Sync: 0.90523
+Itr: 45 Itr-time: 19.6619 Itr-EM_COMP: 14.6818 Itr-EM_UPDATE: 4.1105 Itr-Sync: 0.869654
+Itr: 46 Itr-time: 19.727 Itr-EM_COMP: 14.7489 Itr-EM_UPDATE: 4.09897 Itr-Sync: 0.879122
+Itr: 47 Itr-time: 19.75 Itr-EM_COMP: 15.3646 Itr-EM_UPDATE: 4.02918 Itr-Sync: 0.356151
+Itr: 48 Itr-time: 19.5519 Itr-EM_COMP: 13.9917 Itr-EM_UPDATE: 3.95 Itr-Sync: 1.61026
+Itr: 49 Itr-time: 19.843 Itr-EM_COMP: 14.7035 Itr-EM_UPDATE: 4.3505 Itr-Sync: 0.78898
+end
+Total Log likelihood is: -0.269995
+Perplexity at rank 0 is: 1.77734
+Perplexity at rank 1 is: 1.55528
+Perplexity at rank 2 is: 1.40425
+Perplexity at rank 3 is: 1.32619
+Perplexity at rank 4 is: 1.26365
+Perplexity at rank 5 is: 1.22317
+Perplexity at rank 6 is: 1.1944
+Perplexity at rank 7 is: 1.16723
+Perplexity at rank 8 is: 1.15667
+Perplexity at rank 9 is: 1.1596
+Perplexity is: 1.32278
+Average Time per Iteration: 18.8667
+Average time per computation in each Iteration: 14.8264
+Average time per synchronization in each Iteration: 0.275883
+Average time per updating in each Iteration: 3.7644
+Total time of training: 946.149
+Evaluation time: 1.11777
+Finished!, Total Elapsed time: 1006.58 seconds
+PreProcess time: 58.1892
+
+Thread Workload-Train --- Thread No. Unique Queries
+166667---54836
+166667---54820
+166667---55055
+166667---54116
+166667---54655
+166667---55262
+166667---54860
+166667---54646
+166667---54885
+166667---54923
+166667---54101
+166667---54589
+166667---54632
+166667---54731
+166667---55420
+166667---55087
+166668---54854
+166668---54711
+166667---54782
+166667---54534
+166667---54447
+166667---55081
+166667---54893
+166667---54736
+166667---55032
+166667---54604
+166667---55104
+166667---54865
+166667---54951
+166666---55144
+166666---55245
+166666---54524
+166666---54181
+166666---54727
+166666---54984
+166667---53524
+166666---55291
+166666---54419
+166666---55119
+166666---54576
+166666---55160
+166666---54495
+166666---55066
+166666---54605
+166666---55609
+166666---54999
+166666---54758
+166666---54773
+
+Thread Workload-Test --- Thread No. Unique Queries
+22982---4571
+30031---4467
+28251---4465
+35230---4321
+29699---4502
+27951---4524
+26753---4542
+28012---4466
+27009---4535
+27548---4389
+29413---4485
+26231---4509
+30048---4495
+29267---4492
+28492---4625
+28174---4480
+33055---4499
+29431---4509
+28680---4503
+28139---4443
+39240---4339
+28576---4520
+28648---4352
+27995---4426
+28792---4546
+29142---4468
+27812---4532
+28899---4480
+25573---4442
+27559---4600
+28024---4465
+27621---4507
+29293---4498
+28624---4636
+27775---4541
+31089---4066
+28270---4594
+28031---4262
+24135---4662
+23935---4238
+27781---4554
+29960---4406
+24794---4557
+29503---4432
+25014---4690
+26638---4509
+26773---4376
+28011---4564
+

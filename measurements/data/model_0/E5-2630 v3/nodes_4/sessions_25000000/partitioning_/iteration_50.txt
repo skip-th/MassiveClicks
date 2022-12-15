@@ -1,0 +1,185 @@
+
+Job ID: 0
+Number of machines: 4
+Number of devices in total: 4
+Number of threads: 32
+Execution mode: CPU-only
+Raw data path: /var/scratch/pkhandel/yandex/YandexClicks.txt
+Number of EM iterations: 50
+Share of data used for testing: 20%
+Max number of sessions: 25000000
+Partitioning type: Resource-Aware Maximum Utilization
+Model type: PBM
+
+Node | Device | Arch | Free memory
+-----+--------+------+------------
+N0   | C0     |      | 53732
+N1   | C0     |      | 57091
+N2   | C0     |      | 49917
+N3   | C0     |      | 48467
+
+Parsing dataset.
+Raw dataset file "/var/scratch/pkhandel/yandex/YandexClicks.txt" is opened.
+Read 58577346 lines.
+Found 25000000 query sessions.
+
+Partitioning 25000000 queries into 20000000 training and 5000000 testing sessions.
+(1/3) Grouping training query sessions...
+(2/3) Partitioning training query sessions...
+(3/3) Partitioning testing query sessions...
+
+Communicating 4 partitions to 4 machines.
+Node 1, Device 0, Train set size: 5457848
+Node 2, Device 0, Train set size: 4772020
+Node 3, Device 0, Train set size: 4633401
+
+Node | Device | Train queries | Test queries | QD-pairs
+-----+--------+---------------+--------------+---------
+N0   | C0     | 5136731       | 916233       | 15825190
+N1   | C0     | 5457848       | 987557       | 16753659
+N2   | C0     | 4772020       | 858449       | 14669292
+N3   | C0     | 4633401       | 831138       | 14306964
+Node 1, Device 0, Test set size: 987557
+Node 2, Device 0, Test set size: 858449
+Node 3, Device 0, Test set size: 831138
+
+Sorting dataset partitions...
+[2] got here! 1 - starting function
+[2] got here! 2 - initiating cm
+[2] got here! 3 - assigning cpu threads
+[2] got here! 4 - allocating memory
+[2] got here! 4.1 - getting old host memory
+[2] got here! 4.2 - calculating dataset memory size
+[2] got here! 4.3 - checking dataset memory size
+[2] got here! 4.4 - allocating memory for parameters
+[3] got here! 1 - starting function
+[3] got here! 2 - initiating cm
+[3] got here! 3 - assigning cpu threads
+[3] got here! 4 - allocating memory
+[3] got here! 4.1 - getting old host memory
+[3] got here! 4.2 - calculating dataset memory size
+[3] got here! 4.3 - checking dataset memory size
+[3] got here! 4.4 - allocating memory for parameters
+[0] got here! 1 - starting function
+
+Expectation Maximization (EM) in parallel ...
+[0] got here! 2 - initiating cm
+Host-side PBM says hello!
+[0] got here! 3 - assigning cpu threads
+[0] got here! 4 - allocating memory
+[0] got here! 4.1 - getting old host memory
+[0] got here! 4.2 - calculating dataset memory size
+[0] got here! 4.3 - checking dataset memory size
+[0] got here! 4.4 - allocating memory for parameters
+[1] got here! 1 - starting function
+[1] got here! 2 - initiating cm
+[1] got here! 3 - assigning cpu threads
+[1] got here! 4 - allocating memory
+[1] got here! 4.1 - getting old host memory
+[1] got here! 4.2 - calculating dataset memory size
+[1] got here! 4.3 - checking dataset memory size
+[1] got here! 4.4 - allocating memory for parameters
+[0] got here! 4.5 - getting new host memory
+[0, -1], expected memory usage = 1585.43/43846.6 MB (3%)
+        measured memory usage = 826.868/43846.6 MB (1%)
+[3] got here! 4.5 - getting new host memory
+[1] got here! 4.5 - getting new host memory
+[2] got here! 4.5 - getting new host memory
+[0] got here! 5 - initiating device side cm
+[0] got here! 6 - setting up em estimation params
+
+Starting 50 EM parameter estimation iterations...
+[0] got here! 7 - estimating cm
+[1, -1], expected memory usage = 1684.06/56280.1 MB (2%)
+        measured memory usage = 1009.25/56280.1 MB (1%)
+[2, -1], expected memory usage = 1472.61/49206.8 MB (2%)
+        measured memory usage = 882.229/49206.8 MB (1%)
+[3, -1], expected memory usage = 1430.34/47779.6 MB (2%)
+        measured memory usage = 857.489/47779.6 MB (1%)
+[1] got here! 5 - initiating device side cm
+[1] got here! 6 - setting up em estimation params
+[1] got here! 7 - estimating cm
+[2] got here! 5 - initiating device side cm
+[2] got here! 6 - setting up em estimation params
+[2] got here! 7 - estimating cm
+[3] got here! 5 - initiating device side cm
+[3] got here! 6 - setting up em estimation params
+[3] got here! 7 - estimating cm
+Itr: 0  Itr-time: 0.345323   Itr-EM_COMP: 0.230116    Itr-EM_UPDATE: 0.0944558  Itr-Sync: 0.00592074
+Itr: 1  Itr-time: 0.345808   Itr-EM_COMP: 0.214838    Itr-EM_UPDATE: 0.0979186  Itr-Sync: 0.0171146
+Itr: 2  Itr-time: 0.345062   Itr-EM_COMP: 0.208604    Itr-EM_UPDATE: 0.121589   Itr-Sync: 5.5618e-05
+Itr: 3  Itr-time: 0.338989   Itr-EM_COMP: 0.212139    Itr-EM_UPDATE: 0.10392    Itr-Sync: 0.00833628
+Itr: 4  Itr-time: 0.337145   Itr-EM_COMP: 0.204977    Itr-EM_UPDATE: 0.117184   Itr-Sync: 0.000371147
+Itr: 5  Itr-time: 0.342788   Itr-EM_COMP: 0.221023    Itr-EM_UPDATE: 0.107628   Itr-Sync: 6.7817e-05
+Itr: 6  Itr-time: 0.337756   Itr-EM_COMP: 0.209849    Itr-EM_UPDATE: 0.108449   Itr-Sync: 0.00495478
+Itr: 7  Itr-time: 0.340162   Itr-EM_COMP: 0.207474    Itr-EM_UPDATE: 0.118088   Itr-Sync: 7.0882e-05
+Itr: 8  Itr-time: 0.345204   Itr-EM_COMP: 0.212613    Itr-EM_UPDATE: 0.117901   Itr-Sync: 4.8487e-05
+Itr: 9  Itr-time: 0.366727   Itr-EM_COMP: 0.22095     Itr-EM_UPDATE: 0.131686   Itr-Sync: 6.7585e-05
+Itr: 10 Itr-time: 0.344822   Itr-EM_COMP: 0.208558    Itr-EM_UPDATE: 0.121549   Itr-Sync: 5.8689e-05
+Itr: 11 Itr-time: 0.363028   Itr-EM_COMP: 0.221399    Itr-EM_UPDATE: 0.127527   Itr-Sync: 5.4398e-05
+Itr: 12 Itr-time: 0.34731    Itr-EM_COMP: 0.209939    Itr-EM_UPDATE: 0.117104   Itr-Sync: 0.00562124
+Itr: 13 Itr-time: 0.345236   Itr-EM_COMP: 0.207498    Itr-EM_UPDATE: 0.123021   Itr-Sync: 5.3266e-05
+Itr: 14 Itr-time: 0.350461   Itr-EM_COMP: 0.212117    Itr-EM_UPDATE: 0.123905   Itr-Sync: 5.0252e-05
+Itr: 15 Itr-time: 0.345755   Itr-EM_COMP: 0.214608    Itr-EM_UPDATE: 0.116886   Itr-Sync: 4.796e-05
+Itr: 16 Itr-time: 0.338798   Itr-EM_COMP: 0.213546    Itr-EM_UPDATE: 0.110149   Itr-Sync: 0.00090235
+Itr: 17 Itr-time: 0.344791   Itr-EM_COMP: 0.209919    Itr-EM_UPDATE: 0.120173   Itr-Sync: 4.7025e-05
+Itr: 18 Itr-time: 0.344628   Itr-EM_COMP: 0.214965    Itr-EM_UPDATE: 0.115465   Itr-Sync: 4.9655e-05
+Itr: 19 Itr-time: 0.351226   Itr-EM_COMP: 0.223236    Itr-EM_UPDATE: 0.113898   Itr-Sync: 4.8016e-05
+Itr: 20 Itr-time: 0.344167   Itr-EM_COMP: 0.209504    Itr-EM_UPDATE: 0.119952   Itr-Sync: 4.7475e-05
+Itr: 21 Itr-time: 0.339938   Itr-EM_COMP: 0.207956    Itr-EM_UPDATE: 0.101331   Itr-Sync: 0.0157978
+Itr: 22 Itr-time: 0.349067   Itr-EM_COMP: 0.213615    Itr-EM_UPDATE: 0.121182   Itr-Sync: 4.6979e-05
+Itr: 23 Itr-time: 0.363377   Itr-EM_COMP: 0.223695    Itr-EM_UPDATE: 0.125602   Itr-Sync: 5.084e-05
+Itr: 24 Itr-time: 0.338246   Itr-EM_COMP: 0.218163    Itr-EM_UPDATE: 0.102648   Itr-Sync: 0.00310813
+Itr: 25 Itr-time: 0.3604     Itr-EM_COMP: 0.221231    Itr-EM_UPDATE: 0.125052   Itr-Sync: 4.8426e-05
+Itr: 26 Itr-time: 0.33907    Itr-EM_COMP: 0.221488    Itr-EM_UPDATE: 0.103193   Itr-Sync: 0.000349941
+Itr: 27 Itr-time: 0.364694   Itr-EM_COMP: 0.222939    Itr-EM_UPDATE: 0.127589   Itr-Sync: 4.7634e-05
+Itr: 28 Itr-time: 0.340606   Itr-EM_COMP: 0.20945     Itr-EM_UPDATE: 0.101567   Itr-Sync: 0.0150488
+Itr: 29 Itr-time: 0.338083   Itr-EM_COMP: 0.20649     Itr-EM_UPDATE: 0.113059   Itr-Sync: 0.00379217
+Itr: 30 Itr-time: 0.345461   Itr-EM_COMP: 0.206683    Itr-EM_UPDATE: 0.123672   Itr-Sync: 6.9096e-05
+Itr: 31 Itr-time: 0.34427    Itr-EM_COMP: 0.210732    Itr-EM_UPDATE: 0.119173   Itr-Sync: 5.546e-05
+Itr: 32 Itr-time: 0.358347   Itr-EM_COMP: 0.221416    Itr-EM_UPDATE: 0.12279    Itr-Sync: 4.8412e-05
+Itr: 33 Itr-time: 0.356063   Itr-EM_COMP: 0.217754    Itr-EM_UPDATE: 0.10981    Itr-Sync: 0.0144079
+Itr: 34 Itr-time: 0.341606   Itr-EM_COMP: 0.206321    Itr-EM_UPDATE: 0.108227   Itr-Sync: 0.0124482
+Itr: 35 Itr-time: 0.329616   Itr-EM_COMP: 0.205299    Itr-EM_UPDATE: 0.107018   Itr-Sync: 0.00270741
+Itr: 36 Itr-time: 0.365095   Itr-EM_COMP: 0.221024    Itr-EM_UPDATE: 0.129911   Itr-Sync: 5.1752e-05
+Itr: 37 Itr-time: 0.36025    Itr-EM_COMP: 0.211167    Itr-EM_UPDATE: 0.112729   Itr-Sync: 0.0219741
+Itr: 38 Itr-time: 0.340962   Itr-EM_COMP: 0.206633    Itr-EM_UPDATE: 0.119609   Itr-Sync: 4.9738e-05
+Itr: 39 Itr-time: 0.349749   Itr-EM_COMP: 0.222903    Itr-EM_UPDATE: 0.112493   Itr-Sync: 4.9592e-05
+Itr: 40 Itr-time: 0.34786    Itr-EM_COMP: 0.213581    Itr-EM_UPDATE: 0.120009   Itr-Sync: 4.9793e-05
+Itr: 41 Itr-time: 0.358164   Itr-EM_COMP: 0.219293    Itr-EM_UPDATE: 0.12456    Itr-Sync: 4.919e-05
+Itr: 42 Itr-time: 0.334218   Itr-EM_COMP: 0.210233    Itr-EM_UPDATE: 0.103127   Itr-Sync: 0.00626912
+Itr: 43 Itr-time: 0.339666   Itr-EM_COMP: 0.205597    Itr-EM_UPDATE: 0.0990931  Itr-Sync: 0.0200512
+Itr: 44 Itr-time: 0.344154   Itr-EM_COMP: 0.20761     Itr-EM_UPDATE: 0.121817   Itr-Sync: 4.8932e-05
+Itr: 45 Itr-time: 0.35051    Itr-EM_COMP: 0.22024     Itr-EM_UPDATE: 0.116152   Itr-Sync: 5.6112e-05
+Itr: 46 Itr-time: 0.362351   Itr-EM_COMP: 0.223298    Itr-EM_UPDATE: 0.124722   Itr-Sync: 4.9172e-05
+Itr: 47 Itr-time: 0.348333   Itr-EM_COMP: 0.222054    Itr-EM_UPDATE: 0.112174   Itr-Sync: 5.2829e-05
+Itr: 48 Itr-time: 0.342425   Itr-EM_COMP: 0.215253    Itr-EM_UPDATE: 0.101945   Itr-Sync: 0.0110113
+Itr: 49 Itr-time: 0.334959   Itr-EM_COMP: 0.206732    Itr-EM_UPDATE: 0.104557   Itr-Sync: 0.00886121
+
+Total Log likelihood is: -0.269634
+Perplexity at rank 0 is: 1.76804
+Perplexity at rank 1 is: 1.55168
+Perplexity at rank 2 is: 1.40341
+Perplexity at rank 3 is: 1.32444
+Perplexity at rank 4 is: 1.26273
+Perplexity at rank 5 is: 1.22357
+Perplexity at rank 6 is: 1.19263
+Perplexity at rank 7 is: 1.17104
+Perplexity at rank 8 is: 1.159
+Perplexity at rank 9 is: 1.16183
+Perplexity is: 1.32184
+
+Average time per iteration: 0.347055
+Average time per computation in each iteration: 0.214134
+Average time per update in each iteration: 0.114865
+Average time per synchronization in each iteration: 0.00361279
+Total time of training: 17.3527
+Evaluation time: 0.646444
+
+Total pre-processing time: 190.620505 seconds,  91 %
+  Parsing time:            158.264919 seconds,  83 %
+  Partitioning time:       30.151730 seconds,  16 %
+  Communication time:      0.683935 seconds,   0 %
+  Sorting time:            1.519919 seconds,   1 %
+Parameter estimation time: 18.668698 seconds,   9 %
+Total elapsed time:        209.526682 seconds, 100 %

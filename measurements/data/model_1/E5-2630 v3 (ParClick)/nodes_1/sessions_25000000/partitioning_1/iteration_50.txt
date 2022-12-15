@@ -1,0 +1,36 @@
+Job ID: 0
+Number of threads: 32
+Raw data path: /var/scratch/pkhandel/yandex/YandexClicks.txt
+Number of EM iterations: 50
+Number of sessions: 25000000
+Filter unseen test queries: 1
+Partitioning type: 1
+Model type: CCM
+Raw dataset file is opened ...!
+Number of session available: 25000000
+Expectation Maximization (EM) in parallel ...
+Itr: 0 Itr-time: 798.456 Itr-EM_COMP: 776.914 Itr-EM_UPDATE: 20.9148 Itr-Sync: 0.626982
+Itr: 1 Itr-time: 789.597 Itr-EM_COMP: 786.85 Itr-EM_UPDATE: 1.92931 Itr-Sync: 0.818068
+Itr: 2 Itr-time: 792.484 Itr-EM_COMP: 790.508 Itr-EM_UPDATE: 1.46775 Itr-Sync: 0.508473
+Itr: 3 Itr-time: 798.506 Itr-EM_COMP: 796.712 Itr-EM_UPDATE: 1.47217 Itr-Sync: 0.321798
+Itr: 4 Itr-time: 808.306 Itr-EM_COMP: 805.508 Itr-EM_UPDATE: 2.15719 Itr-Sync: 0.640771
+Itr: 5 Itr-time: 828.803 Itr-EM_COMP: 809.924 Itr-EM_UPDATE: 10.0322 Itr-Sync: 8.84695
+Itr: 6 Itr-time: 805.626 Itr-EM_COMP: 791.169 Itr-EM_UPDATE: 8.19708 Itr-Sync: 6.26031
+Itr: 7 Itr-time: 812.979 Itr-EM_COMP: 795.285 Itr-EM_UPDATE: 10.1496 Itr-Sync: 7.5443
+Itr: 8 Itr-time: 815.273 Itr-EM_COMP: 798.096 Itr-EM_UPDATE: 9.6143 Itr-Sync: 7.56222
+Itr: 9 Itr-time: 816.174 Itr-EM_COMP: 798.239 Itr-EM_UPDATE: 11.165 Itr-Sync: 6.77024
+Itr: 10 Itr-time: 820.545 Itr-EM_COMP: 802.91 Itr-EM_UPDATE: 10.2297 Itr-Sync: 7.40558
+Itr: 11 Itr-time: 816.034 Itr-EM_COMP: 801.565 Itr-EM_UPDATE: 9.32307 Itr-Sync: 5.14595
+Itr: 12 Itr-time: 819.363 Itr-EM_COMP: 801.782 Itr-EM_UPDATE: 10.6164 Itr-Sync: 6.96416
+Itr: 13 Itr-time: 817.833 Itr-EM_COMP: 802.613 Itr-EM_UPDATE: 9.81286 Itr-Sync: 5.40699
+Itr: 14 Itr-time: 815.891 Itr-EM_COMP: 798.751 Itr-EM_UPDATE: 10.5473 Itr-Sync: 6.59239
+Itr: 15 Itr-time: 817.186 Itr-EM_COMP: 800.981 Itr-EM_UPDATE: 10.6466 Itr-Sync: 5.55795
+Itr: 16 Itr-time: 813.707 Itr-EM_COMP: 795.44 Itr-EM_UPDATE: 11.0142 Itr-Sync: 7.25265
+Itr: 17 Itr-time: 816.454 Itr-EM_COMP: 800.64 Itr-EM_UPDATE: 11.1921 Itr-Sync: 4.62141
+Itr: 18 Itr-time: 818.377 Itr-EM_COMP: 805.32 Itr-EM_UPDATE: 9.46877 Itr-Sync: 3.58837
+Itr: 19 Itr-time: 825.98 Itr-EM_COMP: 811.945 Itr-EM_UPDATE: 10.4546 Itr-Sync: 3.58069
+Itr: 20 Itr-time: 820.868 Itr-EM_COMP: 807.174 Itr-EM_UPDATE: 9.51376 Itr-Sync: 4.17989
+
+
+
+Total time of training: 40500

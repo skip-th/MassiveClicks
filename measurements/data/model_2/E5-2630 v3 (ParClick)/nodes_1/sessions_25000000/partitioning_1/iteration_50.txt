@@ -1,0 +1,34 @@
+Job ID: 0
+Number of threads: 32
+Raw data path: /var/scratch/pkhandel/yandex/YandexClicks.txt
+Number of EM iterations: 50
+Number of sessions: 25000000
+Filter unseen test queries: 1
+Partitioning type: 1
+Model type: DBN
+Raw dataset file is opened ...!
+Number of session available: 25000000
+DBN says hello!
+Expectation Maximization (EM) in parallel ...
+Itr: 0 Itr-time: 881.754 Itr-EM_COMP: 853.506 Itr-EM_UPDATE: 28.158 Itr-Sync: 0.0899056
+Itr: 1 Itr-time: 878.204 Itr-EM_COMP: 856.903 Itr-EM_UPDATE: 19.5973 Itr-Sync: 1.70395
+Itr: 2 Itr-time: 899.98 Itr-EM_COMP: 879.879 Itr-EM_UPDATE: 19.4413 Itr-Sync: 0.659814
+Itr: 3 Itr-time: 894.47 Itr-EM_COMP: 873.029 Itr-EM_UPDATE: 20.9301 Itr-Sync: 0.511305
+Itr: 4 Itr-time: 908.533 Itr-EM_COMP: 886.674 Itr-EM_UPDATE: 21.385 Itr-Sync: 0.47391
+Itr: 5 Itr-time: 907.214 Itr-EM_COMP: 879.884 Itr-EM_UPDATE: 26.4367 Itr-Sync: 0.89361
+Itr: 6 Itr-time: 924.263 Itr-EM_COMP: 896.82 Itr-EM_UPDATE: 26.9924 Itr-Sync: 0.450588
+Itr: 7 Itr-time: 930.58 Itr-EM_COMP: 901.231 Itr-EM_UPDATE: 27.9583 Itr-Sync: 1.39103
+Itr: 8 Itr-time: 924.517 Itr-EM_COMP: 898.945 Itr-EM_UPDATE: 25.2447 Itr-Sync: 0.32673
+Itr: 9 Itr-time: 925.644 Itr-EM_COMP: 893.87 Itr-EM_UPDATE: 30.7634 Itr-Sync: 1.01047
+Itr: 10 Itr-time: 929.659 Itr-EM_COMP: 900.215 Itr-EM_UPDATE: 29.0327 Itr-Sync: 0.411221
+Itr: 11 Itr-time: 935.187 Itr-EM_COMP: 902.793 Itr-EM_UPDATE: 31.5517 Itr-Sync: 0.842212
+Itr: 12 Itr-time: 940.233 Itr-EM_COMP: 911.288 Itr-EM_UPDATE: 28.4988 Itr-Sync: 0.446611
+Itr: 13 Itr-time: 941.95 Itr-EM_COMP: 913.903 Itr-EM_UPDATE: 27.8121 Itr-Sync: 0.23444
+Itr: 14 Itr-time: 945.221 Itr-EM_COMP: 915.922 Itr-EM_UPDATE: 28.7309 Itr-Sync: 0.568064
+Itr: 15 Itr-time: 944.148 Itr-EM_COMP: 913.919 Itr-EM_UPDATE: 29.7779 Itr-Sync: 0.450846
+Itr: 16 Itr-time: 955.795 Itr-EM_COMP: 923.991 Itr-EM_UPDATE: 31.1018 Itr-Sync: 0.702559
+Itr: 17 Itr-time: 945.568 Itr-EM_COMP: 917.107 Itr-EM_UPDATE: 28.0202 Itr-Sync: 0.441117
+Itr: 18 Itr-time: 945.089 Itr-EM_COMP: 909.569 Itr-EM_UPDATE: 34.0235 Itr-Sync: 1.49654
+
+
+Total time of training: 46500

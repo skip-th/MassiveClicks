@@ -1,0 +1,25 @@
+Job ID: 0
+Number of threads: 32
+Raw data path: /var/scratch/pkhandel/yandex/YandexClicks.txt
+Number of EM iterations: 50
+Number of sessions: 50000000
+Filter unseen test queries: 1
+Partitioning type: 1
+Model type: CCM
+Raw dataset file is opened ...!
+Number of session available: 50000000
+Expectation Maximization (EM) in parallel ...
+Itr: 0 Itr-time: 1623.17 Itr-EM_COMP: 1579.65 Itr-EM_UPDATE: 41.272 Itr-Sync: 2.24545
+Itr: 1 Itr-time: 1639.69 Itr-EM_COMP: 1624.66 Itr-EM_UPDATE: 11.7246 Itr-Sync: 3.30136
+Itr: 2 Itr-time: 1651.27 Itr-EM_COMP: 1634.97 Itr-EM_UPDATE: 12.1213 Itr-Sync: 4.18092
+Itr: 3 Itr-time: 1658.74 Itr-EM_COMP: 1642.14 Itr-EM_UPDATE: 13.9301 Itr-Sync: 2.66714
+Itr: 4 Itr-time: 1666.4 Itr-EM_COMP: 1651.33 Itr-EM_UPDATE: 13.1972 Itr-Sync: 1.86884
+Itr: 5 Itr-time: 1678.49 Itr-EM_COMP: 1656.74 Itr-EM_UPDATE: 17.9917 Itr-Sync: 3.76332
+Itr: 6 Itr-time: 1684.25 Itr-EM_COMP: 1672.51 Itr-EM_UPDATE: 11.2988 Itr-Sync: 0.438165
+Itr: 7 Itr-time: 1683.24 Itr-EM_COMP: 1656.95 Itr-EM_UPDATE: 19.3032 Itr-Sync: 6.98332
+Itr: 8 Itr-time: 1691.62 Itr-EM_COMP: 1672.32 Itr-EM_UPDATE: 17.5064 Itr-Sync: 1.78965
+Itr: 9 Itr-time: 1697.65 Itr-EM_COMP: 1680.79 Itr-EM_UPDATE: 11.9381 Itr-Sync: 4.92416
+
+
+
+Total time of training: 84000
