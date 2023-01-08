@@ -41,22 +41,22 @@ class read_categories:
     def _get_computation_time(self):
         matches = []
         for line in self.file.readlines():
-            if "Average time per computation in each Iteration: " in line:
-                matches.append(float(line.split("Average time per computation in each Iteration: ")[-1].strip()))
+            if "Average time per computation in each iteration: " in line:
+                matches.append(float(line.split("Average time per computation in each iteration: ")[-1].strip()))
         return matches
 
     def _get_update_time(self):
         matches = []
         for line in self.file.readlines():
-            if "Average time per update in each Iteration: " in line:
-                matches.append(float(line.split("Average time per update in each Iteration: ")[-1].strip()))
+            if "Average time per update in each iteration: " in line:
+                matches.append(float(line.split("Average time per update in each iteration: ")[-1].strip()))
         return matches
 
     def _get_synchronization_time(self):
         matches = []
         for line in self.file.readlines():
-            if "Average time per synchronization in each Iteration: " in line:
-                matches.append(float(line.split("Average time per synchronization in each Iteration: ")[-1].strip()))
+            if "Average time per synchronization in each iteration: " in line:
+                matches.append(float(line.split("Average time per synchronization in each iteration: ")[-1].strip()))
         return matches
 
     def _get_training_time(self):

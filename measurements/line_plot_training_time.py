@@ -39,8 +39,7 @@ if __name__ == '__main__':
 
     category = 'training time'
     max_sessions = [10e6, 25e6, 50e6, 75e6, 100e6, 120e6]
-    gpus = ['TitanX', 'TitanX-Pascal', 'A4000', 'A6000', 'E5-2630 v3', 'EPYC 7402P', 'E5-2630 v3 (ParClick)', 'EPYC 7402P (ParClick)'][4:6]
-    # Check E5-2630 v3: various..., 0 4 25 and 0 4 50 because 50 is faster than 25.
+    gpus = ['TitanX', 'TitanX-Pascal', 'A4000', 'A6000', 'E5-2630 v3', 'EPYC 7402P', 'E5-2630 v3 (ParClick)', 'EPYC 7402P (ParClick)'][0:6]
     models = ['model_0', 'model_1', 'model_2', 'model_3']
     min_nodes = 0
     max_nodes = 16

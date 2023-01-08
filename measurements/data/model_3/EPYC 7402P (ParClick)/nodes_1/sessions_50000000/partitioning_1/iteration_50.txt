@@ -10,56 +10,56 @@ Raw dataset file is opened ...!
 Number of session available: 50000000
 UBM says hello!
 Expectation Maximization (EM) in parallel ...
-Itr: 0 Itr-time: 69.2415 Itr-EM_COMP: 62.4836 Itr-EM_UPDATE: 6.71322 Itr-Sync: 0.0446518
-Itr: 1 Itr-time: 76.3783 Itr-EM_COMP: 66.7578 Itr-EM_UPDATE: 9.4954 Itr-Sync: 0.12507
-Itr: 2 Itr-time: 85.7859 Itr-EM_COMP: 71.8849 Itr-EM_UPDATE: 13.6692 Itr-Sync: 0.231817
-Itr: 3 Itr-time: 91.0139 Itr-EM_COMP: 75.4987 Itr-EM_UPDATE: 15.3725 Itr-Sync: 0.142757
-Itr: 4 Itr-time: 93.6329 Itr-EM_COMP: 76.903 Itr-EM_UPDATE: 16.0761 Itr-Sync: 0.653792
-Itr: 5 Itr-time: 94.9379 Itr-EM_COMP: 75.9661 Itr-EM_UPDATE: 16.2123 Itr-Sync: 2.75956
-Itr: 6 Itr-time: 96.4169 Itr-EM_COMP: 80.6244 Itr-EM_UPDATE: 15.6044 Itr-Sync: 0.188194
-Itr: 7 Itr-time: 97.1903 Itr-EM_COMP: 84.4467 Itr-EM_UPDATE: 12.7081 Itr-Sync: 0.0354319
-Itr: 8 Itr-time: 98.2006 Itr-EM_COMP: 82.9905 Itr-EM_UPDATE: 15.1481 Itr-Sync: 0.0620319
-Itr: 9 Itr-time: 98.5465 Itr-EM_COMP: 84.9985 Itr-EM_UPDATE: 13.4504 Itr-Sync: 0.0976003
-Itr: 10 Itr-time: 99.0384 Itr-EM_COMP: 85.4918 Itr-EM_UPDATE: 13.4322 Itr-Sync: 0.114305
-Itr: 11 Itr-time: 99.0159 Itr-EM_COMP: 85.928 Itr-EM_UPDATE: 13.0296 Itr-Sync: 0.0583315
-Itr: 12 Itr-time: 99.9229 Itr-EM_COMP: 84.2144 Itr-EM_UPDATE: 15.6441 Itr-Sync: 0.0644718
-Itr: 13 Itr-time: 100.189 Itr-EM_COMP: 87.438 Itr-EM_UPDATE: 12.7491 Itr-Sync: 0.00185876
-Itr: 14 Itr-time: 100.545 Itr-EM_COMP: 82.6018 Itr-EM_UPDATE: 15.2447 Itr-Sync: 2.69851
-Itr: 15 Itr-time: 117.313 Itr-EM_COMP: 86.9112 Itr-EM_UPDATE: 14.182 Itr-Sync: 16.2198
-Itr: 16 Itr-time: 101.02 Itr-EM_COMP: 89.6247 Itr-EM_UPDATE: 11.3831 Itr-Sync: 0.012245
-Itr: 17 Itr-time: 101.792 Itr-EM_COMP: 90.4533 Itr-EM_UPDATE: 11.3341 Itr-Sync: 0.00438757
-Itr: 18 Itr-time: 101.671 Itr-EM_COMP: 82.9413 Itr-EM_UPDATE: 15.5871 Itr-Sync: 3.14231
-Itr: 19 Itr-time: 101.811 Itr-EM_COMP: 83.8898 Itr-EM_UPDATE: 15.9041 Itr-Sync: 2.01725
-Itr: 20 Itr-time: 102.208 Itr-EM_COMP: 86.0953 Itr-EM_UPDATE: 15.9214 Itr-Sync: 0.191298
-Itr: 21 Itr-time: 102.356 Itr-EM_COMP: 83.4022 Itr-EM_UPDATE: 15.613 Itr-Sync: 3.34071
-Itr: 22 Itr-time: 102.551 Itr-EM_COMP: 86.8182 Itr-EM_UPDATE: 15.6669 Itr-Sync: 0.0658038
-Itr: 23 Itr-time: 102.561 Itr-EM_COMP: 87.2376 Itr-EM_UPDATE: 15.2415 Itr-Sync: 0.0817933
-Itr: 24 Itr-time: 101.201 Itr-EM_COMP: 80.4798 Itr-EM_UPDATE: 16.7328 Itr-Sync: 3.98833
-Itr: 25 Itr-time: 101.269 Itr-EM_COMP: 83.0155 Itr-EM_UPDATE: 16.1782 Itr-Sync: 2.07521
-Itr: 26 Itr-time: 101.643 Itr-EM_COMP: 80.5742 Itr-EM_UPDATE: 16.6415 Itr-Sync: 4.42723
-Itr: 27 Itr-time: 101.406 Itr-EM_COMP: 83.6064 Itr-EM_UPDATE: 16.0782 Itr-Sync: 1.72132
-Itr: 28 Itr-time: 101.333 Itr-EM_COMP: 83.6381 Itr-EM_UPDATE: 15.8401 Itr-Sync: 1.8548
-Itr: 29 Itr-time: 102.073 Itr-EM_COMP: 81.1515 Itr-EM_UPDATE: 16.8453 Itr-Sync: 4.0762
-Itr: 30 Itr-time: 102.086 Itr-EM_COMP: 84.1141 Itr-EM_UPDATE: 15.9649 Itr-Sync: 2.00697
-Itr: 31 Itr-time: 102.235 Itr-EM_COMP: 82.195 Itr-EM_UPDATE: 16.8485 Itr-Sync: 3.19149
-Itr: 32 Itr-time: 102.428 Itr-EM_COMP: 78.8099 Itr-EM_UPDATE: 16.3407 Itr-Sync: 7.27737
-Itr: 33 Itr-time: 102.557 Itr-EM_COMP: 82.4136 Itr-EM_UPDATE: 16.9951 Itr-Sync: 3.14826
-Itr: 34 Itr-time: 102.547 Itr-EM_COMP: 84.1867 Itr-EM_UPDATE: 16.3062 Itr-Sync: 2.05406
-Itr: 35 Itr-time: 102.568 Itr-EM_COMP: 84.5643 Itr-EM_UPDATE: 15.9674 Itr-Sync: 2.03631
-Itr: 36 Itr-time: 103.058 Itr-EM_COMP: 81.869 Itr-EM_UPDATE: 17.0846 Itr-Sync: 4.10433
-Itr: 37 Itr-time: 103.065 Itr-EM_COMP: 84.5553 Itr-EM_UPDATE: 16.4888 Itr-Sync: 2.02079
-Itr: 38 Itr-time: 103.177 Itr-EM_COMP: 79.4555 Itr-EM_UPDATE: 16.6204 Itr-Sync: 7.10112
-Itr: 39 Itr-time: 103.234 Itr-EM_COMP: 82.0709 Itr-EM_UPDATE: 17.1531 Itr-Sync: 4.00959
-Itr: 40 Itr-time: 103.349 Itr-EM_COMP: 84.9339 Itr-EM_UPDATE: 16.498 Itr-Sync: 1.91744
-Itr: 41 Itr-time: 103.427 Itr-EM_COMP: 82.8084 Itr-EM_UPDATE: 17.2895 Itr-Sync: 3.32904
-Itr: 42 Itr-time: 103.573 Itr-EM_COMP: 82.315 Itr-EM_UPDATE: 17.201 Itr-Sync: 4.05696
-Itr: 43 Itr-time: 103.52 Itr-EM_COMP: 85.0734 Itr-EM_UPDATE: 16.4466 Itr-Sync: 2.00036
-Itr: 44 Itr-time: 103.816 Itr-EM_COMP: 82.5231 Itr-EM_UPDATE: 17.1972 Itr-Sync: 4.09526
-Itr: 45 Itr-time: 104.075 Itr-EM_COMP: 83.0005 Itr-EM_UPDATE: 17.4005 Itr-Sync: 3.67395
-Itr: 46 Itr-time: 103.842 Itr-EM_COMP: 85.1863 Itr-EM_UPDATE: 16.5052 Itr-Sync: 2.15046
-Itr: 47 Itr-time: 104.038 Itr-EM_COMP: 80.0573 Itr-EM_UPDATE: 16.7794 Itr-Sync: 7.20126
-Itr: 48 Itr-time: 103.782 Itr-EM_COMP: 81.9311 Itr-EM_UPDATE: 17.3654 Itr-Sync: 4.48548
-Itr: 49 Itr-time: 103.966 Itr-EM_COMP: 83.268 Itr-EM_UPDATE: 17.3995 Itr-Sync: 3.29851
+Itr: 0 Itr-time: 16.6738 Itr-EM_COMP: 14.4464 Itr-EM_UPDATE: 2.03884 Itr-Sync: 0.188575
+Itr: 1 Itr-time: 3.28434 Itr-EM_COMP: 2.64962 Itr-EM_UPDATE: 0.496898 Itr-Sync: 0.137817
+Itr: 2 Itr-time: 3.47329 Itr-EM_COMP: 2.89491 Itr-EM_UPDATE: 0.555831 Itr-Sync: 0.0225447
+Itr: 3 Itr-time: 3.58102 Itr-EM_COMP: 3.07356 Itr-EM_UPDATE: 0.499036 Itr-Sync: 0.00842114
+Itr: 4 Itr-time: 3.65155 Itr-EM_COMP: 3.1392 Itr-EM_UPDATE: 0.511651 Itr-Sync: 0.000702454
+Itr: 5 Itr-time: 3.65466 Itr-EM_COMP: 3.1715 Itr-EM_UPDATE: 0.461263 Itr-Sync: 0.0218937
+Itr: 6 Itr-time: 3.69447 Itr-EM_COMP: 3.21858 Itr-EM_UPDATE: 0.453735 Itr-Sync: 0.022153
+Itr: 7 Itr-time: 3.67124 Itr-EM_COMP: 3.2021 Itr-EM_UPDATE: 0.450867 Itr-Sync: 0.018271
+Itr: 8 Itr-time: 3.77302 Itr-EM_COMP: 3.26844 Itr-EM_UPDATE: 0.45041 Itr-Sync: 0.0541657
+Itr: 9 Itr-time: 3.77203 Itr-EM_COMP: 3.28245 Itr-EM_UPDATE: 0.454208 Itr-Sync: 0.0353681
+Itr: 10 Itr-time: 3.7518 Itr-EM_COMP: 3.26495 Itr-EM_UPDATE: 0.446579 Itr-Sync: 0.0402639
+Itr: 11 Itr-time: 3.79365 Itr-EM_COMP: 3.29756 Itr-EM_UPDATE: 0.445167 Itr-Sync: 0.0509177
+Itr: 12 Itr-time: 3.8091 Itr-EM_COMP: 3.32376 Itr-EM_UPDATE: 0.440921 Itr-Sync: 0.0444138
+Itr: 13 Itr-time: 3.79076 Itr-EM_COMP: 3.33366 Itr-EM_UPDATE: 0.436756 Itr-Sync: 0.0203429
+Itr: 14 Itr-time: 3.81927 Itr-EM_COMP: 3.34837 Itr-EM_UPDATE: 0.43448 Itr-Sync: 0.0364286
+Itr: 15 Itr-time: 21.3467 Itr-EM_COMP: 3.09212 Itr-EM_UPDATE: 0.436281 Itr-Sync: 17.8183
+Itr: 16 Itr-time: 4.48743 Itr-EM_COMP: 4.06736 Itr-EM_UPDATE: 0.41118 Itr-Sync: 0.00888939
+Itr: 17 Itr-time: 4.05616 Itr-EM_COMP: 3.6016 Itr-EM_UPDATE: 0.34708 Itr-Sync: 0.107478
+Itr: 18 Itr-time: 3.92799 Itr-EM_COMP: 3.32152 Itr-EM_UPDATE: 0.414638 Itr-Sync: 0.19183
+Itr: 19 Itr-time: 3.83525 Itr-EM_COMP: 3.35414 Itr-EM_UPDATE: 0.432919 Itr-Sync: 0.0481912
+Itr: 20 Itr-time: 3.8581 Itr-EM_COMP: 3.35263 Itr-EM_UPDATE: 0.414819 Itr-Sync: 0.0906521
+Itr: 21 Itr-time: 3.82409 Itr-EM_COMP: 3.32047 Itr-EM_UPDATE: 0.425235 Itr-Sync: 0.0783894
+Itr: 22 Itr-time: 3.88758 Itr-EM_COMP: 3.36699 Itr-EM_UPDATE: 0.425673 Itr-Sync: 0.0949147
+Itr: 23 Itr-time: 3.82192 Itr-EM_COMP: 3.36102 Itr-EM_UPDATE: 0.433872 Itr-Sync: 0.0270328
+Itr: 24 Itr-time: 3.89598 Itr-EM_COMP: 3.36138 Itr-EM_UPDATE: 0.437703 Itr-Sync: 0.0968961
+Itr: 25 Itr-time: 3.87498 Itr-EM_COMP: 3.36872 Itr-EM_UPDATE: 0.43955 Itr-Sync: 0.0667064
+Itr: 26 Itr-time: 3.93675 Itr-EM_COMP: 3.38823 Itr-EM_UPDATE: 0.438099 Itr-Sync: 0.110423
+Itr: 27 Itr-time: 3.90023 Itr-EM_COMP: 3.37425 Itr-EM_UPDATE: 0.440638 Itr-Sync: 0.0853418
+Itr: 28 Itr-time: 3.85656 Itr-EM_COMP: 3.37222 Itr-EM_UPDATE: 0.442026 Itr-Sync: 0.0423184
+Itr: 29 Itr-time: 3.84032 Itr-EM_COMP: 3.35615 Itr-EM_UPDATE: 0.443687 Itr-Sync: 0.0404771
+Itr: 30 Itr-time: 3.91958 Itr-EM_COMP: 3.40471 Itr-EM_UPDATE: 0.4442 Itr-Sync: 0.070669
+Itr: 31 Itr-time: 3.87641 Itr-EM_COMP: 3.40929 Itr-EM_UPDATE: 0.443743 Itr-Sync: 0.0233815
+Itr: 32 Itr-time: 3.96344 Itr-EM_COMP: 3.40917 Itr-EM_UPDATE: 0.449791 Itr-Sync: 0.104477
+Itr: 33 Itr-time: 3.91649 Itr-EM_COMP: 3.40183 Itr-EM_UPDATE: 0.449051 Itr-Sync: 0.065602
+Itr: 34 Itr-time: 3.89673 Itr-EM_COMP: 3.41327 Itr-EM_UPDATE: 0.450034 Itr-Sync: 0.0334204
+Itr: 35 Itr-time: 3.89099 Itr-EM_COMP: 3.41028 Itr-EM_UPDATE: 0.449021 Itr-Sync: 0.0316954
+Itr: 36 Itr-time: 3.88571 Itr-EM_COMP: 3.40199 Itr-EM_UPDATE: 0.454127 Itr-Sync: 0.029591
+Itr: 37 Itr-time: 3.85796 Itr-EM_COMP: 3.38808 Itr-EM_UPDATE: 0.451168 Itr-Sync: 0.0187072
+Itr: 38 Itr-time: 3.91242 Itr-EM_COMP: 3.42042 Itr-EM_UPDATE: 0.458185 Itr-Sync: 0.033813
+Itr: 39 Itr-time: 3.89002 Itr-EM_COMP: 3.40969 Itr-EM_UPDATE: 0.457954 Itr-Sync: 0.0223729
+Itr: 40 Itr-time: 3.91295 Itr-EM_COMP: 3.41956 Itr-EM_UPDATE: 0.458932 Itr-Sync: 0.0344497
+Itr: 41 Itr-time: 3.89295 Itr-EM_COMP: 3.40533 Itr-EM_UPDATE: 0.463027 Itr-Sync: 0.0245981
+Itr: 42 Itr-time: 3.87298 Itr-EM_COMP: 3.37751 Itr-EM_UPDATE: 0.460097 Itr-Sync: 0.0353756
+Itr: 43 Itr-time: 3.90256 Itr-EM_COMP: 3.42246 Itr-EM_UPDATE: 0.463044 Itr-Sync: 0.0170552
+Itr: 44 Itr-time: 3.90532 Itr-EM_COMP: 3.41944 Itr-EM_UPDATE: 0.464415 Itr-Sync: 0.0214628
+Itr: 45 Itr-time: 3.91959 Itr-EM_COMP: 3.42148 Itr-EM_UPDATE: 0.464384 Itr-Sync: 0.0337249
+Itr: 46 Itr-time: 3.92693 Itr-EM_COMP: 3.42393 Itr-EM_UPDATE: 0.466662 Itr-Sync: 0.0363459
+Itr: 47 Itr-time: 3.91418 Itr-EM_COMP: 3.41501 Itr-EM_UPDATE: 0.465573 Itr-Sync: 0.0335917
+Itr: 48 Itr-time: 3.94476 Itr-EM_COMP: 3.4325 Itr-EM_UPDATE: 0.465872 Itr-Sync: 0.0463841
+Itr: 49 Itr-time: 3.91486 Itr-EM_COMP: 3.43949 Itr-EM_UPDATE: 0.462544 Itr-Sync: 0.0128251
 end
 Total Log likelihood is: -0.26051
 Perplexity at rank 0 is: 1.79966
@@ -73,14 +73,14 @@ Perplexity at rank 7 is: 1.17874
 Perplexity at rank 8 is: 1.1685
 Perplexity at rank 9 is: 1.17214
 Perplexity is: 1.33899
-Average Time per Iteration: 100.14
-Average time per computation in each Iteration: 83.3574
-Average time per synchronization in each Iteration: 1.64789
-Average time per updating in each Iteration: 15.1345
-Total time of training: 5018.19
-Evaluation time: 8.09585
-Finished!, Total Elapsed time: 5381.28 seconds
-PreProcess time: 292.926
+Average Time per Iteration: 4.45646
+Average time per computation in each Iteration: 3.54942
+Average time per synchronization in each Iteration: 0.436712
+Average time per updating in each Iteration: 0.470335
+Total time of training: 234.942
+Evaluation time: 0.342802
+Finished!, Total Elapsed time: 529.284 seconds
+PreProcess time: 290.643
 
 Thread Workload-Train --- Thread No. Unique Queries
 833334---219518
