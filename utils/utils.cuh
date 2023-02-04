@@ -11,14 +11,14 @@
 #include <string>
 #include <iostream>
 #include <unistd.h>
+#include <cuda_runtime.h>
 
 // User include.
 #include "../utils/definitions.h"
 #include "macros.cuh"
 
 
-DEV void atomicAddArch(float* address, const float val);
-DEV void warp_reduce(volatile float* shared_data, int block_index);
+// DEV void warp_reduce(volatile float* shared_data, int block_index);
 
 HST void get_number_devices(int *num_devices);
 HST int get_compute_capability(const int device);

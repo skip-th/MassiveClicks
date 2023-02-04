@@ -17,8 +17,16 @@ namespace Communicate
      * @param node_id The ID of the current node.
      */
     void initiate(int& argc, char**& argv, int& n_nodes, int& node_id) {
-        // Initialize MPI state.
-        MPI_CHECK(MPI_Init(&argc, &argv));
+        // Initialize MPI state and request multi-threading support. Indicate
+        // that only the master thread will make MPI calls (FUNNELED).
+        int provided;
+        MPI_CHECK(MPI_Init_thread(&argc, &argv, MPI_THREAD_FUNNELED, &provided));
+        if (node_id == ROOT && provided < MPI_THREAD_FUNNELED) {
+            std::cerr << "\033[12;33mWarning\033[0m: MPI did not provide requested level of multithreading support. "
+                      << "Multithreaded execution will be serialized. "
+                      << "Has MPI been configured for multithreading usage?"
+                      << std::endl;
+        }
 
         // Get our MPI node number and node count.
         MPI_CHECK(MPI_Comm_size(MPI_COMM_WORLD, &n_nodes));
@@ -44,11 +52,10 @@ namespace Communicate
             std::cerr << err_msg << std::endl;
         }
 
-        // Use MPI_Allreduce to check if any node has send a non-zero error
-        // code.
+        // Use MPI_Allreduce to check if any node has send a non-zero error code.
         MPI_CHECK(MPI_Allreduce(MPI_IN_PLACE, &error, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD));
 
-        // Exit if any node has raised an error.
+        // Exit if any node raised an error.
         if (error) {
             finalize();
             exit(EXIT_SUCCESS);
@@ -94,7 +101,7 @@ namespace Communicate
 
             // Keep track of the network information using the network properties array.
             int ibuf = 0;
-            for (int nid = 0; nid < network_properties.size(); nid++) {
+            for (size_t nid = 0; nid < network_properties.size(); nid++) {
                 std::vector<std::vector<int>> node_devices(n_devices_network[nid]);
                 for (int did = 0; did < n_devices_network[nid]; did++, ibuf++) {
                     node_devices[did].insert(node_devices[did].end(), { darch_network[ibuf], fmem_network[ibuf] });
@@ -215,7 +222,7 @@ namespace Communicate
 
         // Send this node's synchronized public device parameters to all other
         std::vector<Param> receive_buffer; // Parameter type -> Parameters.
-        for (int param_type = 0; param_type < my_params.size(); param_type++) { // Sender & Receiver
+        for (size_t param_type = 0; param_type < my_params.size(); param_type++) { // Sender & Receiver
             receive_buffer.resize(n_nodes * my_params[param_type].size());
 
             // Gather the results from all other nodes.
@@ -227,7 +234,7 @@ namespace Communicate
                                     MPI_PARAM, MPI_COMM_WORLD));
 
             // Sort the results by node.
-            int nid{0}, param_index{0};
+            size_t nid{0}, param_index{0};
             for (Param param : receive_buffer) {
                 if (param_index == my_params[param_type].size()) {
                     param_index = 0;
@@ -249,14 +256,14 @@ namespace Communicate
      * type -> Parameters.
      */
     void sync_parameters(std::vector<std::vector<std::vector<Param>>>& parameters) {
-        for (int rank = 0; rank < parameters[0][0].size(); rank++) {
-            for (int param_type = 0; param_type < parameters[0].size(); param_type++) {
+        for (size_t rank = 0; rank < parameters[0][0].size(); rank++) {
+            for (size_t param_type = 0; param_type < parameters[0].size(); param_type++) {
                 Param base = parameters[0][param_type][rank];
                 // Subtract the starting values of other datasets.
                 parameters[0][param_type][rank].set_values(base.numerator_val() - (parameters.size() - 1),
                                                         base.denominator_val() - 2 * (parameters.size() - 1));
 
-                for (int device_id = 1; device_id < parameters.size(); device_id++) {
+                for (size_t device_id = 1; device_id < parameters.size(); device_id++) {
                     Param ex = parameters[device_id][param_type][rank];
                     parameters[0][param_type][rank].add_to_values(ex.numerator_val(),
                                                                 ex.denominator_val());
@@ -324,7 +331,6 @@ namespace Communicate
             MPI_CHECK(MPI_Gatherv(tmp_ppl_vals.data(), tmp_ppl_vals.size(), MPI_PPL, ppl_vals, n_devices_network, displacements, MPI_PPL, ROOT, MPI_COMM_WORLD));
 
             // Deserialize the received results on the root node.
-            int did{0};
             for (int did = 0; did < t_devices; did++) {
                 // Insert the received log-likelihood values.
                 loglikelihood[did] = llh_vals[did];

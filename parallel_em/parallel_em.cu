@@ -177,6 +177,7 @@ void em_parallel(const int model_type, const int node_id, const int n_nodes,
     for (int device_id = 0; device_id < processing_units; device_id++) {
         size_t fmem, tmem, fmem_new, tmem_new;
 
+        // Allocate memory on either the device or the host.
         if (exec_mode == 0 || exec_mode == 2) {
             CUDA_CHECK(cudaSetDevice(device_id));
 
@@ -192,7 +193,7 @@ void em_parallel(const int model_type, const int node_id, const int n_nodes,
             // Check whether the current device has enough free memory available.
             double dataset_size = dataset_dev_tmp.size() * sizeof(SearchResult_Dev);
             if (dataset_size * 1.001 > fmem) {
-                Communicate::error_check("[" + std::to_string(node_id) + "] Error: Insufficient GPU memory!\n\tAllocating dataset requires an additional " + std::to_string((dataset_size - fmem_dev[device_id * 2 + 1]) / 1e6) + " MB of GPU memory.");
+                Communicate::error_check("[" + std::to_string(node_id) + "] \033[12;31mError\033[0m: Insufficient GPU memory!\n\tAllocating dataset requires an additional " + std::to_string((dataset_size - fmem_dev[device_id * 2 + 1]) / 1e6) + " MB of GPU memory.");
             }
 
             // Allocate memory for the dataset on the current device.
@@ -218,13 +219,8 @@ void em_parallel(const int model_type, const int node_id, const int n_nodes,
             fmem_dev[device_id * 2] = 0; // Memory in use.
             fmem_dev[device_id * 2 + 1] = fmem; // Total available memory.
 
-            // Check whether the current device has enough free memory available.
-            double dataset_size = std::get<0>(device_partitions[device_id]).size() * sizeof(SERP_Hst);
-
-            fmem_dev[device_id * 2] += dataset_size;
-            if (dataset_size * 1.001 > fmem) {
-                Communicate::error_check("[" + std::to_string(node_id) + "] Error: Insufficient system memory!\n\tAllocating dataset requires an additional " + std::to_string((dataset_size - fmem_dev[device_id * 2 + 1]) / 1e6) + " MB of system memory.");
-            }
+            // Dataset size does not need to be checked, since the dataset has
+            // already been allocated on the host.
 
             // Allocate memory for the query dependent parameters on both the current device and host.
             cm_hosts[device_id]->init_parameters(device_partitions[device_id], fmem_dev[device_id * 2 + 1] - fmem_dev[device_id * 2], false);
@@ -298,7 +294,7 @@ void em_parallel(const int model_type, const int node_id, const int n_nodes,
         kernel_dims[did * 2] = (n_queries + (block_size - 1)) / block_size;
         kernel_dims[did * 2 + 1] = block_size;
 
-        std::cout << "[" << node_id << ", " << did << "], kernel dimensions = <<<" << kernel_dims[did * 2] << ", " << kernel_dims[did * 2 + 1] << ">>>" << std::endl;
+        std::cout << "[" << node_id << ", " << did << "] kernel dimensions = <<<" << kernel_dims[did * 2] << ", " << kernel_dims[did * 2 + 1] << ">>>" << std::endl;
     }
 
     if (node_id == ROOT) {
@@ -322,10 +318,9 @@ void em_parallel(const int model_type, const int node_id, const int n_nodes,
             int grid_size = kernel_dims[device_id * 2];
             int block_size = kernel_dims[device_id * 2 + 1];
             int dataset_size = std::get<0>(device_partitions[device_id]).size();
-            size_t shr_mem_size = BLOCK_SIZE * MAX_SERP * sizeof(char) + BLOCK_SIZE * MAX_SERP * sizeof(int);
 
             CUDA_CHECK(cudaEventRecord(start_events[device_id], 0));
-            Kernel::em_training<<<grid_size, block_size, shr_mem_size>>>(dataset_dev[device_id], dataset_size);
+            Kernel::em_training<<<grid_size, block_size>>>(dataset_dev[device_id], dataset_size);
             CUDA_CHECK(cudaEventRecord(end_events[device_id], 0));
         }
 

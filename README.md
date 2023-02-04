@@ -8,9 +8,3 @@ the training process. The following click models are supported:
 2. *User Browsing Model (UBM)*.
 3. *Click Chain Model (CCM)*.
 4. *Dynamic Bayesian Network Model (DBN)*.
-
-## TODO
-
-- Update function descriptions with new arguments.
-- Change add_to_values() to += operator.
-- Compile using CMake instead of Makefile.

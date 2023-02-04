@@ -166,13 +166,17 @@ int main(int argc, char** argv) {
         return EXIT_SUCCESS;
     }
 
+    if (node_id == ROOT && exec_mode == 2) {
+        std::cerr << "[" << node_id << "] \033[12;33mWarning\033[0m: Hybrid execution is not yet supported. Defaulting to GPU-only." << std::endl;
+    }
+
     // Ensure that the execution mode can be used.
-    if (exec_mode == 0 || exec_mode == 2) {\
+    if (exec_mode == 0 || exec_mode == 2) {
         if (n_devices == 0 || n_gpus <= 0) {
-            Communicate::error_check("[" + std::to_string(node_id) + "] Error: No GPU devices found for GPU-only or hybrid execution.");
+            Communicate::error_check("[" + std::to_string(node_id) + "] \033[12;31mError\033[0m: No GPU devices found for GPU-only or hybrid execution.");
         }
         else if (n_gpus > n_devices) {
-            std::cerr << "[" << node_id << "] Warning: Number of GPUs requested (" << n_gpus << ") exceeds number of available devices (" << n_devices << ")." << std::endl;
+            std::cerr << "[" << node_id << "] \033[12;33mWarning\033[0m: Number of GPUs requested (" << n_gpus << ") exceeds number of available devices (" << n_devices << ")." << std::endl;
         }
     }
     else if (exec_mode == 1) {
@@ -184,15 +188,15 @@ int main(int argc, char** argv) {
     // Ensure that the number of threads is valid.
     if (n_threads < 1) {
         if (node_id == ROOT) {
-            std::cerr << "[" << node_id << "] Error: Invalid number of threads: " << n_threads << std::endl;
+            std::cerr << "[" << node_id << "] \033[12;31mError\033[0m: Invalid number of threads: " << n_threads << std::endl;
         }
 
         // End MPI communication and exit.
         Communicate::finalize();
         return EXIT_SUCCESS;
     }
-    else if (n_threads > std::thread::hardware_concurrency()) {
-        std::cout << "[" << node_id << "] Warning: " << n_threads << " threads exceeds hardware concurrency of " << std::thread::hardware_concurrency() << " threads!" << std::endl;
+    else if (n_threads > static_cast<int>(std::thread::hardware_concurrency())) {
+        std::cout << "[" << node_id << "] \033[12;33mWarning\033[0m: " << n_threads << " threads exceeds hardware concurrency of " << std::thread::hardware_concurrency() << " threads!" << std::endl;
     }
 
 
@@ -248,14 +252,13 @@ int main(int argc, char** argv) {
         "\nPartitioning type: " << partitioning_types[partitioning_type] <<
         "\nModel type: " << supported_click_models[model_type] << std::endl << std::endl;
 
-        std::cout << "Node | Device | Arch | Free memory" << std::endl <<
-                     "-----+--------+------+------------" << std::endl;
+        std::cout << "Node  Device  Arch  Free memory" << std::endl;
         for (int nid = 0; nid < n_nodes; nid++) {
             for (int did = 0; did < n_devices_network[nid]; did++) {
                 int architecture = network_properties[nid][did][0];
-                std::cout << std::left << std::setw(5) << "N" + std::to_string(nid) << "| " <<
-                std::left << std::setw(7) << ((exec_mode == 0 || exec_mode == 2) ? "G" + std::to_string(did) : "C" + std::to_string(did)) << "| " <<
-                std::left << std::setw(5) << (architecture == -1 ? " " : std::to_string(architecture)) << "| " <<
+                std::cout << std::left << std::setw(5) << "N" + std::to_string(nid) << " " <<
+                std::left << std::setw(7) << ((exec_mode == 0 || exec_mode == 2) ? "G" + std::to_string(did) : "C" + std::to_string(did)) << " " <<
+                std::left << std::setw(5) << (architecture == -1 ? " " : std::to_string(architecture)) << " " <<
                 network_properties[nid][did][1] << std::endl;
             }
         }
@@ -276,7 +279,7 @@ int main(int argc, char** argv) {
         std::cout << "Parsing dataset." << std::endl;
 
         if (parse_dataset(dataset, raw_dataset_path, max_sessions)) {
-            Communicate::error_check("[" + std::to_string(node_id) + "] Error: Unable to open the raw dataset.\n");
+            Communicate::error_check("[" + std::to_string(node_id) + "] \033[12;31mError\033[0m: Unable to open the raw dataset.");
         }
 
         std::cout << "Found " << dataset.size_queries() << " query sessions." << std::endl;
@@ -315,14 +318,13 @@ int main(int argc, char** argv) {
 
     // Show information about the distributed partitions on the root node.
     if (node_id == ROOT) {
-        std::cout << "\nNode | Device | Train queries | Test queries | QD-pairs" << std::endl <<
-                       "-----+--------+---------------+--------------+---------" << std::endl;
+        std::cout << "\nNode  Device  Train queries  Test queries  QD-pairs" << std::endl;
         for (int nid = 0; nid < n_nodes; nid++) {
             for (int did = 0; did < n_devices_network[nid]; did++) {
-                std::cout << std::left << std::setw(5) << "N" + std::to_string(nid) << "| " <<
-                std::left << std::setw(7) << ((exec_mode == 0 || exec_mode == 2) ? "G" + std::to_string(did) : "C" + std::to_string(did)) << "| " <<
-                std::left << std::setw(14) << (nid == ROOT ? std::get<0>(device_partitions[did]).size() : dataset.size_train(nid, did)) << "| " <<
-                std::left << std::setw(13) << (nid == ROOT ? std::get<1>(device_partitions[did]).size() : dataset.size_test(nid, did)) << "| " <<
+                std::cout << std::left << std::setw(5) << "N" + std::to_string(nid) << " " <<
+                std::left << std::setw(7) << ((exec_mode == 0 || exec_mode == 2) ? "G" + std::to_string(did) : "C" + std::to_string(did)) << " " <<
+                std::left << std::setw(14) << (nid == ROOT ? std::get<0>(device_partitions[did]).size() : dataset.size_train(nid, did)) << " " <<
+                std::left << std::setw(13) << (nid == ROOT ? std::get<1>(device_partitions[did]).size() : dataset.size_test(nid, did)) << " " <<
                 (nid == ROOT ? std::get<2>(device_partitions[did]) : dataset.size_qd(nid, did)) << std::endl;
             }
         }
@@ -364,8 +366,7 @@ int main(int argc, char** argv) {
 
     auto estimating_start_time = std::chrono::high_resolution_clock::now();
 
-    // Run click model parameter estimation computation using the generic EM
-    // algorithm.
+    // Run click model parameter estimation using the generic EM algorithm.
     em_parallel(model_type, node_id, n_nodes, n_threads, n_devices_network, n_iterations,
                 exec_mode, n_devices, processing_units, device_partitions, output_path);
 
@@ -386,8 +387,8 @@ int main(int argc, char** argv) {
         std::vector<double> percent_combined = { elapsed_preprocessing.count(), elapsed_estimating.count() };
         double preproc_total = std::accumulate(percent_preproc.begin(), percent_preproc.end(), 0.0);
         double combined_total = std::accumulate(percent_combined.begin(), percent_combined.end(), 0.0);
-        for (int i = 0; i < percent_preproc.size(); i++) { percent_preproc[i] = (percent_preproc[i] / preproc_total); }
-        for (int i = 0; i < percent_combined.size(); i++) { percent_combined[i] = (percent_combined[i] / combined_total); }
+        for (size_t i = 0; i < percent_preproc.size(); i++) { percent_preproc[i] = (percent_preproc[i] / preproc_total); }
+        for (size_t i = 0; i < percent_combined.size(); i++) { percent_combined[i] = (percent_combined[i] / combined_total); }
         auto digit_cutoff = [](double digit, int size) { return std::to_string(digit).substr(0, std::to_string(digit).find(".") + size + 1); };
 
         std::cout << std::endl << std::left << std::setw(27) << "Total pre-processing time: " << std::left << std::setw(7) << digit_cutoff(elapsed_preprocessing.count(), 7) << " seconds, " << std::right << std::setw(3) << std::round(percent_combined[0] * 100) << " %" << std::endl;

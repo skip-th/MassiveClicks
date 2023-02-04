@@ -40,7 +40,7 @@ HST void init_parameters_hst(std::vector<Param>& params, std::vector<Param>& par
 
     // Check if the new parameters will fit in GPU memory using a 0.1% error margin.
     if (cm_memory_usage * 1.001 > fmem) {
-        Communicate::error_check("Error: Insufficient memory!\n\tAllocating parameters requires an additional " + std::to_string((cm_memory_usage - fmem) / 1e6) + " MB of memory.");
+        Communicate::error_check("\033[12;31mError\033[0m: Insufficient memory!\n\tAllocating parameters requires an additional " + std::to_string((cm_memory_usage - fmem) / 1e6) + " MB of memory.");
     }
 
     // Allocate memory for the parameters on the device.
@@ -206,7 +206,8 @@ DEV void update_shared_parameters_dev(Param*& src, Param*& dst, int& thread_inde
     for (int rank = 0; rank < src_size; rank++) {
         // Initialize shared memory for this block's parameters.
         if (thread_index < dataset_size) {
-            Param tmp_param = src[rank * dataset_size + thread_index];
+            Param tmp_param{Param(__ldg(&((float2*) src)[rank * dataset_size + thread_index]))};
+            // Param tmp_param = src[rank * dataset_size + thread_index];
             numerator[block_index] = tmp_param.numerator_val();
             denominator[block_index] = tmp_param.denominator_val();
         }
@@ -268,9 +269,27 @@ DEV void update_shared_parameters_dev(Param*& src, Param*& dst, int& thread_inde
  */
 DEV void update_unique_parameters_dev(Param*& src, Param*& dst, int& thread_index, int& dataset_size, const int (&pidx)[BLOCK_SIZE * MAX_SERP]) {
     for (int rank = 0; rank < MAX_SERP; rank++) {
-        Param update = src[rank * dataset_size + thread_index];
+        Param update{Param(__ldg(&((float2*) src)[rank * dataset_size + thread_index]))};
+        // Param update = src[rank * dataset_size + thread_index];
         dst[pidx[rank * BLOCK_SIZE + threadIdx.x]].atomic_add_to_values(
             update.numerator_val(),
             update.denominator_val());
     }
+}
+
+/**
+ * @brief Reduce the values of a shared memory array to a single sum stored in
+ * the first index.
+ *
+ * @param shared_data The array shared by the entire thread block containing
+ * the elements to be summed.
+ * @param block_index The index of the block in which this thread exists.
+ */
+DEV void warp_reduce(volatile float* shared_data, int block_index) {
+    if (BLOCK_SIZE >= 64) shared_data[block_index] += shared_data[block_index + 32];
+    if (BLOCK_SIZE >= 32) shared_data[block_index] += shared_data[block_index + 16];
+    if (BLOCK_SIZE >= 16) shared_data[block_index] += shared_data[block_index + 8];
+    if (BLOCK_SIZE >= 8) shared_data[block_index] += shared_data[block_index + 4];
+    if (BLOCK_SIZE >= 4) shared_data[block_index] += shared_data[block_index + 2];
+    if (BLOCK_SIZE >= 2) shared_data[block_index] += shared_data[block_index + 1];
 }

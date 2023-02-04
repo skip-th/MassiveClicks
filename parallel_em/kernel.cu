@@ -50,8 +50,8 @@ namespace Kernel {
         // Retrieve the search results corresponding to the current query from
         // the dataset.
         SERP_Dev query_session = SERP_Dev(dataset, dataset_size, thread_index);
-        SHR char clicks[BLOCK_SIZE * MAX_SERP];
-        SHR int pidx[BLOCK_SIZE * MAX_SERP];
+        SHR char clicks[BLOCK_SIZE * MAX_SERP]; // Click per rank.
+        SHR int pidx[BLOCK_SIZE * MAX_SERP]; // Parameter index.
         for (int rank = 0; rank < MAX_SERP; rank++) {
             clicks[rank * BLOCK_SIZE + threadIdx.x] = query_session[rank].get_click();
             pidx[rank * BLOCK_SIZE + threadIdx.x] = query_session[rank].get_param_index();

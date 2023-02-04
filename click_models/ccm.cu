@@ -17,8 +17,8 @@ HST CCM_Hst::CCM_Hst() = default;
 /**
  * @brief Constructs a CCM click model object for the host.
  *
- * @param ccm
- * @returns CCM_Hst The CCM click model object.
+ * @param ccm The base click model object to copy.
+ * @return CCM_Hst The CCM click model object.
  */
 HST CCM_Hst::CCM_Hst(CCM_Hst const &ccm) {
 }
@@ -26,7 +26,7 @@ HST CCM_Hst::CCM_Hst(CCM_Hst const &ccm) {
 /**
  * @brief Creates a new CCM click model object.
  *
- * @return CCM_Hst* The CCM click model object.
+ * @return The CCM click model object.
  */
 HST CCM_Hst* CCM_Hst::clone() {
     return new CCM_Hst(*this);
@@ -42,7 +42,7 @@ HST void CCM_Hst::say_hello() {
 /**
  * @brief Get the amount of device memory allocated to this click model.
  *
- * @return size_t The used memory.
+ * @return The used memory.
  */
 HST size_t CCM_Hst::get_memory_usage(void) {
     return this->cm_memory_usage;
@@ -53,7 +53,8 @@ HST size_t CCM_Hst::get_memory_usage(void) {
  * the current parameters.
  *
  * @param n_queries The number of queries assigned to this click model.
- * @return size_t The worst-case parameter memory footprint.
+ * @param n_qd The number of query-document pairs assigned to this click model.
+ * @return The worst-case parameter memory footprint.
  */
 HST size_t CCM_Hst::compute_memory_footprint(int n_queries, int n_qd) {
     std::pair<int, int> n_attractiveness = this->get_n_atr_params(n_queries, n_qd);
@@ -68,11 +69,11 @@ HST size_t CCM_Hst::compute_memory_footprint(int n_queries, int n_qd) {
  *
  * @param n_queries The number of queries assigned to this click model.
  * @param n_qd The number of query-document pairs assigned to this click model.
- * @return std::pair<int,int> The number of original and temporary examination
+ * @return The number of original and temporary examination
  * parameters.
  */
 HST std::pair<int,int> CCM_Hst::get_n_atr_params(int n_queries, int n_qd) {
-    return std::make_pair(n_qd,                         // # original
+    return std::make_pair(n_qd,                  // # original
                           n_queries * MAX_SERP); // # temporary
 }
 
@@ -81,7 +82,7 @@ HST std::pair<int,int> CCM_Hst::get_n_atr_params(int n_queries, int n_qd) {
  *
  * @param n_queries The number of queries assigned to this click model.
  * @param n_qd The number of query-document pairs assigned to this click model.
- * @return std::pair<int,int> The number of original and temporary continuation
+ * @return The number of original and temporary continuation
  * parameters.
  */
 HST std::pair<int, int> CCM_Hst::get_n_tau_params(int n_queries, int n_qd) {
@@ -96,6 +97,8 @@ HST std::pair<int, int> CCM_Hst::get_n_tau_params(int n_queries, int n_qd) {
  * @param dataset The training and testing sets, and the number of
  * query-document pairs in the training set.
  * @param n_devices The number of devices on this node.
+ * @param fmem The amount of free memory on the device.
+ * @param device The device to allocate memory on.
  */
 HST void CCM_Hst::init_parameters(const std::tuple<std::vector<SERP_Hst>, std::vector<SERP_Hst>, int>& dataset, const size_t fmem, const bool device) {
     std::pair<int, int> n_attractiveness = this->get_n_atr_params(std::get<0>(dataset).size(), std::get<2>(dataset));
@@ -269,6 +272,7 @@ HST void CCM_Hst::compute_exm_car(SERP_Hst& query_session, float (&exam)[MAX_SER
  * @param exam The examination parameters for every rank. The first rank is
  * always examined (1).
  * @param car
+ * @param dataset_size The size of the dataset.
  */
 HST void CCM_Hst::compute_ccm_atr(int& qid, SERP_Hst& query_session, int& last_click_rank, float (&exam)[MAX_SERP + 1], float (&car)[MAX_SERP + 1], int& dataset_size) {
     float numerator_update, denominator_update;
@@ -396,18 +400,45 @@ HST void CCM_Hst::compute_taus(int& qid, SERP_Hst& query_session, int& last_clic
     }
 }
 
+/**
+ * @brief Compute the first tau/continuation parameter.
+ *
+ * @param qid The index of the query whose parameters will be estimated.
+ * @param factor_values The values of the factor function for each possible
+ * input.
+ * @param factor_sum The sum of the factor function values.
+ * @param dataset_size The size of the dataset.
+ */
 HST void CCM_Hst::compute_tau_1(int& qid, float (&factor_values)[8], float& factor_sum, int& partition_size) {
     double numerator_update{(factor_values[5] + factor_values[7]) / factor_sum};
     double denominator_update{numerator_update + ((factor_values[4] + factor_values[6]) / factor_sum)};
     this->tau_tmp_parameters[qid].add_to_values(numerator_update, denominator_update);
 }
 
+/**
+ * @brief Compute the second tau/continuation parameter.
+ *
+ * @param qid The index of the query whose parameters will be estimated.
+ * @param factor_values The values of the factor function for each possible
+ * input.
+ * @param factor_sum The sum of the factor function values.
+ * @param dataset_size The size of the dataset.
+ */
 HST void CCM_Hst::compute_tau_2(int& qid, float (&factor_values)[8], float& factor_sum, int& partition_size) {
     double numerator_update{factor_values[5] / factor_sum};
     double denominator_update{numerator_update + ((factor_values[4]) / factor_sum)};
     this->tau_tmp_parameters[partition_size + qid].add_to_values(numerator_update, denominator_update);
 }
 
+/**
+ * @brief Compute the third tau/continuation parameter.
+ *
+ * @param qid The index of the query whose parameters will be estimated.
+ * @param factor_values The values of the factor function for each possible
+ * input.
+ * @param factor_sum The sum of the factor function values.
+ * @param dataset_size The size of the dataset.
+ */
 HST void CCM_Hst::compute_tau_3(int& qid, float (&factor_values)[8], float& factor_sum, int& partition_size) {
     double numerator_update{factor_values[7] / factor_sum};
     double denominator_update{numerator_update + ((factor_values[6]) / factor_sum)};
@@ -423,6 +454,9 @@ HST void CCM_Hst::compute_tau_3(int& qid, float (&factor_values)[8], float& fact
  * time would be when adding the values to the original parameter containers.
  * The second time would still give a valid result but would slow down the
  * converging of the parameters.
+ *
+ * @param device Whether to reset the device parameters or the host parameters.
+ * (true for device, false for host).
  */
 HST void CCM_Hst::reset_parameters(bool device) {
     reset_parameters_hst(this->atr_parameters, this->atr_dptr, device);
@@ -437,6 +471,7 @@ HST void CCM_Hst::reset_parameters(bool device) {
  * (PUBLIC, PRIVATE, or ALL).
  * @param transfer_direction The direction in which the transfer will happen.
  * (H2D or D2H).
+ * @param tmp Whether to transfer the temporary parameters or the originals.
  */
 HST void CCM_Hst::transfer_parameters(int parameter_type, int transfer_direction, bool tmp) {
     // Public parameters.
@@ -503,7 +538,8 @@ HST void CCM_Hst::set_parameters(std::vector<std::vector<Param>>& source, int pa
 /**
  * @brief Get probability of a click on a search result.
  *
- * @param serp The SERP corresponding to a query.
+ * @param query_session The query session of which the probability of a click
+ * on a search result will be computed.
  * @param probabilities The probabilities of a click on each search result.
  */
 HST void CCM_Hst::get_serp_probability(SERP_Hst& query_session, float (&probablities)[MAX_SERP]) {
@@ -646,7 +682,7 @@ DEV void CCM_Dev::say_hello() {
 /**
  * @brief Creates a new CCM click model object.
  *
- * @return CCM_Dev* The CCM click model object.
+ * @return The CCM click model object.
  */
 DEV CCM_Dev *CCM_Dev::clone() {
     return new CCM_Dev(*this);
@@ -657,8 +693,8 @@ DEV CCM_Dev::CCM_Dev() = default;
 /**
  * @brief Constructs a CCM click model object for the device.
  *
- * @param ccm
- * @returns CCM_Dev The CCM click model object.
+ * @param ccm The base click model object to be copied.
+ * @return The CCM click model object.
  */
 DEV CCM_Dev::CCM_Dev(CCM_Dev const &ccm) {
 }
@@ -692,6 +728,9 @@ DEV void CCM_Dev::set_parameters(Param**& parameter_ptr, int* parameter_sizes) {
  * CCM parameters.
  * @param thread_index The index of the thread which will be estimating the
  * parameters.
+ * @param dataset_size The size of the dataset.
+ * @param clicks The click on each rank of the query session.
+ * @param pidx The parameter index of each rank of the query session.
  */
 DEV void CCM_Dev::process_session(SERP_Dev& query_session, int& thread_index, int& dataset_size, const char (&clicks)[BLOCK_SIZE * MAX_SERP], const int (&pidx)[BLOCK_SIZE * MAX_SERP]) {
     int last_click_rank = query_session.last_click_rank();
@@ -718,11 +757,10 @@ DEV void CCM_Dev::process_session(SERP_Dev& query_session, int& thread_index, in
  *
  * @param thread_index The index of the thread which will be estimating the
  * parameters.
- * @param query_session The query session which will be used to estimate the
- * DBN parameters.
  * @param exam The examination parameters for every rank. The first rank is
  * always examined (1).
  * @param car
+ * @param pidx The index of the parameters for the query session.
  */
 DEV void CCM_Dev::compute_exm_car(float (&exam)[MAX_SERP + 1], float (&car)[MAX_SERP + 1], const int (&pidx)[BLOCK_SIZE * MAX_SERP]) {
     // Set the default examination value for the first rank.
@@ -764,13 +802,14 @@ DEV void CCM_Dev::compute_exm_car(float (&exam)[MAX_SERP + 1], float (&car)[MAX_
  *
  * @param thread_index The index of the thread which will be estimating the
  * parameters.
- * @param query_session The query session which will be used to estimate the
- * DBN parameters.
  * @param last_click_rank The last rank of this query sessions which has been
  * clicked.
  * @param exam The examination parameters for every rank. The first rank is
  * always examined (1).
  * @param car
+ * @param dataset_size The size of the dataset.
+ * @param clicks The clicks of the query session.
+ * @param pidx The index of the parameters for the query session.
  */
 DEV void CCM_Dev::compute_ccm_atr(int& thread_index, int& last_click_rank, float (&exam)[MAX_SERP + 1], float (&car)[MAX_SERP + 1], int& dataset_size, const char (&clicks)[BLOCK_SIZE * MAX_SERP], const int (&pidx)[BLOCK_SIZE * MAX_SERP]) {
     float numerator_update, denominator_update;
@@ -807,12 +846,10 @@ DEV void CCM_Dev::compute_ccm_atr(int& thread_index, int& last_click_rank, float
  * @brief Compute the click probabilities of a rank given the clicks on the
  * preceding ranks.
  *
- * @param thread_index The index of the thread which will be estimating the
- * parameters.
- * @param query_session The query session which will be used to estimate the
- * DBN parameters.
  * @param click_probs The probabilty of a click occurring on a rank.
  * @param exam_probs The probability of a rank being examined.
+ * @param clicks The clicks of the query session.
+ * @param pidx The index of the parameters for the query session.
  */
 DEV void CCM_Dev::get_tail_clicks(float (&click_probs)[MAX_SERP][MAX_SERP], float (&exam_probs)[MAX_SERP + 1], const char (&clicks)[BLOCK_SIZE * MAX_SERP], const int (&pidx)[BLOCK_SIZE * MAX_SERP]) {
     exam_probs[0] = 1.f;
@@ -854,12 +891,13 @@ DEV void CCM_Dev::get_tail_clicks(float (&click_probs)[MAX_SERP][MAX_SERP], floa
  *
  * @param thread_index The index of the thread which will be estimating the
  * parameters.
- * @param query_session The query session which will be used to estimate the
- * DBN parameters.
  * @param last_click_rank The last rank of this query sessions which has been
  * clicked.
  * @param click_probs The probabilty of a click occurring on a rank.
  * @param exam_probs The probability of a rank being examined.
+ * @param dataset_size The size of the dataset.
+ * @param clicks The clicks of the query session.
+ * @param pidx The index of the parameters for the query session.
  */
 DEV void CCM_Dev::compute_taus(int& thread_index, int& last_click_rank, float (&click_probs)[MAX_SERP][MAX_SERP], float (&exam_probs)[MAX_SERP + 1], int& dataset_size, const char (&clicks)[BLOCK_SIZE * MAX_SERP], const int (&pidx)[BLOCK_SIZE * MAX_SERP]) {
     float factor_values[8] = { 0.f };
@@ -880,9 +918,9 @@ DEV void CCM_Dev::compute_taus(int& thread_index, int& last_click_rank, float (&
 
         // Compute phi for all possible input values.
         for (int fct_itr{0}; fct_itr < 8; fct_itr++) {
-            factor_result = factor_func.compute(this->factor_inputs[fct_itr][0],
-                                                this->factor_inputs[fct_itr][1],
-                                                this->factor_inputs[fct_itr][2]);
+            factor_result = factor_func.compute(__ldca(&(this->factor_inputs)[fct_itr][0]),
+                                                __ldca(&(this->factor_inputs)[fct_itr][1]),
+                                                __ldca(&(this->factor_inputs)[fct_itr][2]));
             factor_values[fct_itr] = factor_result;
             factor_sum += factor_result;
         }
@@ -897,18 +935,45 @@ DEV void CCM_Dev::compute_taus(int& thread_index, int& last_click_rank, float (&
     }
 }
 
+/**
+ * @brief Compute the first tau/continuation parameter.
+ *
+ * @param thread_index The global index of the thread.
+ * @param factor_values The values of the factor function for each possible
+ * input.
+ * @param factor_sum The sum of the factor function values.
+ * @param dataset_size The size of the dataset.
+ */
 DEV void CCM_Dev::compute_tau_1(int& thread_index, float (&factor_values)[8], float& factor_sum, int& dataset_size) {
     double numerator_update{(factor_values[5] + factor_values[7]) / factor_sum};
     double denominator_update{numerator_update + ((factor_values[4] + factor_values[6]) / factor_sum)};
     this->tau_tmp_parameters[thread_index].add_to_values(numerator_update, denominator_update);
 }
 
+/**
+ * @brief Compute the second tau/continuation parameter.
+ *
+ * @param thread_index The global index of the thread.
+ * @param factor_values The values of the factor function for each possible
+ * input.
+ * @param factor_sum The sum of the factor function values.
+ * @param dataset_size The size of the dataset.
+ */
 DEV void CCM_Dev::compute_tau_2(int& thread_index, float (&factor_values)[8], float& factor_sum, int& dataset_size) {
     double numerator_update{factor_values[5] / factor_sum};
     double denominator_update{numerator_update + ((factor_values[4]) / factor_sum)};
     this->tau_tmp_parameters[dataset_size + thread_index].add_to_values(numerator_update, denominator_update);
 }
 
+/**
+ * @brief Compute the third tau/continuation parameter.
+ *
+ * @param thread_index The global index of the thread.
+ * @param factor_values The values of the factor function for each possible
+ * input.
+ * @param factor_sum The sum of the factor function values.
+ * @param dataset_size The size of the dataset.
+ */
 DEV void CCM_Dev::compute_tau_3(int& thread_index, float (&factor_values)[8], float& factor_sum, int& dataset_size) {
     double numerator_update{factor_values[7] / factor_sum};
     double denominator_update{numerator_update + ((factor_values[6]) / factor_sum)};
@@ -920,11 +985,10 @@ DEV void CCM_Dev::compute_tau_3(int& thread_index, float (&factor_values)[8], fl
  * @brief Update the global parameter values using the local parameter values
  * on each thread.
  *
- * @param query_session The query session of this thread.
- * @param thread_index The index of the thread.
+ * @param thread_index The global index of the thread.
  * @param block_index The index of the block in which this thread exists.
- * @param parameter_type The type of parameter to update.
  * @param dataset_size The size of the dataset.
+ * @param pidx The unique parameter index of each rank of the query session.
  */
 DEV void CCM_Dev::update_parameters(int& thread_index, int& block_index, int& dataset_size, const int (&pidx)[BLOCK_SIZE * MAX_SERP]) {
     update_shared_parameters_dev(this->tau_tmp_parameters, this->tau_parameters, thread_index, this->n_tau_parameters, block_index, dataset_size);

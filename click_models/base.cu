@@ -15,7 +15,7 @@
  * @brief Create a click model object for the host.
  *
  * @param model_type The type of click model (e.g. 0 = PBM).
- * @return ClickModel_Hst* The click model object of a given model type.
+ * @return The click model object of a given model type.
  */
 HST ClickModel_Hst* create_cm_host(const int model_type) {
     ClickModel_Hst *cm_temp;
@@ -53,7 +53,7 @@ HST ClickModel_Hst* create_cm_host(const int model_type) {
  * @brief Create a click model object for the GPU device.
  *
  * @param model_type The type of click model (e.g. 0 = PBM).
- * @return ClickModel_Dev* The click model object of a given model type.
+ * @return The click model object of a given model type.
  */
 DEV ClickModel_Dev* create_cm_dev(const int model_type) {
     ClickModel_Dev *cm_temp;

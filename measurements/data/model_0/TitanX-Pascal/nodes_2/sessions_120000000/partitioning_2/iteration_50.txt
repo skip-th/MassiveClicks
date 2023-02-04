@@ -1,127 +1,0 @@
-Job ID: 0
-Number of machines: 1
-Number of devices in total: 2
-Number of threads: 32
-Execution mode: GPU-only
-Raw data path: /var/scratch/pkhandel/yandex/YandexClicks.txt
-Number of EM iterations: 50
-Share of data used for testing: 20%
-Max number of sessions: 120000000
-Partitioning type: Resource-Aware Maximum Utilization
-Model type: PBM
-
-Node | Device | Arch | Free memory
------+--------+------+------------
-N0   | G0     | 61   | 12617
-N0   | G1     | 61   | 12617
-
-Parsing dataset.
-Raw dataset file "/var/scratch/pkhandel/yandex/YandexClicks.txt" is opened.
-[                    ] 1%[                    ] 2%[                    ] 3%[                    ] 4%[=                   ] 5%[=                   ] 6%[=                   ] 7%[=                   ] 8%[=                   ] 9%[==                  ] 10%[==                  ] 11%[==                  ] 12%[==                  ] 13%[==                  ] 14%[===                 ] 15%[===                 ] 16%[===                 ] 17%[===                 ] 18%[===                 ] 19%[====                ] 20%[====                ] 21%[====                ] 22%[====                ] 23%[====                ] 24%[=====               ] 25%[=====               ] 26%[=====               ] 27%[=====               ] 28%[=====               ] 29%[======              ] 30%[======              ] 31%[======              ] 32%[======              ] 33%[======              ] 34%[=======             ] 35%[=======             ] 36%[=======             ] 37%[=======             ] 38%[=======             ] 39%[========            ] 40%[========            ] 41%[========            ] 42%[========            ] 43%[========            ] 44%[=========           ] 45%[=========           ] 46%[=========           ] 47%[=========           ] 48%[=========           ] 49%[==========          ] 50%[==========          ] 51%[==========          ] 52%[==========          ] 53%[==========          ] 54%[===========         ] 55%[===========         ] 56%[===========         ] 57%[===========         ] 58%[===========         ] 59%[============        ] 60%[============        ] 61%[============        ] 62%[============        ] 63%[============        ] 64%[=============       ] 65%[=============       ] 66%[=============       ] 67%[=============       ] 68%[=============       ] 69%[==============      ] 70%[==============      ] 71%[==============      ] 72%[==============      ] 73%[==============      ] 74%[===============     ] 75%[===============     ] 76%[===============     ] 77%[===============     ] 78%[===============     ] 79%[================    ] 80%[================    ] 81%[================    ] 82%[================    ] 83%[================    ] 84%[=================   ] 85%[=================   ] 86%[=================   ] 87%[=================   ] 88%[=================   ] 89%[==================  ] 90%[==================  ] 91%[==================  ] 92%[==================  ] 93%[==================  ] 94%[=================== ] 95%[=================== ] 96%[=================== ] 97%[=================== ] 98%[=================== ] 99%[====================] 100%Read 280819062 lines.               
-Found 120000000 query sessions.
-
-Partitioning 120000000 queries into 96000000 training and 24000000 testing sessions.
-(1/3) Grouping training query sessions...
-(2/3) Partitioning training query sessions...
-(3/3) Partitioning testing query sessions...
-
-Communicating 2 partitions to 1 machines.
-
-Node | Device | Train queries | Test queries | QD-pairs
------+--------+---------------+--------------+---------
-N0   | G0     | 47999999      | 9617803      | 119803194
-N0   | G1     | 48000001      | 9376386      | 119829159
-
-Expectation Maximization (EM) in parallel ...
-Host-side PBM says hello!
-[0, 0], expected memory usage = 12478.4/12617.4 MB (98%)
-	measured memory usage = 12488.5/12617.4 MB (98%)
-[0, 1], expected memory usage = 12478.6/12617.4 MB (98%)
-	measured memory usage = 12488.5/12617.4 MB (98%)
-Device-side PBM says hello!
-[0, 0], kernel dimensions = <<<500000, 96>>>
-[0, 1], kernel dimensions = <<<500001, 96>>>
-
-Starting 50 EM parameter estimation iterations...
-Itr: 0  Itr-time: 1.29693    Itr-EM_COMP: 0.161696    Itr-EM_UPDATE: 0.326429   Itr-Sync: 0.00210851  
-Itr: 1  Itr-time: 1.24243    Itr-EM_COMP: 0.131047    Itr-EM_UPDATE: 0.315668   Itr-Sync: 6.3648e-05  
-Itr: 2  Itr-time: 1.25393    Itr-EM_COMP: 0.131156    Itr-EM_UPDATE: 0.315501   Itr-Sync: 5.7451e-05  
-Itr: 3  Itr-time: 1.24693    Itr-EM_COMP: 0.131217    Itr-EM_UPDATE: 0.315741   Itr-Sync: 5.7155e-05  
-Itr: 4  Itr-time: 1.24519    Itr-EM_COMP: 0.131107    Itr-EM_UPDATE: 0.316734   Itr-Sync: 5.5048e-05  
-Itr: 5  Itr-time: 1.23694    Itr-EM_COMP: 0.131607    Itr-EM_UPDATE: 0.318161   Itr-Sync: 5.619e-05   
-Itr: 6  Itr-time: 1.23616    Itr-EM_COMP: 0.131923    Itr-EM_UPDATE: 0.317921   Itr-Sync: 6.0275e-05  
-Itr: 7  Itr-time: 1.24254    Itr-EM_COMP: 0.13176     Itr-EM_UPDATE: 0.317916   Itr-Sync: 5.4982e-05  
-Itr: 8  Itr-time: 1.23727    Itr-EM_COMP: 0.131795    Itr-EM_UPDATE: 0.318229   Itr-Sync: 5.6962e-05  
-Itr: 9  Itr-time: 1.24116    Itr-EM_COMP: 0.132027    Itr-EM_UPDATE: 0.318157   Itr-Sync: 5.6664e-05  
-Itr: 10 Itr-time: 1.24256    Itr-EM_COMP: 0.131977    Itr-EM_UPDATE: 0.318096   Itr-Sync: 6.4928e-05  
-Itr: 11 Itr-time: 1.2496     Itr-EM_COMP: 0.131942    Itr-EM_UPDATE: 0.318194   Itr-Sync: 6.7504e-05  
-Itr: 12 Itr-time: 1.24391    Itr-EM_COMP: 0.131937    Itr-EM_UPDATE: 0.317903   Itr-Sync: 5.6975e-05  
-Itr: 13 Itr-time: 1.24844    Itr-EM_COMP: 0.131928    Itr-EM_UPDATE: 0.317864   Itr-Sync: 5.5516e-05  
-Itr: 14 Itr-time: 1.23446    Itr-EM_COMP: 0.13192     Itr-EM_UPDATE: 0.318428   Itr-Sync: 5.6306e-05  
-Itr: 15 Itr-time: 1.25107    Itr-EM_COMP: 0.13234     Itr-EM_UPDATE: 0.318389   Itr-Sync: 6.3987e-05  
-Itr: 16 Itr-time: 1.24844    Itr-EM_COMP: 0.132234    Itr-EM_UPDATE: 0.318502   Itr-Sync: 5.4849e-05  
-Itr: 17 Itr-time: 1.24883    Itr-EM_COMP: 0.13221     Itr-EM_UPDATE: 0.319712   Itr-Sync: 5.6664e-05  
-Itr: 18 Itr-time: 1.2497     Itr-EM_COMP: 0.132635    Itr-EM_UPDATE: 0.320122   Itr-Sync: 5.6513e-05  
-Itr: 19 Itr-time: 1.23698    Itr-EM_COMP: 0.13256     Itr-EM_UPDATE: 0.31885    Itr-Sync: 5.5503e-05  
-Itr: 20 Itr-time: 1.23885    Itr-EM_COMP: 0.132552    Itr-EM_UPDATE: 0.318892   Itr-Sync: 6.2917e-05  
-Itr: 21 Itr-time: 1.24266    Itr-EM_COMP: 0.132573    Itr-EM_UPDATE: 0.32036    Itr-Sync: 5.5169e-05  
-Itr: 22 Itr-time: 1.25496    Itr-EM_COMP: 0.132691    Itr-EM_UPDATE: 0.319464   Itr-Sync: 5.5353e-05  
-Itr: 23 Itr-time: 1.24427    Itr-EM_COMP: 0.132597    Itr-EM_UPDATE: 0.319286   Itr-Sync: 5.7291e-05  
-Itr: 24 Itr-time: 1.24157    Itr-EM_COMP: 0.132626    Itr-EM_UPDATE: 0.319756   Itr-Sync: 5.5533e-05  
-Itr: 25 Itr-time: 1.24074    Itr-EM_COMP: 0.132628    Itr-EM_UPDATE: 0.31968    Itr-Sync: 6.4951e-05  
-Itr: 26 Itr-time: 1.2382     Itr-EM_COMP: 0.132513    Itr-EM_UPDATE: 0.319466   Itr-Sync: 5.5812e-05  
-Itr: 27 Itr-time: 1.24075    Itr-EM_COMP: 0.132518    Itr-EM_UPDATE: 0.319557   Itr-Sync: 5.6309e-05  
-Itr: 28 Itr-time: 1.23915    Itr-EM_COMP: 0.132574    Itr-EM_UPDATE: 0.319891   Itr-Sync: 5.3527e-05  
-Itr: 29 Itr-time: 1.25287    Itr-EM_COMP: 0.132616    Itr-EM_UPDATE: 0.319396   Itr-Sync: 5.7311e-05  
-Itr: 30 Itr-time: 1.23111    Itr-EM_COMP: 0.132505    Itr-EM_UPDATE: 0.319505   Itr-Sync: 5.8027e-05  
-Itr: 31 Itr-time: 1.24401    Itr-EM_COMP: 0.132547    Itr-EM_UPDATE: 0.319329   Itr-Sync: 5.5206e-05  
-Itr: 32 Itr-time: 1.24629    Itr-EM_COMP: 0.132466    Itr-EM_UPDATE: 0.319047   Itr-Sync: 5.7537e-05  
-Itr: 33 Itr-time: 1.24763    Itr-EM_COMP: 0.132517    Itr-EM_UPDATE: 0.319679   Itr-Sync: 5.5159e-05  
-Itr: 34 Itr-time: 1.23763    Itr-EM_COMP: 0.132594    Itr-EM_UPDATE: 0.31943    Itr-Sync: 6.1047e-05  
-Itr: 35 Itr-time: 1.23609    Itr-EM_COMP: 0.13246     Itr-EM_UPDATE: 0.319105   Itr-Sync: 5.5481e-05  
-Itr: 36 Itr-time: 1.23703    Itr-EM_COMP: 0.132586    Itr-EM_UPDATE: 0.319673   Itr-Sync: 5.5226e-05  
-Itr: 37 Itr-time: 1.23801    Itr-EM_COMP: 0.132532    Itr-EM_UPDATE: 0.319496   Itr-Sync: 5.7058e-05  
-Itr: 38 Itr-time: 1.25319    Itr-EM_COMP: 0.132495    Itr-EM_UPDATE: 0.318801   Itr-Sync: 6.5055e-05  
-Itr: 39 Itr-time: 1.25007    Itr-EM_COMP: 0.132442    Itr-EM_UPDATE: 0.319722   Itr-Sync: 5.6984e-05  
-Itr: 40 Itr-time: 1.24486    Itr-EM_COMP: 0.132505    Itr-EM_UPDATE: 0.319898   Itr-Sync: 5.74e-05    
-Itr: 41 Itr-time: 1.24121    Itr-EM_COMP: 0.132394    Itr-EM_UPDATE: 0.319517   Itr-Sync: 5.618e-05   
-Itr: 42 Itr-time: 1.25019    Itr-EM_COMP: 0.1326      Itr-EM_UPDATE: 0.3198     Itr-Sync: 5.8128e-05  
-Itr: 43 Itr-time: 1.25035    Itr-EM_COMP: 0.132478    Itr-EM_UPDATE: 0.319175   Itr-Sync: 6.1939e-05  
-Itr: 44 Itr-time: 1.24967    Itr-EM_COMP: 0.13245     Itr-EM_UPDATE: 0.3193     Itr-Sync: 5.555e-05   
-Itr: 45 Itr-time: 1.24668    Itr-EM_COMP: 0.132543    Itr-EM_UPDATE: 0.320387   Itr-Sync: 5.7095e-05  
-Itr: 46 Itr-time: 1.2476     Itr-EM_COMP: 0.132412    Itr-EM_UPDATE: 0.31946    Itr-Sync: 5.6878e-05  
-Itr: 47 Itr-time: 1.25011    Itr-EM_COMP: 0.132512    Itr-EM_UPDATE: 0.319715   Itr-Sync: 5.7522e-05  
-Itr: 48 Itr-time: 1.24734    Itr-EM_COMP: 0.1324      Itr-EM_UPDATE: 0.319518   Itr-Sync: 6.2066e-05  
-Itr: 49 Itr-time: 1.23571    Itr-EM_COMP: 0.132572    Itr-EM_UPDATE: 0.318808   Itr-Sync: 5.5033e-05  
-
-Total Log likelihood is: -0.269545
-Perplexity at rank 0 is: 1.7791
-Perplexity at rank 1 is: 1.552
-Perplexity at rank 2 is: 1.39402
-Perplexity at rank 3 is: 1.31553
-Perplexity at rank 4 is: 1.25705
-Perplexity at rank 5 is: 1.2174
-Perplexity at rank 6 is: 1.18748
-Perplexity at rank 7 is: 1.16754
-Perplexity at rank 8 is: 1.15402
-Perplexity at rank 9 is: 1.15623
-Perplexity is: 1.31804
-
-Host to Device dataset transfer time: 23.1417
-Average Host to Device parameter transfer time: 0.788299
-Average Device to Host parameter transfer time: 4.8889e-05
-
-Average time per iteration: 1.24505
-Average time per computation in each iteration: 0.132858
-Average time per update in each iteration: 0.319033
-Average time per synchronization in each iteration: 9.88876e-05
-Total time of training: 62.2523
-Evaluation time: 14.604
-
-Total pre-processing time: 866.694389 seconds,  90 %
-  Parsing time:            711.108714 seconds,  82 %
-  Partitioning time:       155.557929 seconds,  18 %
-  Communication time:      0.027743 seconds,   0 %
-Parameter estimation time: 101.092853 seconds,  10 %
-Total elapsed time:        968.233474 seconds, 100 %
-

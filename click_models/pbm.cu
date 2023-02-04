@@ -17,8 +17,8 @@ HST PBM_Hst::PBM_Hst() = default;
 /**
  * @brief Constructs a PBM click model object for the host.
  *
- * @param pbm
- * @returns PBM_Hst The PBM click model object.
+ * @param pbm The base click model object to copy.
+ * @return The PBM click model object.
  */
 HST PBM_Hst::PBM_Hst(PBM_Hst const &pbm) {
 }
@@ -26,7 +26,7 @@ HST PBM_Hst::PBM_Hst(PBM_Hst const &pbm) {
 /**
  * @brief Creates a new PBM click model object.
  *
- * @return PBM_Hst* The PBM click model object.
+ * @return The PBM click model object.
  */
 HST PBM_Hst* PBM_Hst::clone() {
     return new PBM_Hst(*this);
@@ -42,7 +42,7 @@ HST void PBM_Hst::say_hello() {
 /**
  * @brief Get the amount of device memory allocated to this click model.
  *
- * @return size_t The used memory.
+ * @return The used memory.
  */
 HST size_t PBM_Hst::get_memory_usage(void) {
     return this->cm_memory_usage;
@@ -53,7 +53,8 @@ HST size_t PBM_Hst::get_memory_usage(void) {
  * the current parameters.
  *
  * @param n_queries The number of queries assigned to this click model.
- * @return size_t The worst-case parameter memory footprint.
+ * @param n_qd The number of query-document pairs assigned to this click model.
+ * @return The worst-case parameter memory footprint.
  */
 HST size_t PBM_Hst::compute_memory_footprint(int n_queries, int n_qd) {
     std::pair<int, int> n_attractiveness = this->get_n_atr_params(n_queries, n_qd);
@@ -68,11 +69,11 @@ HST size_t PBM_Hst::compute_memory_footprint(int n_queries, int n_qd) {
  *
  * @param n_queries The number of queries assigned to this click model.
  * @param n_qd The number of query-document pairs assigned to this click model.
- * @return std::pair<int,int> The number of original and temporary attractiveness
+ * @return The number of original and temporary attractiveness
  * parameters.
  */
 HST std::pair<int,int> PBM_Hst::get_n_atr_params(int n_queries, int n_qd) {
-    return std::make_pair(n_qd,                         // # original
+    return std::make_pair(n_qd,                  // # original
                           n_queries * MAX_SERP); // # temporary
 }
 
@@ -81,7 +82,7 @@ HST std::pair<int,int> PBM_Hst::get_n_atr_params(int n_queries, int n_qd) {
  *
  * @param n_queries The number of queries assigned to this click model.
  * @param n_qd The number of query-document pairs assigned to this click model.
- * @return std::pair<int,int> The number of original and temporary examination
+ * @return The number of original and temporary examination
  * parameters.
  */
 HST std::pair<int, int> PBM_Hst::get_n_exm_params(int n_queries, int n_qd) {
@@ -96,6 +97,8 @@ HST std::pair<int, int> PBM_Hst::get_n_exm_params(int n_queries, int n_qd) {
  * @param dataset The training and testing sets, and the number of
  * query-document pairs in the training set.
  * @param n_devices The number of devices on this node.
+ * @param fmem The amount of free memory on the device.
+ * @param device The device to allocate memory on.
  */
 HST void PBM_Hst::init_parameters(const std::tuple<std::vector<SERP_Hst>, std::vector<SERP_Hst>, int>& dataset, const size_t fmem, const bool device) {
     std::pair<int, int> n_attractiveness = this->get_n_atr_params(std::get<0>(dataset).size(), std::get<2>(dataset));
@@ -233,6 +236,9 @@ HST void PBM_Hst::process_session(const std::vector<SERP_Hst>& dataset, const st
  * time would be when adding the values to the original parameter containers.
  * The second time would still give a valid result but would slow down the
  * converging of the parameters.
+ *
+ * @param device Whether to reset the device parameters or the host parameters.
+ * (true for device, false for host).
  */
 HST void PBM_Hst::reset_parameters(bool device) {
     reset_parameters_hst(this->exm_parameters, this->exm_dptr, device);
@@ -247,6 +253,7 @@ HST void PBM_Hst::reset_parameters(bool device) {
  * (PUBLIC, PRIVATE, or ALL).
  * @param transfer_direction The direction in which the transfer will happen.
  * (H2D or D2H).
+ * @param tmp Whether to transfer the temporary parameters or the originals.
  */
 HST void PBM_Hst::transfer_parameters(int parameter_type, int transfer_direction, bool tmp) {
     // Public parameters.
@@ -439,7 +446,7 @@ DEV void PBM_Dev::say_hello() {
 /**
  * @brief Creates a new PBM click model object.
  *
- * @return PBM_Dev* The PBM click model object.
+ * @return The PBM click model object.
  */
 DEV PBM_Dev *PBM_Dev::clone() {
     return new PBM_Dev(*this);
@@ -450,8 +457,8 @@ DEV PBM_Dev::PBM_Dev() = default;
 /**
  * @brief Constructs a PBM click model object for the device.
  *
- * @param pbm
- * @returns PBM_Dev The PBM click model object.
+ * @param pbm The base click model object to be copied.
+ * @return The PBM click model object.
  */
 DEV PBM_Dev::PBM_Dev(PBM_Dev const &pbm) {
 }
@@ -483,6 +490,9 @@ DEV void PBM_Dev::set_parameters(Param**& parameter_ptr, int* parameter_sizes) {
  * PBM parameters.
  * @param thread_index The index of the thread which will be estimating the
  * parameters.
+ * @param dataset_size The size of the dataset.
+ * @param clicks The click on each rank of the query session.
+ * @param pidx The parameter index of each rank of the query session.
  */
 DEV void PBM_Dev::process_session(SERP_Dev& query_session, int& thread_index, int& dataset_size, const char (&clicks)[BLOCK_SIZE * MAX_SERP], const int (&pidx)[BLOCK_SIZE * MAX_SERP]) {
     for (int rank = 0; rank < MAX_SERP; rank++) {
@@ -518,11 +528,10 @@ DEV void PBM_Dev::process_session(SERP_Dev& query_session, int& thread_index, in
  * @brief Update the global parameter values using the local parameter values
  * on each thread.
  *
- * @param query_session The query session of this thread.
- * @param thread_index The index of the thread.
+ * @param thread_index The global index of the thread.
  * @param block_index The index of the block in which this thread exists.
- * @param parameter_type The type of parameter to update.
  * @param dataset_size The size of the dataset.
+ * @param pidx The unique parameter index of each rank of the query session.
  */
 DEV void PBM_Dev::update_parameters(int& thread_index, int& block_index, int& dataset_size, const int (&pidx)[BLOCK_SIZE * MAX_SERP]) {
     update_shared_parameters_dev(this->exm_tmp_parameters, this->exm_parameters, thread_index, this->n_exm_parameters, block_index, dataset_size);

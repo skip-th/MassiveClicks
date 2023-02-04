@@ -9,16 +9,24 @@
 #ifndef CLICK_MODEL_PARAMETERS_H
 #define CLICK_MODEL_PARAMETERS_H
 
+// System include.
+#include <math.h>
+#include <cuda_runtime.h>
+
 // User include.
 #include "../utils/definitions.h"
 #include "../utils/utils.cuh"
 
-
 class Param {
 private:
-    float numerator{PARAM_DEF_NUM};
-    float denominator{PARAM_DEF_DENOM};
+    #ifdef __CUDA_ARCH__
+        float2 fraction{PARAM_DEF_NUM, PARAM_DEF_DENOM};
+    #else
+        float numerator{PARAM_DEF_NUM};
+        float denominator{PARAM_DEF_DENOM};
+    #endif
 public:
+    DEV Param(const struct float2& fraction);
     DEV HST Param();
     DEV HST Param(const float& numerator, const float& denominator);
     DEV HST Param operator + (const Param& other) const;

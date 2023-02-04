@@ -21,7 +21,7 @@ LogLikelihood::LogLikelihood(ClickModel_Hst *cm) {
  * queries.
  *
  * @param testing_queries The set of testing queries.
- * @return float The log-likelihood of the click model.
+ * @return The log-likelihood of the click model.
  */
 float LogLikelihood::evaluate(std::vector<SERP_Hst>& testing_queries) {
     // Go through all query sessions in the test set.

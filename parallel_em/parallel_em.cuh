@@ -16,6 +16,7 @@
 #include <iomanip>
 #include <map>
 #include <set>
+#include <cuda_runtime.h>
 
 // User include.
 #include "../utils/definitions.h"

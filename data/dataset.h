@@ -78,7 +78,7 @@ private:
     template<typename A, typename B>
     void init_network(NetworkMap<A>& src, const NetworkMap<B>& dst) {
         src.resize(dst.size());
-        for (int nid = 0; nid < dst.size(); nid++) { src[nid].resize(dst[nid].size()); }
+        for (size_t nid = 0; nid < dst.size(); nid++) { src[nid].resize(dst[nid].size()); }
     }
 };
 

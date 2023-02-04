@@ -41,7 +41,7 @@ HST void SearchResult_Hst::update_click(const int& click_val) {
 /**
  * @brief Gets the document ID associated with this search result.
  *
- * @return int The document ID of the search result.
+ * @return The document ID of the search result.
  */
 HST int SearchResult_Hst::get_doc_id() const{
     return doc_id;
@@ -50,7 +50,7 @@ HST int SearchResult_Hst::get_doc_id() const{
 /**
  * @brief Gets whether the search result has been clicked or not.
  *
- * @return int Integer representing a click (1) or no click (0) on the search
+ * @return Value representing a click (1) or no click (0) on the search
  * result.
  */
 HST int SearchResult_Hst::get_click() const{
@@ -74,7 +74,7 @@ HST void SearchResult_Hst::set_param_index(const int& index) {
  * The parameter index is a unique number associated with all search results
  * with the same query-document pair.
  *
- * @return int The parameter index.
+ * @return The parameter index.
  */
 HST int SearchResult_Hst::get_param_index() const{
     return param_index;
@@ -105,8 +105,8 @@ HST SERP_Hst::SERP_Hst(const std::vector<std::string>& line) {
  *
  * @param line A raw dataset line representing a click on a document of length
  * 4.
- * @return true The document click attribute has succesfully been updated.
- * @return false No document with the given document ID was found, so no search
+ * @return true, if the document click attribute has succesfully been updated,
+ * or false, if no document with the given document ID was found, and no search
  * result was updated.
  */
 HST bool SERP_Hst::update_click_res(const std::vector<std::string>& line){
@@ -126,7 +126,7 @@ HST bool SERP_Hst::update_click_res(const std::vector<std::string>& line){
  * @brief Get a copy of a search result at a given rank within this session.
  *
  * @param rank The rank of the search result.
- * @return SearchResult_Hst The copy of the search result.
+ * @return The copy of the search result.
  */
 HST SearchResult_Hst SERP_Hst::operator[] (const int& rank) const{
     return session[rank];
@@ -135,7 +135,7 @@ HST SearchResult_Hst SERP_Hst::operator[] (const int& rank) const{
 /**
  * @brief The query ID of the query session.
  *
- * @return int The query ID.
+ * @return The query ID.
  */
 HST int SERP_Hst::get_query() const{
     return this->query;
@@ -146,7 +146,7 @@ HST int SERP_Hst::get_query() const{
  * session. This is not a copy!
  *
  * @param rank The rank of the search result.
- * @return SearchResult_Hst The reference to the search result within this session.
+ * @return The reference to the search result within this session.
  */
 HST SearchResult_Hst& SERP_Hst::access_sr(const int& rank) {
     return session[rank];
@@ -156,7 +156,7 @@ HST SearchResult_Hst& SERP_Hst::access_sr(const int& rank) {
  * @brief Retrieve the last rank at which a document has been clicked in this
  * SERP_Hst. The last rank (9) is returned if no clicked documents are found.
  *
- * @return int The rank of the last clicked document.
+ * @return The rank of the last clicked document.
  */
 HST int SERP_Hst::last_click_rank(void) {
     int last_click_rank = MAX_SERP;
@@ -179,7 +179,7 @@ HST int SERP_Hst::last_click_rank(void) {
  * get assigned the last rank (9).
  *
  * @param prev_click_rank The array which stores the rank of the previous click.
- * @return std::array<int, 10> The clicks on each of the documents in this
+ * @return The clicks on each of the documents in this
  * query session.
  */
 HST void SERP_Hst::prev_clicked_rank(int (&prev_click_rank)[MAX_SERP]) {
@@ -219,7 +219,7 @@ HST SearchResult_Dev::SearchResult_Dev(const int& click, const int& param) {
 /**
  * @brief Gets whether the search result has been clicked or not.
  *
- * @return int Integer representing a click (1) or no click (0) on the search
+ * @return Integer representing a click (1) or no click (0) on the search
  * result.
  */
 DEV int SearchResult_Dev::get_click() const{
@@ -231,7 +231,7 @@ DEV int SearchResult_Dev::get_click() const{
  * The parameter index is a unique number associated with all search results
  * with the same query-document pair.
  *
- * @return int The parameter index.
+ * @return The parameter index.
  */
 DEV int SearchResult_Dev::get_param_index() const{
     return param_index;
@@ -248,7 +248,7 @@ DEV HST SERP_Dev::SERP_Dev() = default;
  * @brief Get a copy of a search result at a given rank within this session.
  *
  * @param rank The rank of the search result.
- * @return SearchResult_Dev The copy of the search result.
+ * @return The copy of the search result.
  */
 HST SearchResult_Dev SERP_Dev::operator[] (const int& rank) const{
     return session[rank];
@@ -283,7 +283,7 @@ DEV SERP_Dev::SERP_Dev(SearchResult_Dev*& dataset, int& dataset_size, int& threa
  * @brief Retrieve the last rank at which a document has been clicked in this
  * SERP_Hst. The last rank (9) is returned if no clicked documents are found.
  *
- * @return int The rank of the last clicked document.
+ * @return The rank of the last clicked document.
  */
 DEV int SERP_Dev::last_click_rank(void) {
     int last_click_rank = MAX_SERP;
@@ -306,8 +306,7 @@ DEV int SERP_Dev::last_click_rank(void) {
  * get assigned the last rank (9).
  *
  * @param prev_click_rank The array which stores the rank of the previous click.
- * @return std::array<int, 10> The clicks on each of the documents in this
- * query session.
+ * @return The clicks on each of the documents in this query session.
  */
 DEV void SERP_Dev::prev_clicked_rank(int (&prev_click_rank)[MAX_SERP]) {
     int last_click_rank{MAX_SERP - 1};

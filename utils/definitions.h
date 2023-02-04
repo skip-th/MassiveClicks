@@ -5,22 +5,24 @@
  */
 
 
-#ifdef __CUDACC__
+#ifdef __CUDACC__ // If compiling with nvcc.
     #define HST __host__
     #define DEV __device__
     #define GLB __global__
     #define SHR __shared__
+    #define CST __constant__
 #else
     #define HST
     #define DEV
     #define GLB
     #define SHR
+    #define CST
 #endif // __CUDACC__
 
 #ifndef CLICK_MODEL_DEFINITIONS_H
     #define CLICK_MODEL_DEFINITIONS_H
         #define ROOT 0 // The id of the root node.
-        #define BLOCK_SIZE 96 // Threads per block. Can't be less than MAX_SERP.
+        #define BLOCK_SIZE 128 // Threads per block. Can't be less than MAX_SERP.
 
         #define D2H 0 // Device to host.
         #define H2D 1 // Host to device.
@@ -29,8 +31,8 @@
         #define PRIVATE 1
         #define ALL -1
 
-        #define PARAM_DEF_NUM 1 // Default numerator for parameters.
-        #define PARAM_DEF_DENOM 2 // Default denominator for parameters.
+        #define PARAM_DEF_NUM 1.f // Default numerator for parameters.
+        #define PARAM_DEF_DENOM 2.f // Default denominator for parameters.
 
         #define N_TAU 3 // Number of continuation (tau) parameters used in CCM.
         #define N_GAM 1 // Number of continuation (gamma) parameters used in DBN.

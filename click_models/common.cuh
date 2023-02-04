@@ -23,5 +23,6 @@ HST void update_unique_parameters_hst(std::vector<Param>& src, std::vector<Param
 HST void update_shared_parameters_hst(std::vector<Param>& src, std::vector<Param>& dst, const std::vector<SERP_Hst>& dataset, const std::vector<int>& thread_start_idx);
 DEV void update_shared_parameters_dev(Param*& src, Param*& dst, int& thread_index, int& src_size, int& block_index, int& dataset_size);
 DEV void update_unique_parameters_dev(Param*& src, Param*& dst, int& thread_index, int& dataset_size, const int (&pidx)[BLOCK_SIZE * MAX_SERP]);
+DEV void warp_reduce(volatile float* shared_data, int block_index);
 
 #endif // CLICK_MODEL_COMMON_H
