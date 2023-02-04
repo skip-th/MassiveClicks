@@ -13,11 +13,13 @@
 *.pdf
 *.png
 *.jpg
-*.pdf
 *.txt
 *.pyc
 *.vscode
 *.csv
+
+# Exclude experiment files.
+!experiments/**
 
 # Special cases.
 !*/CMakeLists.txt
