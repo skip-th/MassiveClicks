@@ -13,6 +13,7 @@
 #include <string>
 #include <vector>
 #include <array>
+#include <cuda_runtime.h>
 
 // User include.
 #include "../utils/definitions.h"

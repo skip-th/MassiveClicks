@@ -17,6 +17,7 @@
 #include <mutex>
 #include <cstring>
 #include <cuda_runtime.h>
+#include <cuda_fp16.h>
 
 // User include.
 #include "../utils/definitions.h"

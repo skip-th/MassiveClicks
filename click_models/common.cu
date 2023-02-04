@@ -206,8 +206,7 @@ DEV void update_shared_parameters_dev(Param*& src, Param*& dst, int& thread_inde
     for (int rank = 0; rank < src_size; rank++) {
         // Initialize shared memory for this block's parameters.
         if (thread_index < dataset_size) {
-            Param tmp_param{Param(__ldg(&((float2*) src)[rank * dataset_size + thread_index]))};
-            // Param tmp_param = src[rank * dataset_size + thread_index];
+            Param tmp_param = src[rank * dataset_size + thread_index];
             numerator[block_index] = tmp_param.numerator_val();
             denominator[block_index] = tmp_param.denominator_val();
         }
@@ -269,8 +268,7 @@ DEV void update_shared_parameters_dev(Param*& src, Param*& dst, int& thread_inde
  */
 DEV void update_unique_parameters_dev(Param*& src, Param*& dst, int& thread_index, int& dataset_size, const int (&pidx)[BLOCK_SIZE * MAX_SERP]) {
     for (int rank = 0; rank < MAX_SERP; rank++) {
-        Param update{Param(__ldg(&((float2*) src)[rank * dataset_size + thread_index]))};
-        // Param update = src[rank * dataset_size + thread_index];
+        Param update = src[rank * dataset_size + thread_index];
         dst[pidx[rank * BLOCK_SIZE + threadIdx.x]].atomic_add_to_values(
             update.numerator_val(),
             update.denominator_val());

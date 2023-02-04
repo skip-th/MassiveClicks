@@ -6,7 +6,6 @@ CUFLAGS = -O3 --use_fast_math --extra-device-vectorization -lineinfo
 LDLIBS = -lpthread
 OBJ_DIR = build
 CU_OPT = \
-	-gencode=arch=compute_52,code=sm_52 \
 	-gencode=arch=compute_62,code=sm_62 \
 	-gencode=arch=compute_80,code=sm_80 \
 	-gencode=arch=compute_80,code=compute_80
@@ -14,9 +13,10 @@ PROGRAM = gpucmt
 VERSION = v1
 
 
-.PHONY: all build clean $(PROGRAM)_$(VERSION)
+.PHONY: all build clean $(PROGRAM)_$(VERSION) compatibility
 
 all: clean $(PROGRAM)_$(VERSION)
+# all: compatibility
 
 $(OBJ_DIR)/host.o: main.cpp data/dataset.cpp click_models/evaluation.cpp parallel_em/communicator.cpp utils/macros.cpp
 	@echo "[1/4] Compiling host code..."
@@ -42,6 +42,11 @@ $(PROGRAM)_$(VERSION): $(OBJ_DIR)/host.o $(OBJ_DIR)/device_link.o $(OBJ_DIR)/dev
 	@echo "[4/4] Building executable..."
 	$(CC) $(CFLAGS) $(LDLIBS) -std=c++11 $^ -o $@ -lcudart
 	@rm -f *.o
+
+compatibility: CPPFLAGS += -D COMPATIBILITY
+compatibility: CU_OPT += -gencode=arch=compute_52,code=sm_52
+compatibility: clean $(PROGRAM)_$(VERSION)
+	@echo "Compiled with CUDA Compute Capability 5.2 support"
 
 clean:
 	@echo "Cleaning up..."

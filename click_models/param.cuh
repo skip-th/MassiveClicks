@@ -10,6 +10,7 @@
 #define CLICK_MODEL_PARAMETERS_H
 
 // System include.
+#include <cuda_fp16.h>
 #include <math.h>
 #include <cuda_runtime.h>
 
@@ -18,19 +19,18 @@
 #include "../utils/utils.cuh"
 
 class Param {
-private:
-    #ifdef __CUDA_ARCH__
-        float2 fraction{PARAM_DEF_NUM, PARAM_DEF_DENOM};
+public:
+    #ifndef COMPATIBILITY // CUDA >7.0 supports fp16 atomic add
+        __half2 fraction{PARAM_DEF_NUM, PARAM_DEF_DENOM};
     #else
         float numerator{PARAM_DEF_NUM};
         float denominator{PARAM_DEF_DENOM};
     #endif
-public:
-    DEV Param(const struct float2& fraction);
+
     DEV HST Param();
     DEV HST Param(const float& numerator, const float& denominator);
     DEV HST Param operator + (const Param& other) const;
-    DEV HST Param& operator += (const Param& value);
+    DEV HST void operator += (const Param& other);
 
     DEV HST float value() const;
     DEV HST float numerator_val() const;
@@ -38,6 +38,7 @@ public:
     DEV HST void set_values(float numerator_val, float denominator_val);
     DEV HST void add_to_values(float numerator_val, float denominator_val);
     DEV void atomic_add_to_values(float numerator_val, float denominator_val);
+    DEV void atomic_add_param(Param other);
 };
 
 #endif // CLICK_MODEL_PARAMETERS_H
