@@ -13,7 +13,6 @@
 #include <mpi.h>
 
 // System include.
-#include <chrono>
 #include <iostream>
 #include <map>
 #include <string>
@@ -22,19 +21,63 @@
 #include <cmath>
 #include <thread>
 #include <numeric>
+#include <functional>
 
 // User include.
 #include "utils/definitions.h"
 #include "utils/macros.cuh"
 #include "utils/utils.cuh"
+#include "utils/timer.h"
 #include "parallel_em/parallel_em.cuh"
 #include "parallel_em/communicator.h"
 #include "data/dataset.h"
 #include "click_models/base.cuh"
 
+/**
+ * @brief Check if the given number of threads is valid.
+ *
+ * @param n_threads Number of threads to use.
+ * @param node_id MPI rank of this node.
+ */
+void check_valid_threads(int n_threads, int node_id) {
+    if (n_threads < 1) {
+        if (node_id == ROOT) {
+            std::cerr << "[" << node_id << "] \033[12;31mError\033[0m: Invalid number of threads: " << n_threads << std::endl;
+        }
+        Communicate::finalize();
+        exit(EXIT_SUCCESS);
+    }
+    else if (n_threads > static_cast<int>(std::thread::hardware_concurrency())) {
+        std::cout << "[" << node_id << "] \033[12;33mWarning\033[0m: " << n_threads << " threads exceeds hardware concurrency of " << std::thread::hardware_concurrency() << " threads!" << std::endl;
+    }
+}
+
+/**
+ * @brief Check if the given number of devices is valid.
+ *
+ * @param n_devices Number of devices on this node.
+ * @param n_gpus Number of GPUs to use.
+ * @param exec_mode Execution mode.
+ * @param node_id MPI rank of this node.
+ */
+void check_valid_devices(int n_devices, int n_gpus, int exec_mode, int node_id) {
+    // Check if there are any GPU devices on this node to support the requested
+    // GPU execution.
+    if (exec_mode == 0 || exec_mode == 2) {
+        if (n_devices == 0 || n_gpus <= 0) { // No GPUs requested or found.
+            Communicate::error_check("[" + std::to_string(node_id) + "] \033[12;31mError\033[0m: No GPU devices found for GPU-only or hybrid execution.");
+        }
+        else if (n_gpus > n_devices) { // More GPUs requested than available.
+            std::cerr << "[" << node_id << "] \033[12;33mWarning\033[0m: Number of GPUs requested (" << n_gpus << ") exceeds number of available devices (" << n_devices << ")." << std::endl;
+        }
+    }
+    Communicate::error_check();
+}
+
 
 int main(int argc, char** argv) {
-    auto start_time = std::chrono::high_resolution_clock::now();
+    Timer timer;
+    timer.start("Total");
 
     //-----------------------------------------------------------------------//
     // Initialize MPI                                                        //
@@ -44,15 +87,12 @@ int main(int argc, char** argv) {
     int n_nodes, node_id;
     Communicate::initiate(argc, argv, n_nodes, node_id);
 
-    // Get number of GPU devices available on this node.
+    // Get number of devices on this node and their compute capability.
     int n_devices{0};
     int n_devices_network[n_nodes];
     std::vector<std::vector<std::vector<int>>> network_properties(n_nodes); // Node, Device, [Architecture, Free memory].
-
-    // Get number of devices on this node and their compute capability.
     get_number_devices(&n_devices);
     int processing_units = n_devices > 0 ? n_devices : 1;
-
 
     //-----------------------------------------------------------------------//
     // Declare and retrieve input parameters                                 //
@@ -78,127 +118,104 @@ int main(int argc, char** argv) {
         {2, "Hybrid"},
     };
 
-    std::string raw_dataset_path{"YandexRelPredChallenge100k.txt"};
-    std::string output_path{""};
-    int n_threads{static_cast<int>(std::thread::hardware_concurrency())};
-    int n_gpus{n_devices};
-    int n_iterations{50};
-    int max_sessions{40000};
-    int model_type{0};
-    int partitioning_type{0};
-    int job_id{0};
-    float test_share{0.2};
-    int total_n_devices{0};
-    int exec_mode{n_devices > 0 ? 0 : 1}; // GPU-only: 0, CPU-only: 1.
-    bool help{false};
+    std::string raw_dataset_path = "YandexRelPredChallenge100k.txt";
+    std::string output_path      = "";
+    int n_threads                = static_cast<int>(std::thread::hardware_concurrency());
+    int n_gpus                   = n_devices;
+    int n_iterations             = 50;
+    int max_sessions             = 40000;
+    int model_type               = 0;
+    int partitioning_type        = 0;
+    int job_id                   = 0;
+    int total_n_devices          = 0;
+    int exec_mode                = n_devices > 0 ? 0 : 1; // GPU-only: 0, CPU-only: 1.
+    float test_share             = 0.2;
+    bool help                    = false;
+
+    struct Option {
+        std::string long_form;
+        std::string short_form;
+        std::function<void(const char*)> handler;
+    };
+
+    // Define the available options.
+    std::vector<Option> options = {
+        // {long_form, short_form, handler}
+        {"--n-threads",      "-n", [&](const char* value) { n_threads = std::stoi(value); }},
+        {"--n-gpus",         "-g", [&](const char* value) { n_gpus = std::stoi(value); }},
+        {"--raw-path",       "-r", [&](const char* value) { raw_dataset_path = value; }},
+        {"--output",         "-o", [&](const char* value) { output_path = value; }},
+        {"--itr",            "-i", [&](const char* value) { n_iterations = std::stoi(value); }},
+        {"--max-sessions",   "-s", [&](const char* value) { max_sessions = std::stoi(value); }},
+        {"--model-type",     "-m", [&](const char* value) { model_type = std::stoi(value); }},
+        {"--partition-type", "-p", [&](const char* value) { partitioning_type = std::stoi(value); }},
+        {"--test-share",     "-t", [&](const char* value) { test_share = std::stod(value); }},
+        {"--job-id",         "-j", [&](const char* value) { job_id = std::stoi(value); }},
+        {"--exec-mode",      "-e", [&](const char* value) { exec_mode = std::stoi(value); }},
+        {"--help",           "-h", [&](const char*)       { help = true; }},
+    };
 
     // Parse input parameters.
     if (argc > 1) {
-        for (int i = 1; i < argc; ++i) {
+        for (int i = 1; i < argc; i += 2) {
+            std::string arg_name = argv[i];
+            const char* arg_value = argv[i + 1];
+
+            bool handled = false;
             try {
-                if (std::string(argv[i]) == "--n-threads" || std::string(argv[i]) == "-n") {
-                    n_threads = std::stoi(argv[i+1]);
+                for (const auto& option : options) {
+                    if (arg_name == option.long_form || arg_name == option.short_form) {
+                        option.handler(arg_value);
+                        handled = true;
+                        break;
+                    }
                 }
-                else if (std::string(argv[i]) == "--n-gpus" || std::string(argv[i]) == "-g") {
-                    n_gpus = std::stoi(argv[i+1]);
-                }
-                else if (std::string(argv[i]) == "--raw-path" || std::string(argv[i]) == "-r") {
-                    raw_dataset_path = argv[i + 1];
-                }
-                else if (std::string(argv[i]) == "--output" || std::string(argv[i]) == "-o") {
-                    output_path = argv[i + 1];
-                }
-                else if (std::string(argv[i]) == "--itr" || std::string(argv[i]) == "-i") {
-                    n_iterations = std::stoi(argv[i + 1]);
-                }
-                else if (std::string(argv[i]) == "--max-sessions" || std::string(argv[i]) == "-s") {
-                    max_sessions = std::stoi(argv[i + 1]);
-                }
-                else if (std::string(argv[i]) == "--model-type" || std::string(argv[i]) == "-m") {
-                    model_type = std::stoi(argv[i + 1]);
-                }
-                else if (std::string(argv[i]) == "--partition-type" || std::string(argv[i]) == "-p") {
-                    partitioning_type = std::stoi(argv[i + 1]);
-                }
-                else if (std::string(argv[i]) == "--test-share" || std::string(argv[i]) == "-t") {
-                    test_share = std::stod(argv[i + 1]);
-                }
-                else if (std::string(argv[i]) == "--job-id" || std::string(argv[i]) == "-j") {
-                    job_id = std::stoi(argv[i + 1]);
-                }
-                else if (std::string(argv[i]) == "--exec-mode" || std::string(argv[i]) == "-e") {
-                    exec_mode = std::stoi(argv[i + 1]);
-                }
-                else if (std::string(argv[i]) == "--help" || std::string(argv[i]) == "-h") {
-                    help = true;
-                }
-                else if (std::string(argv[i]).rfind("-", 0) == 0) {
+
+                if (!handled && arg_name.rfind("-", 0) == 0) {
                     if (node_id == ROOT) {
-                        std::cout << "Did not recognize flag \'" <<
-                        std::string(argv[i]) << "\'." << std::endl;
+                        std::cerr << "[" << node_id << "] \033[12;31mError\033[0m: Did not recognize flag \'" << arg_name << "\'." << std::endl;
                     }
                     help = true;
                 }
             }
             catch (std::invalid_argument& e) {
                 if (node_id == ROOT) {
-                    std::cout << "Invalid argument \'" << argv[i + 1] <<
-                    "\' for flag \'" << argv[i] << "\'." << std::endl;
+                    std::cerr << "[" << node_id << "] \033[12;31mError\033[0m: Invalid argument \'" << arg_value << "\' for flag \'" << arg_name << "\'." << std::endl;
                 }
                 help = true;
             }
         }
     }
 
-
     //-----------------------------------------------------------------------//
     // Error check the input                                                 //
     //-----------------------------------------------------------------------//
 
-    // Display help message and shutdown.
+    // Check if help is requested
     if (help) {
         if (node_id == ROOT) {
             show_help_msg();
         }
-
-        // End MPI communication and exit.
         Communicate::finalize();
-        return EXIT_SUCCESS;
+        exit(EXIT_SUCCESS);
     }
 
+    // Check if execution mode is valid
     if (node_id == ROOT && exec_mode == 2) {
         std::cerr << "[" << node_id << "] \033[12;33mWarning\033[0m: Hybrid execution is not yet supported. Defaulting to GPU-only." << std::endl;
     }
 
-    // Ensure that the execution mode can be used.
-    if (exec_mode == 0 || exec_mode == 2) {
-        if (n_devices == 0 || n_gpus <= 0) {
-            Communicate::error_check("[" + std::to_string(node_id) + "] \033[12;31mError\033[0m: No GPU devices found for GPU-only or hybrid execution.");
-        }
-        else if (n_gpus > n_devices) {
-            std::cerr << "[" << node_id << "] \033[12;33mWarning\033[0m: Number of GPUs requested (" << n_gpus << ") exceeds number of available devices (" << n_devices << ")." << std::endl;
-        }
-    }
-    else if (exec_mode == 1) {
+    // Check if devices are valid
+    check_valid_devices(n_devices, n_gpus, exec_mode, node_id);
+
+    // Check if number of threads is valid
+    check_valid_threads(n_threads, node_id);
+
+    // Set the number of GPU devices to 0 when CPU-only execution is requested.
+    if (exec_mode == 1) {
         n_devices = 0;
         processing_units = 1;
     }
-    Communicate::error_check();
-
-    // Ensure that the number of threads is valid.
-    if (n_threads < 1) {
-        if (node_id == ROOT) {
-            std::cerr << "[" << node_id << "] \033[12;31mError\033[0m: Invalid number of threads: " << n_threads << std::endl;
-        }
-
-        // End MPI communication and exit.
-        Communicate::finalize();
-        return EXIT_SUCCESS;
-    }
-    else if (n_threads > static_cast<int>(std::thread::hardware_concurrency())) {
-        std::cout << "[" << node_id << "] \033[12;33mWarning\033[0m: " << n_threads << " threads exceeds hardware concurrency of " << std::thread::hardware_concurrency() << " threads!" << std::endl;
-    }
-
 
     //-----------------------------------------------------------------------//
     // Communicate system properties                                         //
@@ -236,7 +253,7 @@ int main(int argc, char** argv) {
 
     // Gather the compute architectures and free memory on the root node.
     Communicate::gather_properties(node_id, n_nodes, processing_units, n_devices_network, network_properties, device_architecture, free_memory);
-    total_n_devices = std::accumulate(n_devices_network, n_devices_network+n_nodes, 0);
+    total_n_devices = std::accumulate(n_devices_network, n_devices_network + n_nodes, 0);
 
     // Show job information on the root node.
     if (node_id == ROOT) {
@@ -265,13 +282,12 @@ int main(int argc, char** argv) {
         std::cout << std::endl;
     }
 
-
     //-----------------------------------------------------------------------//
     // Parse given click log dataset                                         //
     //-----------------------------------------------------------------------//
 
-    auto preprocessing_start_time = std::chrono::high_resolution_clock::now();
-    auto parse_start_time = std::chrono::high_resolution_clock::now();
+    timer.start("Preprocessing");
+    timer.start("Parsing");
 
     Dataset dataset;
 
@@ -287,28 +303,26 @@ int main(int argc, char** argv) {
     // Check if parsing failed on the root node.
     Communicate::error_check();
 
-    auto parse_stop_time = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double> elapsed_parsing = parse_stop_time - parse_start_time;
+    timer.stop("Parsing");
 
     //-----------------------------------------------------------------------//
     // Partition parsed dataset                                              //
     //-----------------------------------------------------------------------//
 
-    auto partitioning_start_time = std::chrono::high_resolution_clock::now();
+    timer.start("Partitioning");
 
     if (node_id == ROOT) {
         // Split the dataset into partitions. One for each device on each node.
         dataset.make_splits(network_properties, test_share, partitioning_type, model_type);
     }
 
-    auto partitioning_stop_time = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double> elapsed_partitioning = partitioning_stop_time - partitioning_start_time;
+    timer.stop("Partitioning");
 
     //-----------------------------------------------------------------------//
     // Send/Retrieve partitions                                              //
     //-----------------------------------------------------------------------//
 
-    auto transfering_start_time = std::chrono::high_resolution_clock::now();
+    timer.start("Communication");
 
     // Store the train/test splits for each device on each node.
     std::vector<std::tuple<std::vector<SERP_Hst>, std::vector<SERP_Hst>, int>> device_partitions(processing_units); // Device ID -> [train set, test set, size qd pairs]
@@ -333,15 +347,13 @@ int main(int argc, char** argv) {
     // Wait until printing is done.
     Communicate::barrier();
 
-    auto transfering_stop_time = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double> elapsed_transfering = transfering_stop_time - transfering_start_time;
-
+    timer.stop("Communication");
 
     //-----------------------------------------------------------------------//
     // Sort dataset partitions                                               //
     //-----------------------------------------------------------------------//
 
-    auto sorting_start_time = std::chrono::high_resolution_clock::now();
+    timer.start("Sorting");
 
     // Sorting the dataset is only necessary when the CPU is used.
     if (exec_mode == 1 || exec_mode == 2) {
@@ -353,53 +365,51 @@ int main(int argc, char** argv) {
         sort_partitions(device_partitions, n_threads);
     }
 
-    auto sorting_stop_time = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double> elapsed_sorting = sorting_stop_time - sorting_start_time;
-
-    auto preprocessing_stop_time = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double> elapsed_preprocessing = preprocessing_stop_time - preprocessing_start_time;
-
+    timer.stop("Sorting");
+    timer.stop("Preprocessing");
 
     //-----------------------------------------------------------------------//
     // Run parallel generic EM algorithm on selected click model and dataset //
     //-----------------------------------------------------------------------//
 
-    auto estimating_start_time = std::chrono::high_resolution_clock::now();
+    timer.start("EM");
 
     // Run click model parameter estimation using the generic EM algorithm.
     em_parallel(model_type, node_id, n_nodes, n_threads, n_devices_network, n_iterations,
                 exec_mode, n_devices, processing_units, device_partitions, output_path);
 
-    auto estimating_stop_time = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double> elapsed_estimating = estimating_stop_time - estimating_start_time;
-
+    timer.stop("EM");
 
     //-----------------------------------------------------------------------//
     // Show metrics                                                          //
     //-----------------------------------------------------------------------//
 
-    auto stop_time = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double> elapsed = stop_time - start_time;
+    timer.stop("Total");
+
+    auto print_time_metrics = [](const std::string& metric_name, double metric_value, double total_value) {
+        auto percent = metric_value / total_value * 100;
+        std::cout << std::left << std::setw(27) << metric_name << std::left << std::setw(7) << std::fixed << std::setprecision(7) <<
+            metric_value << " seconds, " << std::right << std::setw(3) << std::setprecision(0) << std::round(percent) << " %" << std::endl;
+    };
 
     // Show timing metrics on the root node.
     if (node_id == ROOT) {
-        std::vector<double> percent_preproc = { elapsed_parsing.count(), elapsed_partitioning.count(), elapsed_transfering.count(), elapsed_sorting.count() };
-        std::vector<double> percent_combined = { elapsed_preprocessing.count(), elapsed_estimating.count() };
+        std::vector<double> percent_preproc = { timer.elapsed("Parsing"), timer.elapsed("Partitioning"), timer.elapsed("Communication"), timer.elapsed("Sorting") };
+        std::vector<double> percent_combined = { timer.elapsed("Preprocessing"), timer.elapsed("EM") };
         double preproc_total = std::accumulate(percent_preproc.begin(), percent_preproc.end(), 0.0);
         double combined_total = std::accumulate(percent_combined.begin(), percent_combined.end(), 0.0);
-        for (size_t i = 0; i < percent_preproc.size(); i++) { percent_preproc[i] = (percent_preproc[i] / preproc_total); }
-        for (size_t i = 0; i < percent_combined.size(); i++) { percent_combined[i] = (percent_combined[i] / combined_total); }
-        auto digit_cutoff = [](double digit, int size) { return std::to_string(digit).substr(0, std::to_string(digit).find(".") + size + 1); };
 
-        std::cout << std::endl << std::left << std::setw(27) << "Total pre-processing time: " << std::left << std::setw(7) << digit_cutoff(elapsed_preprocessing.count(), 7) << " seconds, " << std::right << std::setw(3) << std::round(percent_combined[0] * 100) << " %" << std::endl;
-        std::cout << std::left << std::setw(27) << "  Parsing time: " << std::left << std::setw(7) << digit_cutoff(elapsed_parsing.count(), 7) << " seconds, " << std::right << std::setw(3) << std::round(percent_preproc[0] * 100) << " %" << std::endl;
-        std::cout << std::left << std::setw(27) << "  Partitioning time: " << std::left << std::setw(7) << digit_cutoff(elapsed_partitioning.count(), 7) << " seconds, " << std::right << std::setw(3) << std::round(percent_preproc[1] * 100) << " %" << std::endl;
-        std::cout << std::left << std::setw(27) << "  Communication time: " << std::left << std::setw(7) << digit_cutoff(elapsed_transfering.count(), 7) << " seconds, " << std::right << std::setw(3) << std::round(percent_preproc[2] * 100) << " %" << std::endl;
+        std::cout << std::endl;
+        print_time_metrics("Total pre-processing time: ", timer.elapsed("Preprocessing"), combined_total);
+        print_time_metrics("  Parsing time: ", timer.elapsed("Parsing"), preproc_total);
+        print_time_metrics("  Partitioning time: ", timer.elapsed("Partitioning"), preproc_total);
+        print_time_metrics("  Communication time: ", timer.elapsed("Communication"), preproc_total);
         if (exec_mode == 1 || exec_mode == 2) {
-            std::cout << std::left << std::setw(27) << "  Sorting time: " << std::left << std::setw(7) << digit_cutoff(elapsed_sorting.count(), 7) << " seconds, " << std::right << std::setw(3) << std::round(percent_preproc[3] * 100) << " %" << std::endl;
+            print_time_metrics("  Sorting time: ", timer.elapsed("Sorting"), preproc_total);
         }
-        std::cout << std::left << std::setw(27) << "Parameter estimation time: " << std::left << std::setw(7) << digit_cutoff(elapsed_estimating.count(), 7) << " seconds, " << std::right << std::setw(3) << std::round(percent_combined[1] * 100) << " %" << std::endl;
-        std::cout << std::left << std::setw(27) << "Total elapsed time: " << std::left << std::setw(7) << digit_cutoff(elapsed.count(), 7) << " seconds, 100 %" << std::endl << std::endl;
+        print_time_metrics("Parameter estimation time: ", timer.elapsed("EM"), combined_total);
+        print_time_metrics("Total elapsed time: ", timer.elapsed("Total"), timer.elapsed("Total"));
+        std::cout << std::endl;
     }
 
     // End MPI communication.

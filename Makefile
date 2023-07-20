@@ -12,7 +12,7 @@ CU_OPT  = \
 PROGRAM = mclicks
 VERSION = 1
 
-SRCS    = main.cpp data/dataset.cpp click_models/evaluation.cpp parallel_em/communicator.cpp utils/macros.cpp
+SRCS    = main.cpp data/dataset.cpp click_models/evaluation.cpp parallel_em/communicator.cpp utils/macros.cpp utils/timer.cpp
 CU_SRCS = utils/utils.cu parallel_em/parallel_em.cu parallel_em/kernel.cu data/search.cu \
 	      click_models/base.cu click_models/param.cu click_models/common.cu click_models/factor.cu \
           click_models/pbm.cu click_models/ccm.cu click_models/dbn.cu click_models/ubm.cu

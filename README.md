@@ -12,7 +12,7 @@ models are currently supported:
 4. *Dynamic Bayesian Network Model (DBN)*.
 
 MassiveClicks builds upon the generic EM-based algorithm for CPU-based
-single-node click model training [ParClick](https://github.com/uva-sne/ParClick).
+single-node click model training, [ParClick](https://github.com/uva-sne/ParClick).
 
 ## Requirements
 
@@ -47,5 +47,5 @@ And the clicks that follow a query are assumed to be in the following format:
 <session_id> <time_passed> <event_type> <document_id>
 ```
 
-Only clicks containing a document ID occuring in the immediately preceding
+Only clicks containing a document ID occurring in the immediately preceding
 query are considered.
