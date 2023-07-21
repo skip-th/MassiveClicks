@@ -33,6 +33,8 @@
 #include "data/dataset.h"
 #include "click_models/base.cuh"
 
+char hostname[1024];
+
 /**
  * @brief Check if the given number of threads is valid.
  *
@@ -42,13 +44,13 @@
 void check_valid_threads(int n_threads, int node_id) {
     if (n_threads < 1) {
         if (node_id == ROOT) {
-            std::cerr << "[" << node_id << "] \033[12;31mError\033[0m: Invalid number of threads: " << n_threads << std::endl;
+            std::cerr << "[" << hostname << "] \033[12;31mError\033[0m: Invalid number of threads: " << n_threads << std::endl;
         }
         Communicate::finalize();
         exit(EXIT_SUCCESS);
     }
     else if (n_threads > static_cast<int>(std::thread::hardware_concurrency())) {
-        std::cout << "[" << node_id << "] \033[12;33mWarning\033[0m: " << n_threads << " threads exceeds hardware concurrency of " << std::thread::hardware_concurrency() << " threads!" << std::endl;
+        std::cout << "[" << hostname << "] \033[12;33mWarning\033[0m: " << n_threads << " threads exceeds hardware concurrency of " << std::thread::hardware_concurrency() << " threads!" << std::endl;
     }
 }
 
@@ -65,10 +67,10 @@ void check_valid_devices(int n_devices, int n_gpus, int exec_mode, int node_id) 
     // GPU execution.
     if (exec_mode == 0 || exec_mode == 2) {
         if (n_devices == 0 || n_gpus <= 0) { // No GPUs requested or found.
-            Communicate::error_check("[" + std::to_string(node_id) + "] \033[12;31mError\033[0m: No GPU devices found for GPU-only or hybrid execution.");
+            Communicate::error_check("[" + std::string(hostname) + "] \033[12;31mError\033[0m: No GPU devices found for GPU-only or hybrid execution.");
         }
         else if (n_gpus > n_devices) { // More GPUs requested than available.
-            std::cerr << "[" << node_id << "] \033[12;33mWarning\033[0m: Number of GPUs requested (" << n_gpus << ") exceeds number of available devices (" << n_devices << ")." << std::endl;
+            std::cerr << "[" << hostname << "] \033[12;33mWarning\033[0m: Number of GPUs requested (" << n_gpus << ") exceeds number of available devices (" << n_devices << ")." << std::endl;
         }
     }
     Communicate::error_check();
@@ -86,6 +88,7 @@ int main(int argc, char** argv) {
     // Initialize MPI and get this node's rank and the number of nodes.
     int n_nodes, node_id;
     Communicate::initiate(argc, argv, n_nodes, node_id);
+    gethostname(hostname, 1024);
 
     // Get number of devices on this node and their compute capability.
     int n_devices{0};
@@ -173,14 +176,14 @@ int main(int argc, char** argv) {
 
                 if (!handled && arg_name.rfind("-", 0) == 0) {
                     if (node_id == ROOT) {
-                        std::cerr << "[" << node_id << "] \033[12;31mError\033[0m: Did not recognize flag \'" << arg_name << "\'." << std::endl;
+                        std::cerr << "[" << hostname << "] \033[12;31mError\033[0m: Did not recognize flag \'" << arg_name << "\'." << std::endl;
                     }
                     help = true;
                 }
             }
             catch (std::invalid_argument& e) {
                 if (node_id == ROOT) {
-                    std::cerr << "[" << node_id << "] \033[12;31mError\033[0m: Invalid argument \'" << arg_value << "\' for flag \'" << arg_name << "\'." << std::endl;
+                    std::cerr << "[" << hostname << "] \033[12;31mError\033[0m: Invalid argument \'" << arg_value << "\' for flag \'" << arg_name << "\'." << std::endl;
                 }
                 help = true;
             }
@@ -202,7 +205,7 @@ int main(int argc, char** argv) {
 
     // Check if execution mode is valid
     if (node_id == ROOT && exec_mode == 2) {
-        std::cerr << "[" << node_id << "] \033[12;33mWarning\033[0m: Hybrid execution is not yet supported. Defaulting to GPU-only." << std::endl;
+        std::cerr << "[" << hostname << "] \033[12;33mWarning\033[0m: Hybrid execution is not yet supported. Defaulting to GPU-only." << std::endl;
     }
 
     // Check if devices are valid
@@ -295,7 +298,7 @@ int main(int argc, char** argv) {
         std::cout << "Parsing dataset." << std::endl;
 
         if (parse_dataset(dataset, raw_dataset_path, max_sessions)) {
-            Communicate::error_check("[" + std::to_string(node_id) + "] \033[12;31mError\033[0m: Unable to open the raw dataset.");
+            Communicate::error_check("[" + std::string(hostname) + "] \033[12;31mError\033[0m: Unable to open the raw dataset.");
         }
 
         std::cout << "Found " << dataset.size_queries() << " query sessions." << std::endl;
@@ -376,7 +379,7 @@ int main(int argc, char** argv) {
 
     // Run click model parameter estimation using the generic EM algorithm.
     em_parallel(model_type, node_id, n_nodes, n_threads, n_devices_network, n_iterations,
-                exec_mode, n_devices, processing_units, device_partitions, output_path);
+                exec_mode, n_devices, processing_units, device_partitions, output_path, hostname);
 
     timer.stop("EM");
 

@@ -17,9 +17,6 @@
 #include "../utils/definitions.h"
 #include "macros.cuh"
 
-
-// DEV void warp_reduce(volatile float* shared_data, int block_index);
-
 HST void get_number_devices(int *num_devices);
 HST int get_compute_capability(const int device);
 HST int get_warp_size(const int device);

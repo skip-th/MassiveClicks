@@ -8,28 +8,6 @@
 
 
 //---------------------------------------------------------------------------//
-// Device-side CUDA utility functions.                                       //
-//---------------------------------------------------------------------------//
-
-// /**
-//  * @brief Reduce the values of a shared memory array to a single sum stored in
-//  * the first index.
-//  *
-//  * @param shared_data The array shared by the entire thread block containing
-//  * the elements to be summed.
-//  * @param block_index The index of the block in which this thread exists.
-//  */
-// DEV void warp_reduce(volatile float* shared_data, int block_index) {
-//     if (BLOCK_SIZE >= 64) shared_data[block_index] += shared_data[block_index + 32];
-//     if (BLOCK_SIZE >= 32) shared_data[block_index] += shared_data[block_index + 16];
-//     if (BLOCK_SIZE >= 16) shared_data[block_index] += shared_data[block_index + 8];
-//     if (BLOCK_SIZE >= 8) shared_data[block_index] += shared_data[block_index + 4];
-//     if (BLOCK_SIZE >= 4) shared_data[block_index] += shared_data[block_index + 2];
-//     if (BLOCK_SIZE >= 2) shared_data[block_index] += shared_data[block_index + 1];
-// }
-
-
-//---------------------------------------------------------------------------//
 // Host-side CUDA utility functions.                                         //
 //---------------------------------------------------------------------------//
 
@@ -121,28 +99,28 @@ HST void get_host_memory(size_t& free_memory, size_t& total_memory, const size_t
  * @brief Print a help message.
  */
 HST void show_help_msg(void) {
-    std::cout << "Usage: gpucmt [options]...\n" <<
-    "Train EM-based click models using multiple GPUs and/or machines.\n" <<
-    "Example: ./gpucmt -r 'dataset.txt' -s 40000 -i 50 -m 0 -p 0 -t 0.2 -n 32 -j 0\n\n" <<
-    "Options:\n" <<
-    "  -h, --help\t\t\tDisplay this help message.\n" <<
-    "  -r, --raw-path\t\tPath to the dataset to use.\n" <<
-    "  -o, --output-path\t\tPath to the output file for the trained\n" <<
-    "\t\t\t\tparameters.\n" <<
-    "  -s, --max-sessions\t\tMaximum number of query sessions to read from\n" <<
-    "\t\t\t\tthe dataset.\n" <<
-    "  -g, --n-gpus\t\t\tMaximum number of GPUs per machine.\n" <<
-    "  -n, --n-threads\t\tNumber of threads per machine.\n" <<
-    "  -i, --itr\t\t\tNumber of iterations to run.\n" <<
-    "  -m, --model-type\t\tClick model type to use.\n" <<
-    "\t\t\t\t0: PBM, 1: CCM, 2: DBN, 3: UBM.\n" <<
-    "  -p, --partition-type\t\tDataset partitioning scheme to use.\n" <<
-    "\t\t\t\t0: Round-Robin, 1: Maximum Utilization,\n" <<
-    "\t\t\t\t2: Resource-Aware Maximum Utilization,\n" <<
-    "\t\t\t\t3: Newest architecture first.\n" <<
-    "  -t, --test-share\t\tShare of the dataset to use for testing.\n" <<
-    "  -j, --job-id\t\t\tJob ID to use for logging.\n" <<
-    "  -e, --exec-mode\t\tExecution mode.\n" <<
-    "\t\t\t\t0: GPU, 1: CPU, 2: Hybrid.\n" << std::endl;
-    // "  -v, --verbose\t\t\tVerbose mode.\n" << std::endl;
+    const std::string help_message = R"(Usage: mclicks [options]...
+Train EM-based click models using multiple GPUs and/or machines.
+Example: ./mclicks -r 'dataset.txt' -s 40000 -i 50 -m 0 -p 0 -t 0.2 -n 32 -j 0
+
+Options:
+  -h, --help               Display this help message.
+  -r, --raw-path           Path to the dataset to use.
+  -o, --output-path        Path to the output file for the trained parameters.
+  -s, --max-sessions       Maximum number of query sessions to read from the dataset.
+  -g, --n-gpus             Maximum number of GPUs per machine.
+  -n, --n-threads          Number of threads per machine.
+  -i, --itr                Number of iterations to run.
+  -m, --model-type         Click model type to use. 0: PBM, 1: CCM, 2: DBN, 3: UBM.
+  -p, --partition-type     Dataset partitioning scheme to use.
+                           0: Round-Robin, 1: Maximum Utilization,
+                           2: Resource-Aware Maximum Utilization,
+                           3: Newest architecture first.
+  -t, --test-share         Share of the dataset to use for testing.
+  -j, --job-id             Job ID to use for logging.
+  -e, --exec-mode          Execution mode. 0: GPU, 1: CPU, 2: Hybrid.
+)";
+//   -v, --verbose            Verbose mode.";
+
+    std::cout << help_message << std::endl;
 }
