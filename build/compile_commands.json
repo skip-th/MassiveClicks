@@ -1,0 +1,110 @@
+[
+{
+  "directory": "/home/skip/MassiveClicks/MassiveClicks/build",
+  "command": "/usr/bin/g++  -isystem /usr/lib/x86_64-linux-gnu/openmpi/include/openmpi -isystem /usr/lib/x86_64-linux-gnu/openmpi/include -isystem /usr/local/cuda-12.1/include -O3 -ffast-math -g0 -g -std=gnu++11 -pthread -o CMakeFiles/mclicks.dir/main.cpp.o -c /home/skip/MassiveClicks/MassiveClicks/main.cpp",
+  "file": "/home/skip/MassiveClicks/MassiveClicks/main.cpp",
+  "output": "CMakeFiles/mclicks.dir/main.cpp.o"
+},
+{
+  "directory": "/home/skip/MassiveClicks/MassiveClicks/build",
+  "command": "/usr/bin/g++  -isystem /usr/lib/x86_64-linux-gnu/openmpi/include/openmpi -isystem /usr/lib/x86_64-linux-gnu/openmpi/include -isystem /usr/local/cuda-12.1/include -O3 -ffast-math -g0 -g -std=gnu++11 -pthread -o CMakeFiles/mclicks.dir/data/dataset.cpp.o -c /home/skip/MassiveClicks/MassiveClicks/data/dataset.cpp",
+  "file": "/home/skip/MassiveClicks/MassiveClicks/data/dataset.cpp",
+  "output": "CMakeFiles/mclicks.dir/data/dataset.cpp.o"
+},
+{
+  "directory": "/home/skip/MassiveClicks/MassiveClicks/build",
+  "command": "/usr/bin/g++  -isystem /usr/lib/x86_64-linux-gnu/openmpi/include/openmpi -isystem /usr/lib/x86_64-linux-gnu/openmpi/include -isystem /usr/local/cuda-12.1/include -O3 -ffast-math -g0 -g -std=gnu++11 -pthread -o CMakeFiles/mclicks.dir/click_models/evaluation.cpp.o -c /home/skip/MassiveClicks/MassiveClicks/click_models/evaluation.cpp",
+  "file": "/home/skip/MassiveClicks/MassiveClicks/click_models/evaluation.cpp",
+  "output": "CMakeFiles/mclicks.dir/click_models/evaluation.cpp.o"
+},
+{
+  "directory": "/home/skip/MassiveClicks/MassiveClicks/build",
+  "command": "/usr/bin/g++  -isystem /usr/lib/x86_64-linux-gnu/openmpi/include/openmpi -isystem /usr/lib/x86_64-linux-gnu/openmpi/include -isystem /usr/local/cuda-12.1/include -O3 -ffast-math -g0 -g -std=gnu++11 -pthread -o CMakeFiles/mclicks.dir/parallel_em/communicator.cpp.o -c /home/skip/MassiveClicks/MassiveClicks/parallel_em/communicator.cpp",
+  "file": "/home/skip/MassiveClicks/MassiveClicks/parallel_em/communicator.cpp",
+  "output": "CMakeFiles/mclicks.dir/parallel_em/communicator.cpp.o"
+},
+{
+  "directory": "/home/skip/MassiveClicks/MassiveClicks/build",
+  "command": "/usr/bin/g++  -isystem /usr/lib/x86_64-linux-gnu/openmpi/include/openmpi -isystem /usr/lib/x86_64-linux-gnu/openmpi/include -isystem /usr/local/cuda-12.1/include -O3 -ffast-math -g0 -g -std=gnu++11 -pthread -o CMakeFiles/mclicks.dir/utils/macros.cpp.o -c /home/skip/MassiveClicks/MassiveClicks/utils/macros.cpp",
+  "file": "/home/skip/MassiveClicks/MassiveClicks/utils/macros.cpp",
+  "output": "CMakeFiles/mclicks.dir/utils/macros.cpp.o"
+},
+{
+  "directory": "/home/skip/MassiveClicks/MassiveClicks/build",
+  "command": "/usr/bin/g++  -isystem /usr/lib/x86_64-linux-gnu/openmpi/include/openmpi -isystem /usr/lib/x86_64-linux-gnu/openmpi/include -isystem /usr/local/cuda-12.1/include -O3 -ffast-math -g0 -g -std=gnu++11 -pthread -o CMakeFiles/mclicks.dir/utils/timer.cpp.o -c /home/skip/MassiveClicks/MassiveClicks/utils/timer.cpp",
+  "file": "/home/skip/MassiveClicks/MassiveClicks/utils/timer.cpp",
+  "output": "CMakeFiles/mclicks.dir/utils/timer.cpp.o"
+},
+{
+  "directory": "/home/skip/MassiveClicks/MassiveClicks/build",
+  "command": "/usr/local/cuda-12.1/bin/nvcc -forward-unknown-to-host-compiler  --options-file CMakeFiles/mclicks.dir/includes_CUDA.rsp -O3 --use_fast_math --generate-code arch=compute_52,code=sm_52 --generate-code arch=compute_62,code=compute_62 --generate-code arch=compute_80,code=sm_80 --generate-code arch=compute_80,code=compute_80 -rdc=true -g -std=c++11 --generate-code=arch=compute_52,code=[compute_52,sm_52] -Xcompiler -pthread -x cu -rdc=true -c /home/skip/MassiveClicks/MassiveClicks/utils/utils.cu -o CMakeFiles/mclicks.dir/utils/utils.cu.o",
+  "file": "/home/skip/MassiveClicks/MassiveClicks/utils/utils.cu",
+  "output": "CMakeFiles/mclicks.dir/utils/utils.cu.o"
+},
+{
+  "directory": "/home/skip/MassiveClicks/MassiveClicks/build",
+  "command": "/usr/local/cuda-12.1/bin/nvcc -forward-unknown-to-host-compiler  --options-file CMakeFiles/mclicks.dir/includes_CUDA.rsp -O3 --use_fast_math --generate-code arch=compute_52,code=sm_52 --generate-code arch=compute_62,code=compute_62 --generate-code arch=compute_80,code=sm_80 --generate-code arch=compute_80,code=compute_80 -rdc=true -g -std=c++11 --generate-code=arch=compute_52,code=[compute_52,sm_52] -Xcompiler -pthread -x cu -rdc=true -c /home/skip/MassiveClicks/MassiveClicks/parallel_em/parallel_em.cu -o CMakeFiles/mclicks.dir/parallel_em/parallel_em.cu.o",
+  "file": "/home/skip/MassiveClicks/MassiveClicks/parallel_em/parallel_em.cu",
+  "output": "CMakeFiles/mclicks.dir/parallel_em/parallel_em.cu.o"
+},
+{
+  "directory": "/home/skip/MassiveClicks/MassiveClicks/build",
+  "command": "/usr/local/cuda-12.1/bin/nvcc -forward-unknown-to-host-compiler  --options-file CMakeFiles/mclicks.dir/includes_CUDA.rsp -O3 --use_fast_math --generate-code arch=compute_52,code=sm_52 --generate-code arch=compute_62,code=compute_62 --generate-code arch=compute_80,code=sm_80 --generate-code arch=compute_80,code=compute_80 -rdc=true -g -std=c++11 --generate-code=arch=compute_52,code=[compute_52,sm_52] -Xcompiler -pthread -x cu -rdc=true -c /home/skip/MassiveClicks/MassiveClicks/parallel_em/kernel.cu -o CMakeFiles/mclicks.dir/parallel_em/kernel.cu.o",
+  "file": "/home/skip/MassiveClicks/MassiveClicks/parallel_em/kernel.cu",
+  "output": "CMakeFiles/mclicks.dir/parallel_em/kernel.cu.o"
+},
+{
+  "directory": "/home/skip/MassiveClicks/MassiveClicks/build",
+  "command": "/usr/local/cuda-12.1/bin/nvcc -forward-unknown-to-host-compiler  --options-file CMakeFiles/mclicks.dir/includes_CUDA.rsp -O3 --use_fast_math --generate-code arch=compute_52,code=sm_52 --generate-code arch=compute_62,code=compute_62 --generate-code arch=compute_80,code=sm_80 --generate-code arch=compute_80,code=compute_80 -rdc=true -g -std=c++11 --generate-code=arch=compute_52,code=[compute_52,sm_52] -Xcompiler -pthread -x cu -rdc=true -c /home/skip/MassiveClicks/MassiveClicks/data/search.cu -o CMakeFiles/mclicks.dir/data/search.cu.o",
+  "file": "/home/skip/MassiveClicks/MassiveClicks/data/search.cu",
+  "output": "CMakeFiles/mclicks.dir/data/search.cu.o"
+},
+{
+  "directory": "/home/skip/MassiveClicks/MassiveClicks/build",
+  "command": "/usr/local/cuda-12.1/bin/nvcc -forward-unknown-to-host-compiler  --options-file CMakeFiles/mclicks.dir/includes_CUDA.rsp -O3 --use_fast_math --generate-code arch=compute_52,code=sm_52 --generate-code arch=compute_62,code=compute_62 --generate-code arch=compute_80,code=sm_80 --generate-code arch=compute_80,code=compute_80 -rdc=true -g -std=c++11 --generate-code=arch=compute_52,code=[compute_52,sm_52] -Xcompiler -pthread -x cu -rdc=true -c /home/skip/MassiveClicks/MassiveClicks/click_models/base.cu -o CMakeFiles/mclicks.dir/click_models/base.cu.o",
+  "file": "/home/skip/MassiveClicks/MassiveClicks/click_models/base.cu",
+  "output": "CMakeFiles/mclicks.dir/click_models/base.cu.o"
+},
+{
+  "directory": "/home/skip/MassiveClicks/MassiveClicks/build",
+  "command": "/usr/local/cuda-12.1/bin/nvcc -forward-unknown-to-host-compiler  --options-file CMakeFiles/mclicks.dir/includes_CUDA.rsp -O3 --use_fast_math --generate-code arch=compute_52,code=sm_52 --generate-code arch=compute_62,code=compute_62 --generate-code arch=compute_80,code=sm_80 --generate-code arch=compute_80,code=compute_80 -rdc=true -g -std=c++11 --generate-code=arch=compute_52,code=[compute_52,sm_52] -Xcompiler -pthread -x cu -rdc=true -c /home/skip/MassiveClicks/MassiveClicks/click_models/param.cu -o CMakeFiles/mclicks.dir/click_models/param.cu.o",
+  "file": "/home/skip/MassiveClicks/MassiveClicks/click_models/param.cu",
+  "output": "CMakeFiles/mclicks.dir/click_models/param.cu.o"
+},
+{
+  "directory": "/home/skip/MassiveClicks/MassiveClicks/build",
+  "command": "/usr/local/cuda-12.1/bin/nvcc -forward-unknown-to-host-compiler  --options-file CMakeFiles/mclicks.dir/includes_CUDA.rsp -O3 --use_fast_math --generate-code arch=compute_52,code=sm_52 --generate-code arch=compute_62,code=compute_62 --generate-code arch=compute_80,code=sm_80 --generate-code arch=compute_80,code=compute_80 -rdc=true -g -std=c++11 --generate-code=arch=compute_52,code=[compute_52,sm_52] -Xcompiler -pthread -x cu -rdc=true -c /home/skip/MassiveClicks/MassiveClicks/click_models/common.cu -o CMakeFiles/mclicks.dir/click_models/common.cu.o",
+  "file": "/home/skip/MassiveClicks/MassiveClicks/click_models/common.cu",
+  "output": "CMakeFiles/mclicks.dir/click_models/common.cu.o"
+},
+{
+  "directory": "/home/skip/MassiveClicks/MassiveClicks/build",
+  "command": "/usr/local/cuda-12.1/bin/nvcc -forward-unknown-to-host-compiler  --options-file CMakeFiles/mclicks.dir/includes_CUDA.rsp -O3 --use_fast_math --generate-code arch=compute_52,code=sm_52 --generate-code arch=compute_62,code=compute_62 --generate-code arch=compute_80,code=sm_80 --generate-code arch=compute_80,code=compute_80 -rdc=true -g -std=c++11 --generate-code=arch=compute_52,code=[compute_52,sm_52] -Xcompiler -pthread -x cu -rdc=true -c /home/skip/MassiveClicks/MassiveClicks/click_models/factor.cu -o CMakeFiles/mclicks.dir/click_models/factor.cu.o",
+  "file": "/home/skip/MassiveClicks/MassiveClicks/click_models/factor.cu",
+  "output": "CMakeFiles/mclicks.dir/click_models/factor.cu.o"
+},
+{
+  "directory": "/home/skip/MassiveClicks/MassiveClicks/build",
+  "command": "/usr/local/cuda-12.1/bin/nvcc -forward-unknown-to-host-compiler  --options-file CMakeFiles/mclicks.dir/includes_CUDA.rsp -O3 --use_fast_math --generate-code arch=compute_52,code=sm_52 --generate-code arch=compute_62,code=compute_62 --generate-code arch=compute_80,code=sm_80 --generate-code arch=compute_80,code=compute_80 -rdc=true -g -std=c++11 --generate-code=arch=compute_52,code=[compute_52,sm_52] -Xcompiler -pthread -x cu -rdc=true -c /home/skip/MassiveClicks/MassiveClicks/click_models/pbm.cu -o CMakeFiles/mclicks.dir/click_models/pbm.cu.o",
+  "file": "/home/skip/MassiveClicks/MassiveClicks/click_models/pbm.cu",
+  "output": "CMakeFiles/mclicks.dir/click_models/pbm.cu.o"
+},
+{
+  "directory": "/home/skip/MassiveClicks/MassiveClicks/build",
+  "command": "/usr/local/cuda-12.1/bin/nvcc -forward-unknown-to-host-compiler  --options-file CMakeFiles/mclicks.dir/includes_CUDA.rsp -O3 --use_fast_math --generate-code arch=compute_52,code=sm_52 --generate-code arch=compute_62,code=compute_62 --generate-code arch=compute_80,code=sm_80 --generate-code arch=compute_80,code=compute_80 -rdc=true -g -std=c++11 --generate-code=arch=compute_52,code=[compute_52,sm_52] -Xcompiler -pthread -x cu -rdc=true -c /home/skip/MassiveClicks/MassiveClicks/click_models/ccm.cu -o CMakeFiles/mclicks.dir/click_models/ccm.cu.o",
+  "file": "/home/skip/MassiveClicks/MassiveClicks/click_models/ccm.cu",
+  "output": "CMakeFiles/mclicks.dir/click_models/ccm.cu.o"
+},
+{
+  "directory": "/home/skip/MassiveClicks/MassiveClicks/build",
+  "command": "/usr/local/cuda-12.1/bin/nvcc -forward-unknown-to-host-compiler  --options-file CMakeFiles/mclicks.dir/includes_CUDA.rsp -O3 --use_fast_math --generate-code arch=compute_52,code=sm_52 --generate-code arch=compute_62,code=compute_62 --generate-code arch=compute_80,code=sm_80 --generate-code arch=compute_80,code=compute_80 -rdc=true -g -std=c++11 --generate-code=arch=compute_52,code=[compute_52,sm_52] -Xcompiler -pthread -x cu -rdc=true -c /home/skip/MassiveClicks/MassiveClicks/click_models/dbn.cu -o CMakeFiles/mclicks.dir/click_models/dbn.cu.o",
+  "file": "/home/skip/MassiveClicks/MassiveClicks/click_models/dbn.cu",
+  "output": "CMakeFiles/mclicks.dir/click_models/dbn.cu.o"
+},
+{
+  "directory": "/home/skip/MassiveClicks/MassiveClicks/build",
+  "command": "/usr/local/cuda-12.1/bin/nvcc -forward-unknown-to-host-compiler  --options-file CMakeFiles/mclicks.dir/includes_CUDA.rsp -O3 --use_fast_math --generate-code arch=compute_52,code=sm_52 --generate-code arch=compute_62,code=compute_62 --generate-code arch=compute_80,code=sm_80 --generate-code arch=compute_80,code=compute_80 -rdc=true -g -std=c++11 --generate-code=arch=compute_52,code=[compute_52,sm_52] -Xcompiler -pthread -x cu -rdc=true -c /home/skip/MassiveClicks/MassiveClicks/click_models/ubm.cu -o CMakeFiles/mclicks.dir/click_models/ubm.cu.o",
+  "file": "/home/skip/MassiveClicks/MassiveClicks/click_models/ubm.cu",
+  "output": "CMakeFiles/mclicks.dir/click_models/ubm.cu.o"
+}
+]

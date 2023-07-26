@@ -16,11 +16,11 @@
 #include "../parallel_em/communicator.h"
 
 HST void init_parameters_hst(std::vector<Param>& params, std::vector<Param>& params_tmp, Param*& param_dptr, Param*& param_tmp_dptr, std::pair<int, int> n_params, int& n_params_dev, int& n_tmp_params_dev,
-                             size_t& cm_memory_usage, const std::tuple<std::vector<SERP_Hst>, std::vector<SERP_Hst>, int>& dataset, const size_t fmem, const bool device);
+                             size_t& cm_memory_usage, const Partition& dataset, const size_t fmem, const bool device);
 HST void reset_parameters_hst(std::vector<Param>& params, Param* dptr, bool device);
 HST void transfer_parameters_hst(int transfer_direction, std::vector<Param>& params, Param* dptr);
-HST void update_unique_parameters_hst(std::vector<Param>& src, std::vector<Param>& dst, const std::vector<SERP_Hst>& dataset, const std::vector<int>& thread_start_idx);
-HST void update_shared_parameters_hst(std::vector<Param>& src, std::vector<Param>& dst, const std::vector<SERP_Hst>& dataset, const std::vector<int>& thread_start_idx);
+HST void update_unique_parameters_hst(std::vector<Param>& src, std::vector<Param>& dst, const TrainSet& dataset, const std::vector<int>& thread_start_idx);
+HST void update_shared_parameters_hst(std::vector<Param>& src, std::vector<Param>& dst, const TrainSet& dataset, const std::vector<int>& thread_start_idx);
 DEV void update_shared_parameters_dev(Param*& src, Param*& dst, int& thread_index, int& src_size, int& block_index, int& dataset_size);
 DEV void update_unique_parameters_dev(Param*& src, Param*& dst, int& thread_index, int& dataset_size, const int (&pidx)[BLOCK_SIZE * MAX_SERP]);
 DEV void warp_reduce(volatile float* shared_data, int block_index);

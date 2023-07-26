@@ -74,7 +74,7 @@ int Dataset::size_qd(const int& nid, const int& did) const{
  * @param session_id The session id shared by all provided query sessions.
  * @param session The session containing the query sessions.
  */
-void Dataset::add_session(const int session_id, const std::vector<SERP_Hst>& session) {
+void Dataset::add_session(const int session_id, const UnassignedSet& session) {
     for (auto serp : session) {
         // this->sessions[session_id].push_back(serp);
         this->sessions.push_back(serp);
@@ -107,7 +107,7 @@ void Dataset::increment_queries(const int& value) {
  * @param device_id The id of the device on the node.
  * @return A reference to the training queries vector.
  */
-std::vector<SERP_Hst>* Dataset::get_train_set(const int& nid, const int& did) {
+TrainSet* Dataset::get_train_set(const int& nid, const int& did) {
     return &this->training_queries[nid][did];
 }
 
@@ -118,7 +118,7 @@ std::vector<SERP_Hst>* Dataset::get_train_set(const int& nid, const int& did) {
  * @param device_id The id of the device on the node.
  * @return A reference to the testing queries vector.
  */
-std::vector<SERP_Hst>* Dataset::get_test_set(const int& nid, const int& did) {
+TestSet* Dataset::get_test_set(const int& nid, const int& did) {
     return &this->testing_queries[nid][did];
 }
 
@@ -233,7 +233,7 @@ void Dataset::add_parameter_train(SERP_Hst& query_session, const int& node_id, c
  *
  * @return The node id and device id of smallest training vector.
  */
-std::pair<int,int> Dataset::get_smallest_train(const NetworkMap<std::vector<SERP_Hst>>& training_queries) {
+std::pair<int,int> Dataset::get_smallest_train(const DeviceLayout<TrainSet>& training_queries) {
     int smallest{std::numeric_limits<int>::max()}, small_nid{0}, small_did{0};
 
     for (size_t nid = 0; nid < training_queries.size(); nid++) {
@@ -259,7 +259,7 @@ std::pair<int,int> Dataset::get_smallest_train(const NetworkMap<std::vector<SERP
  * @return The node id and device id of smallest training
  * vector relative to memory size.
  */
-std::pair<int,int> Dataset::get_smallest_relative_train(const NetworkMap<std::vector<SERP_Hst>>& training_queries, const NetworkMap<std::vector<int>>& network_properties) {
+std::pair<int,int> Dataset::get_smallest_relative_train(const DeviceLayout<TrainSet>& training_queries, const DeviceLayout<std::vector<int>>& network_properties) {
     int small_nid{0}, small_did{0};
     float smallest{std::numeric_limits<float>::max()}, occupancy{0};
 
@@ -287,7 +287,7 @@ std::pair<int,int> Dataset::get_smallest_relative_train(const NetworkMap<std::ve
  * @return The node id and device id of smallest training
  * vector with the highest device architecture.
  */
-std::pair<int,int> Dataset::get_smallest_arch_train(const NetworkMap<std::vector<SERP_Hst>>& training_queries, const NetworkMap<std::vector<int>>& network_properties) {
+std::pair<int,int> Dataset::get_smallest_arch_train(const DeviceLayout<TrainSet>& training_queries, const DeviceLayout<std::vector<int>>& network_properties) {
     int small_new_nid{0}, small_new_did{0}, arch, prev_arch{0};
     float memory_footprint, occupancy, smallest_occupancy{std::numeric_limits<float>::max()};
 
@@ -327,7 +327,7 @@ std::pair<int,int> Dataset::get_smallest_arch_train(const NetworkMap<std::vector
  * @param model_type The type of click model to measure the memory footprint
  * with (e.g., 0 = PBM, 1 = CCM).
  */
-void Dataset::make_partitions(const NetworkMap<std::vector<int>>& network_properties, const float test_share, const int partitioning_type, const int model_type) {
+void Dataset::make_partitions(const DeviceLayout<std::vector<int>>& network_properties, const float test_share, const int partitioning_type, const int model_type) {
     int node_id{0}, device_id{0}, n_nodes = static_cast<int>(network_properties.size());
     this->cm = create_cm_host(model_type);
 
@@ -425,7 +425,7 @@ void Dataset::make_partitions(const NetworkMap<std::vector<int>>& network_proper
  * @param network_properties The network map containing the properties of the
  * devices within the network.
  */
-void Dataset::reshape_pvar(const NetworkMap<std::vector<int>>& network_properties) {
+void Dataset::reshape_pvar(const DeviceLayout<std::vector<int>>& network_properties) {
     this->init_network(this->training_queries, network_properties);
     this->init_network(this->testing_queries, network_properties);
     this->init_network(this->qd_parameters, network_properties);
@@ -450,7 +450,7 @@ void Dataset::reshape_pvar(const NetworkMap<std::vector<int>>& network_propertie
  * @param model_type The type of click model to measure the memory footprint
  * with (e.g., 0 = PBM, 1 = CCM).
  */
-void Dataset::make_splits(const NetworkMap<std::vector<int>>& network_properties, const float test_share, const int partitioning_type, const int model_type) {
+void Dataset::make_splits(const DeviceLayout<std::vector<int>>& network_properties, const float test_share, const int partitioning_type, const int model_type) {
     // Shape the multi-dimensional arrays training, testing and parameter arrays
     // according to the network topology beforehand.
     this->reshape_pvar(network_properties);
@@ -470,8 +470,8 @@ void Dataset::make_splits(const NetworkMap<std::vector<int>>& network_properties
  * @param device_partitions The partitions to sort.
  * @param n_threads The number of threads to available.
  */
-void sort_partitions(std::vector<std::tuple<std::vector<SERP_Hst>, std::vector<SERP_Hst>, int>>& device_partitions, int n_threads) {
-    auto sort_partition = [](std::vector<SERP_Hst>& partition) {
+void sort_partitions(LocalPartitions& device_partitions, int n_threads) {
+    auto sort_partition = [](UnassignedSet& partition) {
         std::sort(partition.begin(), partition.end(),
                 [](const SERP_Hst& a, const SERP_Hst& b) { return a.get_query() < b.get_query(); });
     };

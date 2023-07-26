@@ -47,12 +47,6 @@ struct ProcessingConfig {
     int unit_count;        // The number of compute devices on this node (incuding CPU depending on the execution mode).
 };
 
-// LocalPartitions is a vector of tuples, where each tuple represents a
-// a training set, a test set, and the number of query-document pairs assigned
-// to a devices. The number of tuples in the vector is equal to the number of
-// devices on the node.
-using LocalPartitions = std::vector<std::tuple<std::vector<SERP_Hst>, std::vector<SERP_Hst>, int>>;
-
 /**
  * @brief Execute EM algorithm in parallel.
  *

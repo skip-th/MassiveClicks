@@ -100,7 +100,7 @@ HST std::pair<int, int> UBM_Hst::get_n_exm_params(int n_queries, int n_qd) {
  * @param fmem The amount of free memory on the device.
  * @param device The device to allocate memory on.
  */
-HST void UBM_Hst::init_parameters(const std::tuple<std::vector<SERP_Hst>, std::vector<SERP_Hst>, int>& dataset, const size_t fmem, const bool device) {
+HST void UBM_Hst::init_parameters(const Partition& dataset, const size_t fmem, const bool device) {
     std::pair<int, int> n_attractiveness = this->get_n_atr_params(std::get<0>(dataset).size(), std::get<2>(dataset));
     init_parameters_hst(this->atr_parameters, this->atr_tmp_parameters, this->atr_dptr, this->atr_tmp_dptr, n_attractiveness, this->n_atr_params, this->n_atr_tmp_params, this->cm_memory_usage, dataset, fmem, device);
     std::pair<int, int> n_examination = this->get_n_exm_params(std::get<0>(dataset).size(), std::get<2>(dataset));
@@ -171,7 +171,7 @@ HST void UBM_Hst::get_device_references(Param**& param_refs, int*& param_sizes) 
  * @param dataset The training set.
  * @param thread_start_idx Dataset starting indices of each thread.
  */
-HST void UBM_Hst::update_parameters(std::vector<SERP_Hst>& dataset, const std::vector<int>& thread_start_idx) {
+HST void UBM_Hst::update_parameters(TrainSet& dataset, const std::vector<int>& thread_start_idx) {
     update_unique_parameters_hst(this->atr_tmp_parameters, this->atr_parameters, dataset, thread_start_idx);
     update_shared_parameters_hst(this->exm_tmp_parameters, this->exm_parameters, dataset, thread_start_idx);
 }
@@ -183,9 +183,9 @@ HST void UBM_Hst::update_parameters(std::vector<SERP_Hst>& dataset, const std::v
  * @param dataset The training set.
  * @param thread_start_idx Dataset starting indices of each thread.
  */
-HST void UBM_Hst::process_session(const std::vector<SERP_Hst>& dataset, const std::vector<int>& thread_start_idx) {
+HST void UBM_Hst::process_session(const TrainSet& dataset, const std::vector<int>& thread_start_idx) {
     // Iterate over the queries in the dataset in each thread.
-    auto process_session_thread = [this](const std::vector<SERP_Hst>& dataset, const int thread_id, int start_idx, int stop_idx) {
+    auto process_session_thread = [this](const TrainSet& dataset, const int thread_id, int start_idx, int stop_idx) {
         int dataset_size = dataset.size();
 
         for (int query_index = start_idx; query_index < stop_idx; query_index++) {

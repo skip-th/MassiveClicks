@@ -23,7 +23,7 @@ LogLikelihood::LogLikelihood(ClickModel_Hst *cm) {
  * @param testing_queries The set of testing queries.
  * @return The log-likelihood of the click model.
  */
-float LogLikelihood::evaluate(std::vector<SERP_Hst>& testing_queries) {
+float LogLikelihood::evaluate(TestSet& testing_queries) {
     // Go through all query sessions in the test set.
     for (SERP_Hst query_session : testing_queries) {
         std::vector<float> log_click_probs; //(MAX_SERP, 0);
@@ -47,7 +47,7 @@ float LogLikelihood::evaluate(std::vector<SERP_Hst>& testing_queries) {
  * @param cm The click model for which the perplexity will be computed.
  * @param testing_queries The set of testing queries.
  */
-void Perplexity::evaluate(ClickModel_Hst* cm, std::vector<SERP_Hst>& testing_queries) {
+void Perplexity::evaluate(ClickModel_Hst* cm, TestSet& testing_queries) {
     // Get the size of the test task.
     this->task_size = static_cast<float>(testing_queries.size());
 

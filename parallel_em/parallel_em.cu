@@ -15,12 +15,196 @@
 //---------------------------------------------------------------------------//
 
 /**
- * @brief Execute EM algorithm in parallel.
+ * @brief Find the next non-duplicate query.
  *
- * @param config: Processing configuration.
- * @param device_partitions: The dataset assigned to each of the node's devices.
- * @param output_path: The path where to store the output.
- * @param hostname: The hostname of the device.
+ * @param device_id The ID of the device.
+ * @param curr_query The current query.
+ * @param start_index The search start index.
+ * @param device_partitions The dataset assigned to each of the node's devices.
+ * @param thread_start_idx The start index of the thread.
+ * @param thread_id The ID of the thread.
+ * @return int 1 if the query is a duplicate, 0 otherwise.
+ */
+int find_next_non_duplicate_query(int device_id, int curr_query, int& start_index,
+                                  const LocalPartitions& device_partitions,
+                                  std::vector<std::vector<int>>& thread_start_idx, int thread_id) {
+    bool duplicate = 1;
+    int partition_query_count = std::get<0>(device_partitions[device_id]).size();
+
+    // Search through the remaining queries.
+    for (int i = start_index; i < partition_query_count; i++) {
+        // If a query is found that is not assigned to a previous thread,
+        // assign it to the current thread.
+        if (std::get<0>(device_partitions[device_id])[i].get_query() != curr_query) {
+            // Reassign this thread's query and starting index.
+            duplicate = 0;
+            start_index = i;
+            curr_query = std::get<0>(device_partitions[device_id])[i].get_query();
+            break;
+        }
+    }
+    return duplicate;
+}
+
+/**
+ * @brief Find the start of the current set of similar queries in this device's
+ * dataset.
+ *
+ * @param device_id The ID of the device.
+ * @param curr_query The current query.
+ * @param start_index The start index of the thread.
+ * @param thread_start_idx The start index of each thread.
+ * @param thread_id The ID of the thread.
+ * @param device_partitions The dataset assigned to each of the node's devices.
+ */
+void find_start_index(int device_id, int curr_query, int start_index, std::vector<std::vector<int>>& thread_start_idx,
+                        int thread_id, const LocalPartitions& device_partitions) {
+    for (int i = start_index; i >= 0; i--) {
+        if (std::get<0>(device_partitions[device_id])[i].get_query() != curr_query) {
+            thread_start_idx[device_id][thread_id] = i + 1;
+            break;
+        }
+        else if (i == 0) {
+            thread_start_idx[device_id][thread_id] = 0;
+        }
+    }
+}
+
+/**
+ * @brief Remove unused threads from the current partition and assign them to
+ * the next partition, if possible.
+ *
+ * @param device_id The ID of the device.
+ * @param unused_threads The number of unused threads.
+ * @param config Processing configuration.
+ * @param thread_start_idx The start index of each thread.
+ */
+void reassign_unused_threads(int device_id, int unused_threads, const ProcessingConfig& config,
+                             std::vector<std::vector<int>>& thread_start_idx) {
+    if (unused_threads > 0) {
+        thread_start_idx[device_id].resize(thread_start_idx[device_id].size() - unused_threads);
+        // Add the removed threads to the next partition.
+        if (device_id < config.unit_count - 1) {
+            thread_start_idx[device_id + 1].resize(thread_start_idx[device_id + 1].size() + unused_threads, -1);
+        }
+    }
+}
+
+/**
+ * @brief Determine the starting query index for each thread.
+ *
+ * @param device_id The ID of the device.
+ * @param threads_per_device The number of threads assigned to the device.
+ * @param thread_start_idx The start index of each thread.
+ * @param device_partitions The dataset assigned to each of the node's devices.
+ * @param stride The number of queries to be processed by each thread.
+ * @return int The number of unused threads.
+ */
+int determine_start_indices(int device_id, int threads_per_device, std::vector<std::vector<int>>& thread_start_idx,
+                            const LocalPartitions& device_partitions, int stride) {
+    int unused_threads = 0;
+
+    for (int thread_id = 0; thread_id < threads_per_device; ++thread_id) {
+        int curr_query = std::get<0>(device_partitions[device_id])[thread_id * stride].get_query();
+        int start_index = thread_id * stride;
+
+        // Check if the current query has been assigned to a previous thread.
+        // If so, assign the next query to the current thread.
+        if (thread_id - 1 > 0) { // Check if there are any threads before the current thread.
+            int prev_query = std::get<0>(device_partitions[device_id])[thread_start_idx[device_id][thread_id - 1]].get_query();
+            // If the current query has already been assigned, then find the
+            // next available query in the dataset.
+            if (curr_query == prev_query) {
+                // If no query is found that is not assigned to a previous
+                // thread, increase the number of unused threads. These will be
+                // reassigned later.
+                unused_threads += find_next_non_duplicate_query(device_id, curr_query, start_index,
+                                                                device_partitions, thread_start_idx, thread_id);
+            }
+        }
+        find_start_index(device_id, curr_query, start_index, thread_start_idx, thread_id, device_partitions);
+    }
+    return unused_threads;
+}
+
+/**
+ * @brief Calculate the total number of queries to be processed.
+ *
+ * @param device_partitions The dataset assigned to each of the node's devices.
+ * @return int The total number of queries to be processed.
+ */
+int calculate_total_queries(const LocalPartitions& device_partitions) {
+    return std::accumulate(device_partitions.begin(), device_partitions.end(), 0,
+        [](int sum, const Partition& partition) {
+            return sum + std::get<0>(partition).size();
+        }
+    );
+}
+
+/**
+ * @brief Allocate CPU threads to each device based on the number of assigned
+ * queries to the device.
+ *
+ * @param config Processing configuration.
+ * @param thread_start_idx The start index of each thread.
+ * @param device_partitions The dataset assigned to each of the node's devices.
+ * @param total_queries The total number of queries to be processed.
+ */
+void allocate_threads_to_devices(const ProcessingConfig& config, std::vector<std::vector<int>>& thread_start_idx,
+                                 const LocalPartitions& device_partitions, int total_queries) {
+    int available_threads = config.thread_count;
+    int device_id = 0; // Start thread assignment with device 0.
+
+    while (available_threads > 0) {
+        int partition_query_count = std::get<0>(device_partitions[device_id]).size();
+        float ratio = static_cast<float>(partition_query_count) / total_queries;
+        int threads_per_device = std::round(ratio * config.thread_count);
+
+        // Ensure that each device always gets at least one thread and that the
+        // assigned threads do not exceed the available threads.
+        if (thread_start_idx[device_id].size() < 1 || thread_start_idx[device_id].size() < threads_per_device) {
+            thread_start_idx[device_id].push_back(-1);
+            --available_threads;
+        }
+        device_id = (device_id + 1) % config.unit_count; // Select next device.
+    }
+}
+
+/**
+ * @brief Determine the number of queries per thread for each device.
+ *
+ * @param config Processing configuration.
+ * @param thread_start_idx The start index of each thread.
+ * @param device_partitions The dataset assigned to each of the node's devices.
+ */
+void calculate_queries_per_thread(const ProcessingConfig& config, std::vector<std::vector<int>>& thread_start_idx,
+                                  const LocalPartitions& device_partitions) {
+    for (int device_id = 0; device_id < config.unit_count; ++device_id) {
+        int partition_query_count = std::get<0>(device_partitions[device_id]).size();
+        int threads_per_device = thread_start_idx[device_id].size();
+        int stride = partition_query_count / threads_per_device; // Approximate number of queries per thread.
+
+        // Use only a single thread if there are not enough queries to
+        // distribute over all threads.
+        if (partition_query_count < threads_per_device) {
+            thread_start_idx[device_id].resize(1);
+            thread_start_idx[device_id][0] = 0;
+        } else {
+            int unused_threads = determine_start_indices(device_id, threads_per_device, thread_start_idx,
+                                                         device_partitions, stride);
+            reassign_unused_threads(device_id, unused_threads, config, thread_start_idx);
+        }
+    }
+}
+
+
+/**
+ * @brief Execute the EM algorithm in parallel.
+ *
+ * @param config Processing configuration.
+ * @param device_partitions The dataset assigned to each of the node's devices.
+ * @param output_path The path where to store the output.
+ * @param hostname The hostname of the device.
  */
  void em_parallel(
     const ProcessingConfig& config,
@@ -54,107 +238,11 @@
     //-----------------------------------------------------------------------//
 
     std::vector<std::vector<int>> thread_start_idx(config.unit_count);
+
     if (config.exec_mode != 0) {
-        int n_queries_total = std::accumulate(device_partitions.begin(), device_partitions.end(), 0,
-            [](int sum, const std::tuple<std::vector<SERP_Hst>, std::vector<SERP_Hst>, int>& partition) {
-            return sum + std::get<0>(partition).size();});
-        int available_threads = config.thread_count;
-
-        // Allocate CPU threads to each device based on the number of assigned
-        // queries to the device.
-        int device_id = 0; // Start thread assignment with device 0.
-        while (available_threads > 0) {
-            int n_queries = std::get<0>(device_partitions[device_id]).size();
-            float ratio = (float) n_queries / (float) n_queries_total;
-            int n_threads_per_device = std::round(ratio * config.thread_count);
-
-            // Ensure that each device always gets at least one thread and that
-            // the assigned threads do not exceed the available threads.
-            if (thread_start_idx[device_id].size() < 1 || thread_start_idx[device_id].size() < n_threads_per_device) {
-                thread_start_idx[device_id].push_back(-1);
-                available_threads--;
-            }
-
-            // Select next device.
-            device_id = (device_id + 1) % config.unit_count;
-        }
-
-        // Determine the number of queries per thread for each device.
-        for (int did = 0; did < config.unit_count; did++) {
-            int n_threads_per_device = thread_start_idx[did].size();
-            int n_queries = std::get<0>(device_partitions[did]).size();
-            int stride = (float) n_queries / (float) n_threads_per_device; // Approximate number of queries per thread.
-
-            // Use only a single thread if there are not enough queries to
-            // distribute over all threads.
-            if (n_queries < n_threads_per_device) {
-                thread_start_idx[did].resize(1);
-                thread_start_idx[did][0] = 0;
-            }
-            else {
-                int n_unused_threads = 0;
-                // Determine the starting query index for each thread.
-                for (int tid = 0; tid < n_threads_per_device; tid++) {
-                    int curr_query = std::get<0>(device_partitions[did])[tid * stride].get_query();
-                    int start_index = tid * stride;
-
-                    // Check if the current query has been assigned to a previous
-                    // thread. If so, assign the next query to the current thread.
-                    bool duplicate = false;
-                    if (tid - 1 > 0) { // Check if there are any threads before the current thread.
-                        int prev_query = std::get<0>(device_partitions[did])[thread_start_idx[did][tid - 1]].get_query();
-
-                        // If the current query has already been assigned, then
-                        // find the next available query in the dataset.
-                        if (curr_query == prev_query) {
-                            duplicate = true;
-                            // Search through the remaining queries.
-                            for (int i = start_index; i < n_queries; i++) {
-                                // If a query is found that is not assigned to a
-                                // previous thread, assign it to the current thread.
-                                if (std::get<0>(device_partitions[did])[i].get_query() != curr_query) {
-                                    // Reassign this thread's query and
-                                    // starting index.
-                                    duplicate = false;
-                                    start_index = i;
-                                    curr_query = std::get<0>(device_partitions[did])[i].get_query();
-                                    break;
-                                }
-                            }
-
-                            // If no query is found that is not assigned to a
-                            // previous thread, increase the number of unused
-                            // threads. These will be reassigned later.
-                            if (duplicate) {
-                                n_unused_threads++;
-                            }
-                        }
-                    }
-
-                    // Find the start of the current set of similar queries in
-                    // this device's dataset.
-                    for (int i = start_index; i >= 0; i--) {
-                        if (std::get<0>(device_partitions[did])[i].get_query() != curr_query) {
-                            thread_start_idx[did][tid] = i + 1;
-                            break;
-                        }
-                        else if (i == 0) {
-                            thread_start_idx[did][tid] = 0;
-                        }
-                    }
-                }
-
-                // Remove unused threads from the current partition and assign
-                // them to the next partition, if possible.
-                if (n_unused_threads > 0) {
-                    thread_start_idx[did].resize(n_threads_per_device - n_unused_threads);
-                    // Add the removed threads to the next partition.
-                    if (did < config.unit_count - 1) {
-                        thread_start_idx[did + 1].resize(thread_start_idx[did + 1].size() + n_unused_threads, -1);
-                    }
-                }
-            }
-        }
+        allocate_threads_to_devices(config, thread_start_idx, device_partitions,
+                                    calculate_total_queries(device_partitions));
+        calculate_queries_per_thread(config, thread_start_idx, device_partitions);
     }
 
 

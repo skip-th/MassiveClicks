@@ -14,6 +14,5 @@
  */
 void mpi_abort(const int err) {
     std::cout << "Quiting MPI" << std::endl;
-
     MPI_Abort(MPI_COMM_WORLD, err);
 }

@@ -127,7 +127,7 @@ namespace Communicate
      * @param device_partitions The destination training set partitions for
      * each device.
      */
-    void send_partitions(const int& node_id, const int& n_nodes, const int& n_devices, const int& total_n_devices, const int* n_devices_network, Dataset& dataset, std::vector<std::tuple<std::vector<SERP_Hst>, std::vector<SERP_Hst>, int>>& device_partitions) {
+    void send_partitions(const int& node_id, const int& n_nodes, const int& n_devices, const int& total_n_devices, const int* n_devices_network, Dataset& dataset, LocalPartitions& device_partitions) {
         // Create SERP_Hst MPI datatype.
         MPI_Datatype MPI_SERP;
         MPI_CHECK(MPI_Type_contiguous(sizeof(SERP_Hst) / sizeof(int), MPI_INT, &MPI_SERP));
@@ -166,7 +166,7 @@ namespace Communicate
                 for (int msg_type = 0; msg_type < 3; msg_type++) {
                     // Select the train or test partition according to message ordering (uses FIFO).
                     if (msg_type == 0 || msg_type == 1) {
-                        std::vector<SERP_Hst>* dataset_ptr;
+                        UnassignedSet* dataset_ptr;
 
                         // Probe for the size of the message.
                         MPI_Status status;
@@ -362,7 +362,7 @@ namespace Communicate
      * @param parameters The parameters to write to file.
      */
     void output_parameters(const int node_id, const int processing_units, const std::string file_path,
-        const std::vector<std::tuple<std::vector<SERP_Hst>, std::vector<SERP_Hst>, int>>& dataset_partitions,
+        const LocalPartitions& dataset_partitions,
         const std::pair<std::vector<std::string>, std::vector<std::string>> &headers,
         const std::pair<std::vector<std::vector<Param> *>, std::vector<std::vector<Param> *>> *parameters) {
 

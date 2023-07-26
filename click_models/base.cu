@@ -49,6 +49,7 @@ HST ClickModel_Hst* create_cm_host(const int model_type) {
     return cm_temp->clone();
 }
 
+
 /**
  * @brief Create a click model object for the GPU device.
  *

@@ -32,10 +32,10 @@ public:
     HST void get_parameter_information(std::pair<std::vector<std::string>, std::vector<std::string>> &headers, std::pair<std::vector<std::vector<Param> *>, std::vector<std::vector<Param> *>> &parameters) override;
     HST void get_device_references(Param**& param_refs, int*& param_sizes) override;
 
-    HST void process_session(const std::vector<SERP_Hst>& dataset, const std::vector<int>& thread_start_idx) override;
-    HST void update_parameters(std::vector<SERP_Hst>& dataset, const std::vector<int>& thread_start_idx) override;
+    HST void process_session(const TrainSet& dataset, const std::vector<int>& thread_start_idx) override;
+    HST void update_parameters(TrainSet& dataset, const std::vector<int>& thread_start_idx) override;
 
-    HST void init_parameters(const std::tuple<std::vector<SERP_Hst>, std::vector<SERP_Hst>, int>& dataset, const size_t fmem, const bool device) override;
+    HST void init_parameters(const Partition& dataset, const size_t fmem, const bool device) override;
     HST void transfer_parameters(int parameter_type, int transfer_direction, bool tmp = false) override;
     HST void get_parameters(std::vector<std::vector<Param>>& public_parameters, int parameter_type) override;
     HST void set_parameters(std::vector<std::vector<Param>>& public_parameters, int parameter_type) override;

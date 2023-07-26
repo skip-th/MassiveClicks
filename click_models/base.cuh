@@ -20,11 +20,11 @@
 
 // User include.
 #include "../utils/definitions.h"
+#include "../utils/types.h"
 #include "../utils/macros.cuh"
-#include "../data/dataset.h"
 #include "param.cuh"
 #include "../parallel_em/kernel.cuh"
-
+#include "../data/dataset.h"
 
 //---------------------------------------------------------------------------//
 // Host-side click model.                                                    //
@@ -40,10 +40,10 @@ public:
     HST virtual void get_parameter_information(std::pair<std::vector<std::string>, std::vector<std::string>> &headers, std::pair<std::vector<std::vector<Param> *>, std::vector<std::vector<Param> *>> &parameters) = 0;
     HST virtual void get_device_references(Param**& param_refs, int*& param_sizes) = 0;
 
-    HST virtual void process_session(const std::vector<SERP_Hst>& dataset, const std::vector<int>& thread_start_idx) = 0;
-    HST virtual void update_parameters(std::vector<SERP_Hst>& dataset, const std::vector<int>& thread_start_idx) = 0;
+    HST virtual void process_session(const TrainSet& dataset, const std::vector<int>& thread_start_idx) = 0;
+    HST virtual void update_parameters(TrainSet& dataset, const std::vector<int>& thread_start_idx) = 0;
 
-    HST virtual void init_parameters(const std::tuple<std::vector<SERP_Hst>, std::vector<SERP_Hst>, int>& dataset, const size_t fmem, const bool device) = 0;
+    HST virtual void init_parameters(const Partition& dataset, const size_t fmem, const bool device) = 0;
     HST virtual void transfer_parameters(int parameter_type, int transfer_direction, bool tmp = false) = 0;
     HST virtual void get_parameters(std::vector<std::vector<Param>>& public_parameters, int parameter_type) = 0;
     HST virtual void set_parameters(std::vector<std::vector<Param>>& public_parameters, int parameter_type) = 0;

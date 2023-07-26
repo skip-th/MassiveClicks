@@ -335,7 +335,7 @@ int main(int argc, char** argv) {
     timer.start("Communication");
 
     // Store the train/test splits for each device on each node.
-    std::vector<std::tuple<std::vector<SERP_Hst>, std::vector<SERP_Hst>, int>> device_partitions(processing_units); // Device ID -> [train set, test set, size qd pairs]
+    LocalPartitions device_partitions(processing_units); // Device ID -> [train set, test set, size qd pairs]
 
     // Communicate the training sets for each device to their node.
     Communicate::send_partitions(node_id, n_nodes, processing_units, total_n_devices, n_devices_network, dataset, device_partitions);

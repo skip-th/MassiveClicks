@@ -29,7 +29,7 @@
  * @param device Also allocate parameters on the device or not.
  */
 HST void init_parameters_hst(std::vector<Param>& params, std::vector<Param>& params_tmp, Param*& param_dptr, Param*& param_tmp_dptr, std::pair<int, int> n_params, int& n_params_dev, int& n_params_tmp_dev,
-                             size_t& cm_memory_usage, const std::tuple<std::vector<SERP_Hst>, std::vector<SERP_Hst>, int>& dataset, const size_t fmem, const bool device) {
+                             size_t& cm_memory_usage, const Partition& dataset, const size_t fmem, const bool device) {
     Param default_parameter(PARAM_DEF_NUM, PARAM_DEF_DENOM);
 
     // Compute the storage space required to store the parameters.
@@ -111,8 +111,8 @@ HST void transfer_parameters_hst(int transfer_direction, std::vector<Param>& par
  * @param thread_start_idx The dataset starting index of the range of query
  * sessions updated by each thread.
  */
-HST void update_unique_parameters_hst(std::vector<Param>& src, std::vector<Param>& dst, const std::vector<SERP_Hst>& dataset,  const std::vector<int>& thread_start_idx) {
-    auto update_thread = [](std::vector<Param>& src, std::vector<Param>& dst, const std::vector<SERP_Hst>& dataset, const int thread_id, const int start_idx, const int stop_idx) {
+HST void update_unique_parameters_hst(std::vector<Param>& src, std::vector<Param>& dst, const TrainSet& dataset,  const std::vector<int>& thread_start_idx) {
+    auto update_thread = [](std::vector<Param>& src, std::vector<Param>& dst, const TrainSet& dataset, const int thread_id, const int start_idx, const int stop_idx) {
         int dataset_size = dataset.size();
 
         for (int query_index = start_idx; query_index < stop_idx; query_index++) {
@@ -150,8 +150,8 @@ HST void update_unique_parameters_hst(std::vector<Param>& src, std::vector<Param
  * @param thread_start_idx The dataset starting index of the range of query
  * sessions updated by each thread.
  */
-HST void update_shared_parameters_hst(std::vector<Param>& src, std::vector<Param>& dst, const std::vector<SERP_Hst>& dataset, const std::vector<int>& thread_start_idx) {
-    auto update_thread = [](std::vector<Param>& src, std::vector<Param>& dst, const std::vector<SERP_Hst>& dataset, const int thread_id, const int start_idx, const int stop_idx, std::vector<std::mutex>& mtx) {
+HST void update_shared_parameters_hst(std::vector<Param>& src, std::vector<Param>& dst, const TrainSet& dataset, const std::vector<int>& thread_start_idx) {
+    auto update_thread = [](std::vector<Param>& src, std::vector<Param>& dst, const TrainSet& dataset, const int thread_id, const int start_idx, const int stop_idx, std::vector<std::mutex>& mtx) {
         int dataset_size = dataset.size();
 
         // Update the parameters and store the results in a local array.
