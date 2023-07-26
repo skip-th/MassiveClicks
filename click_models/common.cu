@@ -102,7 +102,7 @@ HST void transfer_parameters_hst(int transfer_direction, std::vector<Param>& par
 }
 
 /**
- * @brief Update parameter values unique to a query (e.g. attractiveness,
+ * @brief Update parameter values unique to a query (e.g., attractiveness,
  * satisfaction) using temporary parameter values.
  *
  * @param src The (temporary) parameters used to update dst.
@@ -141,7 +141,7 @@ HST void update_unique_parameters_hst(std::vector<Param>& src, std::vector<Param
 }
 
 /**
- * @brief Update parameter values shared by all queries (e.g. examination,
+ * @brief Update parameter values shared by all queries (e.g., examination,
  * continuation) using temporary parameter values.
  *
  * @param src The (temporary) parameters used to update dst.

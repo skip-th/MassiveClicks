@@ -15,32 +15,22 @@
 //---------------------------------------------------------------------------//
 
 /**
- * @brief Runs the Expectation-Maximization algorithm for a given click model
- * on one or multiple GPU's and evaluates the result.
+ * @brief Execute EM algorithm in parallel.
  *
- * @param model_type The type of click model (e.g. 0 = PBM).
- * @param node_id The MPI communication rank of this node.
- * @param n_nodes The number of nodes in the network.
- * @param n_threads The number of CPU threads on this node.
- * @param n_devices_network The number of devices per node in the network.
- * @param n_itr The number of iterations for which the EM algorithm should run.
- * @param exec_mode The mode of execution (e.g. 0 = CPU, 1 = GPU).
- * @param n_devices The number of GPU devices on this node.
- * @param processing_units The number of compute devices on this node (incuding
- * CPU depending on the execution mode).
- * @param device_partitions The training and testing sets and the number of
- * query document pairs in the training set, for each device on this node.
- * @param output_path The path to the output file.
+ * @param config: Processing configuration.
+ * @param device_partitions: The dataset assigned to each of the node's devices.
+ * @param output_path: The path where to store the output.
+ * @param hostname: The hostname of the device.
  */
-void em_parallel(const int model_type, const int node_id, const int n_nodes,
-    const int n_threads, const int* n_devices_network, const int n_itr,
-    const int exec_mode, const int n_devices, const int processing_units,
-    std::vector<std::tuple<std::vector<SERP_Hst>, std::vector<SERP_Hst>, int>>& device_partitions,
-    std::string output_path, const char* hostname) {
-
+ void em_parallel(
+    const ProcessingConfig& config,
+    LocalPartitions& device_partitions,
+    const std::string& output_path,
+    const char* hostname
+) {
     Timer timer;
 
-    if (node_id == ROOT) {
+    if (config.node_id == ROOT) {
         std::cout << "\nExpectation Maximization (EM) in parallel ..." << std::endl;
     }
 
@@ -49,12 +39,12 @@ void em_parallel(const int model_type, const int node_id, const int n_nodes,
     //-----------------------------------------------------------------------//
 
     // Initiate a host-side click model for each device or for the host.
-    ClickModel_Hst* cm_hosts[processing_units];
-    for (int unit = 0; unit < processing_units; unit++) {
+    ClickModel_Hst* cm_hosts[config.unit_count];
+    for (int unit = 0; unit < config.unit_count; unit++) {
         // Initialize the click model.
-        cm_hosts[unit] = create_cm_host(model_type);
+        cm_hosts[unit] = create_cm_host(config.model_type);
         // Print a confirmation message on the first device of the root node.
-        if (node_id == ROOT && unit == 0) {
+        if (config.node_id == ROOT && unit == 0) {
             cm_hosts[unit]->say_hello();
         }
     }
@@ -63,12 +53,12 @@ void em_parallel(const int model_type, const int node_id, const int n_nodes,
     // Assign queries to CPU threads.                                        //
     //-----------------------------------------------------------------------//
 
-    std::vector<std::vector<int>> thread_start_idx(processing_units);
-    if (exec_mode != 0) {
+    std::vector<std::vector<int>> thread_start_idx(config.unit_count);
+    if (config.exec_mode != 0) {
         int n_queries_total = std::accumulate(device_partitions.begin(), device_partitions.end(), 0,
             [](int sum, const std::tuple<std::vector<SERP_Hst>, std::vector<SERP_Hst>, int>& partition) {
             return sum + std::get<0>(partition).size();});
-        int available_threads = n_threads;
+        int available_threads = config.thread_count;
 
         // Allocate CPU threads to each device based on the number of assigned
         // queries to the device.
@@ -76,7 +66,7 @@ void em_parallel(const int model_type, const int node_id, const int n_nodes,
         while (available_threads > 0) {
             int n_queries = std::get<0>(device_partitions[device_id]).size();
             float ratio = (float) n_queries / (float) n_queries_total;
-            int n_threads_per_device = std::round(ratio * n_threads);
+            int n_threads_per_device = std::round(ratio * config.thread_count);
 
             // Ensure that each device always gets at least one thread and that
             // the assigned threads do not exceed the available threads.
@@ -86,11 +76,11 @@ void em_parallel(const int model_type, const int node_id, const int n_nodes,
             }
 
             // Select next device.
-            device_id = (device_id + 1) % processing_units;
+            device_id = (device_id + 1) % config.unit_count;
         }
 
         // Determine the number of queries per thread for each device.
-        for (int did = 0; did < processing_units; did++) {
+        for (int did = 0; did < config.unit_count; did++) {
             int n_threads_per_device = thread_start_idx[did].size();
             int n_queries = std::get<0>(device_partitions[did]).size();
             int stride = (float) n_queries / (float) n_threads_per_device; // Approximate number of queries per thread.
@@ -159,7 +149,7 @@ void em_parallel(const int model_type, const int node_id, const int n_nodes,
                 if (n_unused_threads > 0) {
                     thread_start_idx[did].resize(n_threads_per_device - n_unused_threads);
                     // Add the removed threads to the next partition.
-                    if (did < processing_units - 1) {
+                    if (did < config.unit_count - 1) {
                         thread_start_idx[did + 1].resize(thread_start_idx[did + 1].size() + n_unused_threads, -1);
                     }
                 }
@@ -175,13 +165,13 @@ void em_parallel(const int model_type, const int node_id, const int n_nodes,
     timer.start("h2d_init");
 
     // Allocate memory on the device.
-    SearchResult_Dev* dataset_dev[n_devices];
-    size_t fmem_dev[processing_units * 2];
-    for (int device_id = 0; device_id < processing_units; device_id++) {
+    SearchResult_Dev* dataset_dev[config.device_count];
+    size_t fmem_dev[config.unit_count * 2];
+    for (int device_id = 0; device_id < config.unit_count; device_id++) {
         size_t fmem, tmem, fmem_new, tmem_new;
 
         // Allocate memory on either the device or the host.
-        if (GPU_EXECUTION(exec_mode)) {
+        if (GPU_EXECUTION(config.exec_mode)) {
             CUDA_CHECK(cudaSetDevice(device_id));
 
             // Retrieve avaliable memory in bytes.
@@ -234,7 +224,7 @@ void em_parallel(const int model_type, const int node_id, const int n_nodes,
         }
 
         // Show memory usage.
-        int device = (GPU_EXECUTION(exec_mode)) ? device_id : -1;
+        int device = (GPU_EXECUTION(config.exec_mode)) ? device_id : -1;
         float expected_mem_usage = fmem_dev[device_id * 2] / 1e6;
         float total_mem_capacity = fmem_dev[device_id * 2 + 1] / 1e6;
         int expected_mem_percent = static_cast<int>(expected_mem_usage / total_mem_capacity * 100);
@@ -260,7 +250,7 @@ void em_parallel(const int model_type, const int node_id, const int n_nodes,
     //-----------------------------------------------------------------------//
 
     // Initialize the device-side click model.
-    for (int device_id = 0; device_id < (GPU_EXECUTION(exec_mode) ? n_devices : 0); device_id++) {
+    for (int device_id = 0; device_id < (GPU_EXECUTION(config.exec_mode) ? config.device_count : 0); device_id++) {
         CUDA_CHECK(cudaSetDevice(device_id));
 
         // Retrieve the device-side click model parameter arrays and their sizes.
@@ -269,7 +259,7 @@ void em_parallel(const int model_type, const int node_id, const int n_nodes,
         cm_hosts[device_id]->get_device_references(parameter_references, parameter_sizes);
 
         // Launch the click model initialization kernel.
-        Kernel::initialize<<<1, 1>>>(model_type, node_id, device_id, parameter_references, parameter_sizes);
+        Kernel::initialize<<<1, 1>>>(config.model_type, config.node_id, device_id, parameter_references, parameter_sizes);
 
         CUDA_CHECK(cudaDeviceSynchronize());
     }
@@ -280,17 +270,17 @@ void em_parallel(const int model_type, const int node_id, const int n_nodes,
     //-----------------------------------------------------------------------//
 
     // Initiate CUDA event timers.
-    cudaEvent_t start_events[n_devices], end_events[n_devices];
+    cudaEvent_t start_events[config.device_count], end_events[config.device_count];
 
-    for (int dev = 0; dev < (GPU_EXECUTION(exec_mode) ? n_devices : 0); dev++) {
+    for (int dev = 0; dev < (GPU_EXECUTION(config.exec_mode) ? config.device_count : 0); dev++) {
         CUDA_CHECK(cudaSetDevice(dev));
         CUDA_CHECK(cudaEventCreate(&start_events[dev]));
         CUDA_CHECK(cudaEventCreate(&end_events[dev]));
     }
 
     // Get kernel dimensions.
-    int kernel_dims[n_devices * 2];
-    for (int did = 0; did < (GPU_EXECUTION(exec_mode) ? n_devices : 0); did++) {
+    int kernel_dims[config.device_count * 2];
+    for (int did = 0; did < (GPU_EXECUTION(config.exec_mode) ? config.device_count : 0); did++) {
         int n_queries = std::get<0>(device_partitions[did]).size(); // Number of non-unique queries in the dataset.
         // Number of threads per block.
         int block_size = BLOCK_SIZE;
@@ -303,13 +293,13 @@ void em_parallel(const int model_type, const int node_id, const int n_nodes,
         std::cout << "[" << hostname << ", " << did << "] kernel dimensions = <<<" << kernel_dims[did * 2] << ", " << kernel_dims[did * 2 + 1] << ">>>" << std::endl;
     }
 
-    if (node_id == ROOT) {
-        std::cout << "\nStarting " << n_itr << " EM parameter estimation iterations..." << std::endl;
+    if (config.node_id == ROOT) {
+        std::cout << "\nStarting " << config.iterations << " EM parameter estimation iterations..." << std::endl;
     }
 
     // Perform n_itr Expectation-Maximization iterations.
     timer.start("EM iteration");
-    for (int itr = 0; itr < n_itr; itr++) {
+    for (int itr = 0; itr < config.iterations; itr++) {
 
         //-------------------------------------------------------------------//
         // Launch parameter estimation kernel.                               //
@@ -318,7 +308,7 @@ void em_parallel(const int model_type, const int node_id, const int n_nodes,
         timer.start("EM computation");
 
          // GPU-only.
-        for (int device_id = 0; device_id < (GPU_EXECUTION(exec_mode) ? n_devices : 0); device_id++) {
+        for (int device_id = 0; device_id < (GPU_EXECUTION(config.exec_mode) ? config.device_count : 0); device_id++) {
             CUDA_CHECK(cudaSetDevice(device_id));
 
             int grid_size = kernel_dims[device_id * 2];
@@ -330,15 +320,15 @@ void em_parallel(const int model_type, const int node_id, const int n_nodes,
             CUDA_CHECK(cudaEventRecord(end_events[device_id], 0));
         }
 
-        for (int device_id = 0; device_id < (GPU_EXECUTION(exec_mode) ? n_devices : 0); device_id++) {
+        for (int device_id = 0; device_id < (GPU_EXECUTION(config.exec_mode) ? config.device_count : 0); device_id++) {
             CUDA_CHECK(cudaSetDevice(device_id));
             CUDA_CHECK(cudaDeviceSynchronize());
             float time_ms;
             CUDA_CHECK(cudaEventElapsedTime(&time_ms, start_events[device_id], end_events[device_id]));
         }
 
-        if (exec_mode == 1) { // CPU-only.
-            for (int unit = 0; unit < processing_units; unit++) {
+        if (config.exec_mode == 1) { // CPU-only.
+            for (int unit = 0; unit < config.unit_count; unit++) {
                 cm_hosts[unit]->process_session(std::get<0>(device_partitions[unit]), thread_start_idx[unit]);
             }
         }
@@ -350,14 +340,14 @@ void em_parallel(const int model_type, const int node_id, const int n_nodes,
         // Wipe previous parameter results.                                  //
         //-------------------------------------------------------------------//
 
-        for (int device_id = 0; device_id < processing_units; device_id++) {
-            if (GPU_EXECUTION(exec_mode)) { CUDA_CHECK(cudaSetDevice(device_id)); }
+        for (int device_id = 0; device_id < config.unit_count; device_id++) {
+            if (GPU_EXECUTION(config.exec_mode)) { CUDA_CHECK(cudaSetDevice(device_id)); }
             timer.start("h2d");
-            cm_hosts[device_id]->reset_parameters((GPU_EXECUTION(exec_mode)) ? true : false);
+            cm_hosts[device_id]->reset_parameters((GPU_EXECUTION(config.exec_mode)) ? true : false);
             timer.lap("h2d", false);
         }
 
-        for (int device_id = 0; device_id < (GPU_EXECUTION(exec_mode) ? n_devices : 0); device_id++) { // GPU-only.
+        for (int device_id = 0; device_id < (GPU_EXECUTION(config.exec_mode) ? config.device_count : 0); device_id++) { // GPU-only.
             CUDA_CHECK(cudaSetDevice(device_id));
             CUDA_CHECK(cudaDeviceSynchronize());
         }
@@ -370,7 +360,7 @@ void em_parallel(const int model_type, const int node_id, const int n_nodes,
         timer.start("EM update");
 
         // GPU-only.
-        for (int device_id = 0; device_id < (GPU_EXECUTION(exec_mode) ? n_devices : 0); device_id++) {
+        for (int device_id = 0; device_id < (GPU_EXECUTION(config.exec_mode) ? config.device_count : 0); device_id++) {
             CUDA_CHECK(cudaSetDevice(device_id));
 
             int grid_size = kernel_dims[device_id * 2];
@@ -383,15 +373,15 @@ void em_parallel(const int model_type, const int node_id, const int n_nodes,
             CUDA_CHECK(cudaEventRecord(end_events[device_id], 0));
         }
 
-        for (int device_id = 0; device_id < (GPU_EXECUTION(exec_mode) ? n_devices : 0); device_id++) {
+        for (int device_id = 0; device_id < (GPU_EXECUTION(config.exec_mode) ? config.device_count : 0); device_id++) {
             CUDA_CHECK(cudaSetDevice(device_id));
             CUDA_CHECK(cudaDeviceSynchronize());
             float time_ms;
             CUDA_CHECK(cudaEventElapsedTime(&time_ms, start_events[device_id], end_events[device_id]));
         }
 
-        if (exec_mode == 1) { // CPU-only.
-            for (int unit = 0; unit < processing_units; unit++) {
+        if (config.exec_mode == 1) { // CPU-only.
+            for (int unit = 0; unit < config.unit_count; unit++) {
                 cm_hosts[unit]->update_parameters(std::get<0>(device_partitions[unit]), thread_start_idx[unit]);
             }
         }
@@ -406,11 +396,11 @@ void em_parallel(const int model_type, const int node_id, const int n_nodes,
         timer.start("EM synchronization");
         timer.start("d2h");
 
-        std::vector<std::vector<std::vector<Param>>> public_parameters(processing_units); // Device ID -> Parameter type -> Parameters.
+        std::vector<std::vector<std::vector<Param>>> public_parameters(config.unit_count); // Device ID -> Parameter type -> Parameters.
 
         // Retrieve all types of public parameters from each device.
-        for (int device_id = 0; device_id < processing_units; device_id++) {
-            if (GPU_EXECUTION(exec_mode)) {
+        for (int device_id = 0; device_id < config.unit_count; device_id++) {
+            if (GPU_EXECUTION(config.exec_mode)) {
                 CUDA_CHECK(cudaSetDevice(device_id));
                 cm_hosts[device_id]->transfer_parameters(PUBLIC, D2H, false);
             }
@@ -425,21 +415,21 @@ void em_parallel(const int model_type, const int node_id, const int n_nodes,
 
         // Send this node's synchronized public device parameters to all other
         // nodes in the network.
-        std::vector<std::vector<std::vector<Param>>> network_parameters(n_nodes,
+        std::vector<std::vector<std::vector<Param>>> network_parameters(config.total_nodes,
             std::vector<std::vector<Param>>(public_parameters.size(),
             std::vector<Param>(public_parameters[0][0].size()))); // Node ID -> Parameter type -> Parameters.
-        Communicate::exchange_parameters(network_parameters, public_parameters[0], n_nodes, node_id);
+        Communicate::exchange_parameters(network_parameters, public_parameters[0], config.total_nodes, config.node_id);
 
         // Sychronize the public parameters received from other nodes.
         Communicate::sync_parameters(network_parameters);
 
         // Move all types of synchronized public parameters back to each device.
-        for (int device_id = 0; device_id < processing_units; device_id++) {
+        for (int device_id = 0; device_id < config.unit_count; device_id++) {
             cm_hosts[device_id]->set_parameters(network_parameters[0], PUBLIC);
 
             timer.start("h2d");
 
-            if (GPU_EXECUTION(exec_mode)) {
+            if (GPU_EXECUTION(config.exec_mode)) {
                 CUDA_CHECK(cudaSetDevice(device_id));
                 cm_hosts[device_id]->transfer_parameters(PUBLIC, H2D, false);
             }
@@ -450,8 +440,8 @@ void em_parallel(const int model_type, const int node_id, const int n_nodes,
         timer.lap("EM synchronization", false);
 
         // Show metrics on the root node.
-        if (node_id == ROOT) {
-            int itr_len = std::to_string(n_itr).length();
+        if (config.node_id == ROOT) {
+            int itr_len = std::to_string(config.iterations).length();
             std::cout << "Itr: " << std::left << std::setw(itr_len) << itr <<
             " Itr-time: " << std::left << std::setw(10) << timer.lap("EM iteration") <<
             " Itr-EM_COMP: " << std::left << std::setw(11) << timer.elapsed("EM computation") <<
@@ -461,7 +451,7 @@ void em_parallel(const int model_type, const int node_id, const int n_nodes,
     }
 
     // Destroy CUDA timer events.
-    for (int device_id = 0; device_id < (GPU_EXECUTION(exec_mode) ? n_devices : 0); device_id++) {
+    for (int device_id = 0; device_id < (GPU_EXECUTION(config.exec_mode) ? config.device_count : 0); device_id++) {
         CUDA_CHECK(cudaEventDestroy(start_events[device_id]));
         CUDA_CHECK(cudaEventDestroy(end_events[device_id]));
     }
@@ -471,7 +461,7 @@ void em_parallel(const int model_type, const int node_id, const int n_nodes,
     // Copy trained (partial) click model from the device to the host.       //
     //-----------------------------------------------------------------------//
 
-    for (int device_id = 0; device_id < (GPU_EXECUTION(exec_mode) ? n_devices : 0); device_id++) {
+    for (int device_id = 0; device_id < (GPU_EXECUTION(config.exec_mode) ? config.device_count : 0); device_id++) {
         CUDA_CHECK(cudaSetDevice(device_id));
 
         // Ensure that all kernels have finished their execution.
@@ -491,7 +481,7 @@ void em_parallel(const int model_type, const int node_id, const int n_nodes,
     // Calculate node-local log-likelihood and perplexity.
     std::map<int, std::array<float, 2>> llh_device;
     std::map<int, Perplexity> ppl_device;
-    for (int device_id = 0; device_id < processing_units; device_id++) {
+    for (int device_id = 0; device_id < config.unit_count; device_id++) {
         // Compute the log-likelihood.
         LogLikelihood llh(cm_hosts[device_id]);
         float llh_val = llh.evaluate(std::get<1>(device_partitions[device_id]));
@@ -506,7 +496,7 @@ void em_parallel(const int model_type, const int node_id, const int n_nodes,
     }
 
     // Gather the log-likelihood and perplexity of all nodes on the root node.
-    Communicate::gather_evaluations(llh_device, ppl_device, n_nodes, node_id, n_devices_network);
+    Communicate::gather_evaluations(llh_device, ppl_device, config.total_nodes, config.node_id, config.devices_per_node);
 
     timer.stop("EM evaluation");
 
@@ -515,7 +505,7 @@ void em_parallel(const int model_type, const int node_id, const int n_nodes,
     // Free allocated device-side memory.                                    //
     //-----------------------------------------------------------------------//
 
-    for (int device_id = 0; device_id < (GPU_EXECUTION(exec_mode) ? n_devices : 0); device_id++) {
+    for (int device_id = 0; device_id < (GPU_EXECUTION(config.exec_mode) ? config.device_count : 0); device_id++) {
         CUDA_CHECK(cudaSetDevice(device_id));
         CUDA_CHECK(cudaDeviceSynchronize());
         CUDA_CHECK(cudaFree(dataset_dev[device_id]));
@@ -531,11 +521,11 @@ void em_parallel(const int model_type, const int node_id, const int n_nodes,
         std::cout << "\nWriting output to file..." << std::endl;
 
         std::pair<std::vector<std::string>, std::vector<std::string>> headers;
-        std::pair<std::vector<std::vector<Param> *>, std::vector<std::vector<Param> *>> parameters[processing_units];
-        for (int device_id = 0; device_id < processing_units; device_id++) {
+        std::pair<std::vector<std::vector<Param> *>, std::vector<std::vector<Param> *>> parameters[config.unit_count];
+        for (int device_id = 0; device_id < config.unit_count; device_id++) {
             cm_hosts[device_id]->get_parameter_information(headers, parameters[device_id]);
         }
-        Communicate::output_parameters(node_id, processing_units, output_path, device_partitions, headers, parameters);
+        Communicate::output_parameters(config.node_id, config.unit_count, output_path, device_partitions, headers, parameters);
     }
 
 
@@ -544,7 +534,7 @@ void em_parallel(const int model_type, const int node_id, const int n_nodes,
     //-----------------------------------------------------------------------//
 
     // Show metrics on the root node.
-    if (node_id == ROOT) {
+    if (config.node_id == ROOT) {
         // Compute the total log-likelihood.
         float total_llh_sum = 0.0;
         float total_llh_sessions = 0.0;
@@ -576,7 +566,7 @@ void em_parallel(const int model_type, const int node_id, const int n_nodes,
         std::cout << "Perplexity is: " << ppl_value << std::endl;
 
         // Show the timing measurements of the EM algorithm.
-        if (GPU_EXECUTION(exec_mode)) {
+        if (GPU_EXECUTION(config.exec_mode)) {
             std::cout << "\nHost to Device dataset transfer time: " << timer.elapsed("h2d_init") <<
             "\nAverage Host to Device parameter transfer time: " << timer.avg("h2d") / 2 <<
             "\nAverage Device to Host parameter transfer time: " << timer.avg("d2h") << std::endl;
@@ -592,7 +582,7 @@ void em_parallel(const int model_type, const int node_id, const int n_nodes,
 
     // Destroy all allocations on all available devices as part of the shutdown
     // procedure.
-    for (int device_id = 0; device_id < (GPU_EXECUTION(exec_mode) ? n_devices : 0); device_id++) {
+    for (int device_id = 0; device_id < (GPU_EXECUTION(config.exec_mode) ? config.device_count : 0); device_id++) {
         CUDA_CHECK(cudaSetDevice(device_id));
         CUDA_CHECK(cudaDeviceReset());
     }

@@ -81,6 +81,7 @@ int main(int argc, char** argv) {
     Timer timer;
     timer.start("Total");
 
+
     //-----------------------------------------------------------------------//
     // Initialize MPI                                                        //
     //-----------------------------------------------------------------------//
@@ -96,6 +97,7 @@ int main(int argc, char** argv) {
     std::vector<std::vector<std::vector<int>>> network_properties(n_nodes); // Node, Device, [Architecture, Free memory].
     get_number_devices(&n_devices);
     int processing_units = n_devices > 0 ? n_devices : 1;
+
 
     //-----------------------------------------------------------------------//
     // Declare and retrieve input parameters                                 //
@@ -190,6 +192,7 @@ int main(int argc, char** argv) {
         }
     }
 
+
     //-----------------------------------------------------------------------//
     // Error check the input                                                 //
     //-----------------------------------------------------------------------//
@@ -219,6 +222,7 @@ int main(int argc, char** argv) {
         n_devices = 0;
         processing_units = 1;
     }
+
 
     //-----------------------------------------------------------------------//
     // Communicate system properties                                         //
@@ -285,6 +289,7 @@ int main(int argc, char** argv) {
         std::cout << std::endl;
     }
 
+
     //-----------------------------------------------------------------------//
     // Parse given click log dataset                                         //
     //-----------------------------------------------------------------------//
@@ -308,6 +313,7 @@ int main(int argc, char** argv) {
 
     timer.stop("Parsing");
 
+
     //-----------------------------------------------------------------------//
     // Partition parsed dataset                                              //
     //-----------------------------------------------------------------------//
@@ -320,6 +326,7 @@ int main(int argc, char** argv) {
     }
 
     timer.stop("Partitioning");
+
 
     //-----------------------------------------------------------------------//
     // Send/Retrieve partitions                                              //
@@ -352,6 +359,7 @@ int main(int argc, char** argv) {
 
     timer.stop("Communication");
 
+
     //-----------------------------------------------------------------------//
     // Sort dataset partitions                                               //
     //-----------------------------------------------------------------------//
@@ -371,17 +379,30 @@ int main(int argc, char** argv) {
     timer.stop("Sorting");
     timer.stop("Preprocessing");
 
+
     //-----------------------------------------------------------------------//
     // Run parallel generic EM algorithm on selected click model and dataset //
     //-----------------------------------------------------------------------//
 
     timer.start("EM");
 
+    // Create the configuration object.
+    ProcessingConfig config;
+    config.model_type = model_type;
+    config.node_id = node_id;
+    config.total_nodes = n_nodes;
+    config.thread_count = n_threads;
+    config.devices_per_node = n_devices_network;
+    config.iterations = n_iterations;
+    config.exec_mode = exec_mode;
+    config.device_count = n_devices;
+    config.unit_count = processing_units;
+
     // Run click model parameter estimation using the generic EM algorithm.
-    em_parallel(model_type, node_id, n_nodes, n_threads, n_devices_network, n_iterations,
-                exec_mode, n_devices, processing_units, device_partitions, output_path, hostname);
+    em_parallel(config, device_partitions, output_path, hostname);
 
     timer.stop("EM");
+
 
     //-----------------------------------------------------------------------//
     // Show metrics                                                          //

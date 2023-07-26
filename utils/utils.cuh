@@ -19,7 +19,6 @@
 
 HST void get_number_devices(int *num_devices);
 HST int get_compute_capability(const int device);
-HST int get_warp_size(const int device);
 HST void get_device_memory(const int& device_id, size_t& free_memory, size_t& total_memory, const size_t rounding);
 
 HST void show_help_msg(void);

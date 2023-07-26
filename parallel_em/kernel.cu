@@ -15,7 +15,7 @@ namespace Kernel {
      * @brief A CUDA kernel which initializes the click model on the GPU and stores
      * the references to allocated memory relevant to calculating the click model.
      *
-     * @param model_type The type of click model (e.g. 0 = PBM).
+     * @param model_type The type of click model (e.g., 0 = PBM).
      * @param node_id The MPI communication rank of this node.
      * @param device_id The ID of the GPU device.
      * @param cm_param_ptr The pointers to memory allocated for usage by the click model.
