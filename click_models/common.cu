@@ -116,6 +116,7 @@ HST void update_unique_parameters_hst(std::vector<Param>& src, std::vector<Param
         int dataset_size = dataset.size();
 
         for (int query_index = start_idx; query_index < stop_idx; query_index++) {
+            #pragma unroll
             for (int rank = 0; rank < MAX_SERP; rank++) {
                 dst[dataset[query_index][rank].get_param_index()] += src[rank * dataset_size + query_index];
             }
@@ -206,8 +207,8 @@ DEV void update_shared_parameters_dev(Param*& src, Param*& dst, int& thread_inde
     for (int rank = 0; rank < src_size; rank++) {
         // Initialize shared memory for this block's parameters.
         if (thread_index < dataset_size) {
-            Param tmp_param{Param(__ldg(&((float2*) src)[rank * dataset_size + thread_index]))};
-            // Param tmp_param = src[rank * dataset_size + thread_index];
+            // Param tmp_param{Param(__ldg(&((float2*) src)[rank * dataset_size + thread_index]))};
+            Param tmp_param = src[rank * dataset_size + thread_index];
             numerator[block_index] = tmp_param.numerator_val();
             denominator[block_index] = tmp_param.denominator_val();
         }
@@ -268,6 +269,7 @@ DEV void update_shared_parameters_dev(Param*& src, Param*& dst, int& thread_inde
  * @param pidx The index of each search result's parameters to update.
  */
 DEV void update_unique_parameters_dev(Param*& src, Param*& dst, int& thread_index, int& dataset_size, const int (&pidx)[BLOCK_SIZE * MAX_SERP]) {
+    #pragma unroll
     for (int rank = 0; rank < MAX_SERP; rank++) {
         Param update{Param(__ldg(&((float2*) src)[rank * dataset_size + thread_index]))};
         // Param update = src[rank * dataset_size + thread_index];

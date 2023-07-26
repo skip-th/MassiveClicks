@@ -125,6 +125,25 @@ HST void DBN_Hst::init_parameters(const std::tuple<std::vector<SERP_Hst>, std::v
 }
 
 /**
+ * @brief Get the name of the parameters of this click model.
+ *
+ * @return The public and private parameter names.
+ */
+HST void DBN_Hst::get_parameter_information(
+        std::pair<std::vector<std::string>, std::vector<std::string>> &headers,
+        std::pair<std::vector<std::vector<Param> *>, std::vector<std::vector<Param> *>> &parameters) {
+    // Set parameter headers.
+    std::vector<std::string> public_name = {"continuation"};
+    std::vector<std::string> private_name = {"attractiveness", "satisfaction"};
+    headers = std::make_pair(public_name, private_name);
+
+    // Set parameter values.
+    std::vector<std::vector<Param> *> public_parameters = {&this->gam_parameters};
+    std::vector<std::vector<Param> *> private_parameters = {&this->atr_parameters, &this->sat_parameters};
+    parameters = std::make_pair(public_parameters, private_parameters);
+}
+
+/**
  * @brief Get the references to the allocated device-side memory.
  *
  * @param param_refs An array containing the references to the device-side
@@ -295,6 +314,7 @@ HST void DBN_Hst::compute_dbn_atr(int& qid, SERP_Hst& query_session, int& last_c
     float numerator_update, denominator_update;
     float exam_val, attr_val,  car_val;
 
+    #pragma unroll
     for (int rank = 0; rank < MAX_SERP; rank++) {
         SearchResult_Hst sr = query_session[rank];
 
@@ -332,6 +352,7 @@ HST void DBN_Hst::compute_dbn_sat(int& qid, SERP_Hst& query_session, int& last_c
     float numerator_update, denominator_update;
     float gamma_val, sat_val, car_val;
 
+    #pragma unroll
     for (int rank = 0; rank < MAX_SERP; rank++) {
         SearchResult_Hst sr = query_session[rank];
 
@@ -416,6 +437,7 @@ HST void DBN_Hst::get_tail_clicks(int& qid, SERP_Hst& query_session, float (&cli
 HST void DBN_Hst::compute_gamma(int& qid, SERP_Hst& query_session, int& last_click_rank, float (&click_probs)[MAX_SERP][MAX_SERP], float (&exam_probs)[MAX_SERP + 1]) {
     float factor_values[8] = { 0.f };
 
+    #pragma unroll
     for (int rank = 0; rank < MAX_SERP; rank++){
         SearchResult_Hst sr = query_session[rank];
 
@@ -551,6 +573,7 @@ HST void DBN_Hst::set_parameters(std::vector<std::vector<Param>>& source, int pa
 HST void DBN_Hst::get_serp_probability(SERP_Hst& query_session, float (&probablities)[MAX_SERP]) {
     float ex{1.f}, click_prob;
 
+    #pragma unroll
     for (int rank = 0; rank < MAX_SERP; rank++) {
         SearchResult_Hst sr = query_session[rank];
 
@@ -589,6 +612,7 @@ HST void DBN_Hst::get_serp_probability(SERP_Hst& query_session, float (&probabli
 HST void DBN_Hst::get_log_conditional_click_probs(SERP_Hst& query_session, std::vector<float>& log_click_probs) {
     float ex{1.f}, click_prob;
 
+    #pragma unroll
     for (int rank = 0; rank < MAX_SERP; rank++) {
         SearchResult_Hst sr = query_session[rank];
 
@@ -628,6 +652,7 @@ HST void DBN_Hst::get_full_click_probs(SERP_Hst& query_session, std::vector<floa
     float ex{1.f}, atr_mul_ex;
 
     // Go through all ranks of the query session.
+    #pragma unroll
     for (int rank = 0; rank < MAX_SERP; rank++) {
         // Retrieve the search result at the current rank.
         SearchResult_Hst sr = query_session[rank];
@@ -829,6 +854,7 @@ DEV void DBN_Dev::compute_dbn_atr(int& thread_index, int& last_click_rank, float
     float numerator_update, denominator_update;
     float exam_val, attr_val,  car_val;
 
+    #pragma unroll
     for (int rank = 0; rank < MAX_SERP; rank++) {
         numerator_update = 0.f;
         denominator_update = 1.f;
@@ -865,6 +891,7 @@ DEV void DBN_Dev::compute_dbn_sat(int& thread_index, int& last_click_rank, float
     float numerator_update, denominator_update;
     float gamma_val, sat_val, car_val;
 
+    #pragma unroll
     for (int rank = 0; rank < MAX_SERP; rank++) {
         if (clicks[rank * BLOCK_SIZE + threadIdx.x] == 1) {
             numerator_update = 0.f;
@@ -946,6 +973,7 @@ DEV void DBN_Dev::get_tail_clicks(float (&click_probs)[MAX_SERP][MAX_SERP], floa
 DEV void DBN_Dev::compute_gamma(int& thread_index, int& last_click_rank, float (&click_probs)[MAX_SERP][MAX_SERP], float (&exam_probs)[MAX_SERP + 1], const char (&clicks)[BLOCK_SIZE * MAX_SERP], const int (&pidx)[BLOCK_SIZE * MAX_SERP]) {
     float factor_values[8] = { 0.f };
 
+    #pragma unroll
     for (int rank = 0; rank < MAX_SERP; rank++){
         // Send the initialization values to the phi function.
         int shr_idx = pidx[rank * BLOCK_SIZE + threadIdx.x];

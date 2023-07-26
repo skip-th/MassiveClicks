@@ -29,6 +29,7 @@ public:
 
     HST size_t get_memory_usage(void) override;
     HST size_t compute_memory_footprint(int n_queries, int n_qd) override;
+    HST void get_parameter_information(std::pair<std::vector<std::string>, std::vector<std::string>> &headers, std::pair<std::vector<std::vector<Param> *>, std::vector<std::vector<Param> *>> &parameters) override;
     HST void get_device_references(Param**& param_refs, int*& param_sizes) override;
 
     HST void process_session(const std::vector<SERP_Hst>& dataset, const std::vector<int>& thread_start_idx) override;

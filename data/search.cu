@@ -185,6 +185,7 @@ HST int SERP_Hst::last_click_rank(void) {
 HST void SERP_Hst::prev_clicked_rank(int (&prev_click_rank)[MAX_SERP]) {
     int last_click_rank{MAX_SERP - 1};
 
+    #pragma unroll
     for (int rank = 0; rank < MAX_SERP; rank++) {
         // Store a previous click. The last rank will be stored if no click has
         // happened before.
@@ -274,6 +275,7 @@ HST SERP_Dev::SERP_Dev(const SERP_Hst serp) {
  * @param thread_index The index of the thread.
  */
 DEV SERP_Dev::SERP_Dev(SearchResult_Dev*& dataset, int& dataset_size, int& thread_index) {
+    #pragma unroll
     for (int rank = 0; rank < MAX_SERP; rank++) {
         this->session[rank] = dataset[rank * dataset_size + thread_index];
     }
@@ -311,6 +313,7 @@ DEV int SERP_Dev::last_click_rank(void) {
 DEV void SERP_Dev::prev_clicked_rank(int (&prev_click_rank)[MAX_SERP]) {
     int last_click_rank{MAX_SERP - 1};
 
+    #pragma unroll
     for (int rank = 0; rank < MAX_SERP; rank++) {
         // Store a previous click. The last rank will be stored if no click has
         // happened before.
@@ -344,7 +347,8 @@ HST void convert_to_device(std::vector<SERP_Hst>& dataset_hst, std::vector<Searc
     // Convert the host-side dataset to a smaller device-side dataset.
     for (int query_index = 0; query_index < dataset_hst.size(); query_index++) {
         SERP_Dev serp_tmp = SERP_Dev(dataset_hst[query_index]);
-        for (int rank = 0; rank < MAX_SERP; rank++) {
+        #pragma unroll
+    for (int rank = 0; rank < MAX_SERP; rank++) {
             // Change the indexing scheme so separate threads read from
             // contiguous memory.
             dataset_dev[rank * n_queries + query_index] = serp_tmp[rank];

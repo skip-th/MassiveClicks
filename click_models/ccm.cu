@@ -108,6 +108,25 @@ HST void CCM_Hst::init_parameters(const std::tuple<std::vector<SERP_Hst>, std::v
 }
 
 /**
+ * @brief Get the name of the parameters of this click model.
+ *
+ * @return The public and private parameter names.
+ */
+HST void CCM_Hst::get_parameter_information(
+        std::pair<std::vector<std::string>, std::vector<std::string>> &headers,
+        std::pair<std::vector<std::vector<Param> *>, std::vector<std::vector<Param> *>> &parameters) {
+    // Set parameter headers.
+    std::vector<std::string> public_name = {"continuation"};
+    std::vector<std::string> private_name = {"attractiveness"};
+    headers = std::make_pair(public_name, private_name);
+
+    // Set parameter values.
+    std::vector<std::vector<Param> *> public_parameters = {&this->tau_parameters};
+    std::vector<std::vector<Param> *> private_parameters = {&this->atr_parameters};
+    parameters = std::make_pair(public_parameters, private_parameters);
+}
+
+/**
  * @brief Get the references to the allocated device-side memory.
  *
  * @param param_refs An array containing the references to the device-side
@@ -278,6 +297,7 @@ HST void CCM_Hst::compute_ccm_atr(int& qid, SERP_Hst& query_session, int& last_c
     float numerator_update, denominator_update;
     float attr_val, exam_val, car_val;
 
+    #pragma unroll
     for (int rank = 0; rank < MAX_SERP; rank++) {
         SearchResult_Hst sr = query_session[rank];
         int click = sr.get_click();
@@ -321,6 +341,7 @@ HST void CCM_Hst::get_tail_clicks(int& qid, SERP_Hst& query_session, float (&cli
     float tau_1, tau_2, tau_3;
     float exam_val, click_prob;
 
+    #pragma unroll
     for (int start_rank = 0; start_rank < MAX_SERP; start_rank++) {
         exam_val = 1.f;
 
@@ -367,6 +388,7 @@ HST void CCM_Hst::get_tail_clicks(int& qid, SERP_Hst& query_session, float (&cli
 HST void CCM_Hst::compute_taus(int& qid, SERP_Hst& query_session, int& last_click_rank, float (&click_probs)[MAX_SERP][MAX_SERP], float (&exam_probs)[MAX_SERP + 1], int& partition_size) {
     float factor_values[8] = { 0.f };
 
+    #pragma unroll
     for (int rank = 0; rank < MAX_SERP; rank++){
         SearchResult_Hst sr = query_session[rank];
 
@@ -546,6 +568,7 @@ HST void CCM_Hst::get_serp_probability(SERP_Hst& query_session, float (&probabli
     float atr, tau_1, tau_2, tau_3;
     float ex{1.f}, click_prob;
 
+    #pragma unroll
     for (int rank = 0; rank < MAX_SERP; rank++) {
         SearchResult_Hst sr = query_session[rank];
 
@@ -583,6 +606,7 @@ HST void CCM_Hst::get_log_conditional_click_probs(SERP_Hst& query_session, std::
     float atr, tau_1, tau_2, tau_3;
     float ex{1.f}, click_prob;
 
+    #pragma unroll
     for (int rank = 0; rank < MAX_SERP; rank++) {
         SearchResult_Hst sr = query_session[rank];
 
@@ -620,6 +644,7 @@ HST void CCM_Hst::get_full_click_probs(SERP_Hst& query_session, std::vector<floa
     float ex{1.f}, atr_mul_ex;
 
     // Go through all ranks of the query session.
+    #pragma unroll
     for (int rank = 0; rank < MAX_SERP; rank++) {
         // Retrieve the search result at the current rank.
         SearchResult_Hst sr = query_session[rank];
@@ -769,7 +794,8 @@ DEV void CCM_Dev::compute_exm_car(float (&exam)[MAX_SERP + 1], float (&car)[MAX_
     float attr_val, tau_1, tau_2, tau_3, ex_value, temp, car_val;
     float car_helper[MAX_SERP][2];
 
-    for (int rank = 0; rank < MAX_SERP;) {
+    #pragma unroll
+    for (int rank = 0; rank < MAX_SERP; ++rank) {
         attr_val = this->atr_parameters[pidx[rank * BLOCK_SIZE + threadIdx.x]].value();
         tau_1 = this->tau_parameters[0].value();
         tau_2 = this->tau_parameters[1].value();
@@ -785,11 +811,10 @@ DEV void CCM_Dev::compute_exm_car(float (&exam)[MAX_SERP + 1], float (&car)[MAX_
         car_helper[rank][1] = temp;
 
         // Set the examination value for the next rank.
-        rank += 1;
-        exam[rank] = ex_value;
+        exam[rank + 1] = ex_value;
     }
 
-    for (int car_itr = MAX_SERP - 1; car_itr > -1; car_itr--) {
+    for (int car_itr = MAX_SERP - 1; car_itr >= 0; --car_itr) {
         car_val = car[car_itr + 1];
 
         car[car_itr] = car_helper[car_itr][0] + car_helper[car_itr][1] * car_val;
@@ -813,30 +838,29 @@ DEV void CCM_Dev::compute_exm_car(float (&exam)[MAX_SERP + 1], float (&car)[MAX_
  */
 DEV void CCM_Dev::compute_ccm_atr(int& thread_index, int& last_click_rank, float (&exam)[MAX_SERP + 1], float (&car)[MAX_SERP + 1], int& dataset_size, const char (&clicks)[BLOCK_SIZE * MAX_SERP], const int (&pidx)[BLOCK_SIZE * MAX_SERP]) {
     float numerator_update, denominator_update;
-    float attr_val, exam_val, car_val;
+    float attr_val, exam_val;
 
-    for (int rank = 0; rank < MAX_SERP; rank++) {
+    float tau_1 = this->tau_parameters[1].value();
+    float tau_2 = this->tau_parameters[2].value();
+
+    #pragma unroll
+    for (int rank = 0; rank < MAX_SERP; ++rank) {
         int click = clicks[rank * BLOCK_SIZE + threadIdx.x];
 
         numerator_update = 0.f;
         denominator_update = 1.f;
 
         attr_val = this->atr_parameters[pidx[rank * BLOCK_SIZE + threadIdx.x]].value();
-        exam_val = exam[rank];
 
-        if (click == 1) {
-            numerator_update += 1;
-            denominator_update += 1;
-        }
-        else if (rank >= last_click_rank) {
-            car_val = car[rank];
-            numerator_update += ((1 - exam_val) * attr_val) / (1 - exam_val * car_val);
+        numerator_update = (click == 1) ? numerator_update + 1 : numerator_update;
+        denominator_update = (click == 1) ? denominator_update + 1 : denominator_update;
+
+        if (rank >= last_click_rank && click != 1) {
+            exam_val = exam[rank];
+            numerator_update += ((1 - exam_val) * attr_val) / (1 - exam_val * car[rank]);
         }
 
-        if (click == 1 && rank == last_click_rank) {
-            car_val = car[rank + 1];
-            numerator_update += attr_val / (1 - (this->tau_parameters[1].value() * (1 - attr_val) + this->tau_parameters[2].value() * attr_val) * car_val);
-        }
+        numerator_update += (click == 1 && rank == last_click_rank) ? attr_val / (1 - (tau_1 * (1 - attr_val) + tau_2 * attr_val) * car[rank + 1]) : 0;
 
         this->atr_tmp_parameters[rank * dataset_size + thread_index].set_values(numerator_update, denominator_update);
     }
@@ -856,11 +880,12 @@ DEV void CCM_Dev::get_tail_clicks(float (&click_probs)[MAX_SERP][MAX_SERP], floa
     float tau_1, tau_2, tau_3;
     float exam_val, click_prob;
 
-    for (int start_rank = 0; start_rank < MAX_SERP; start_rank++) {
+    #pragma unroll
+    for (int start_rank = 0; start_rank < MAX_SERP; ++start_rank) {
         exam_val = 1.f;
 
-        int ses_itr{0};
-        for (int res_itr = start_rank; res_itr < MAX_SERP; res_itr++) {
+        #pragma unroll
+        for (int res_itr = start_rank, ses_itr = 0; res_itr < MAX_SERP; ++res_itr, ++ses_itr) {
             float attr_val = this->atr_parameters[pidx[ses_itr * BLOCK_SIZE + threadIdx.x]].value();
             tau_1 = this->tau_parameters[0].value();
             tau_2 = this->tau_parameters[1].value();
@@ -880,8 +905,6 @@ DEV void CCM_Dev::get_tail_clicks(float (&click_probs)[MAX_SERP][MAX_SERP], floa
             if (start_rank == 0) {
                 exam_probs[ses_itr + 1] = exam_val;
             }
-
-            ses_itr++;
         }
     }
 }
@@ -902,7 +925,8 @@ DEV void CCM_Dev::get_tail_clicks(float (&click_probs)[MAX_SERP][MAX_SERP], floa
 DEV void CCM_Dev::compute_taus(int& thread_index, int& last_click_rank, float (&click_probs)[MAX_SERP][MAX_SERP], float (&exam_probs)[MAX_SERP + 1], int& dataset_size, const char (&clicks)[BLOCK_SIZE * MAX_SERP], const int (&pidx)[BLOCK_SIZE * MAX_SERP]) {
     float factor_values[8] = { 0.f };
 
-    for (int rank = 0; rank < MAX_SERP; rank++){
+    #pragma unroll
+    for (int rank = 0; rank < MAX_SERP; ++rank){
         int click = clicks[rank * BLOCK_SIZE + threadIdx.x];
 
         // Send the initialization values to the phi function.
@@ -917,10 +941,10 @@ DEV void CCM_Dev::compute_taus(int& thread_index, int& last_click_rank, float (&
         float factor_sum = 0.f;
 
         // Compute phi for all possible input values.
-        for (int fct_itr{0}; fct_itr < 8; fct_itr++) {
-            factor_result = factor_func.compute(__ldca(&(this->factor_inputs)[fct_itr][0]),
-                                                __ldca(&(this->factor_inputs)[fct_itr][1]),
-                                                __ldca(&(this->factor_inputs)[fct_itr][2]));
+        for (int fct_itr = 0; fct_itr < 8; ++fct_itr) {
+            factor_result = factor_func.compute(this->factor_inputs[fct_itr][0],
+                                                this->factor_inputs[fct_itr][1],
+                                                this->factor_inputs[fct_itr][2]);
             factor_values[fct_itr] = factor_result;
             factor_sum += factor_result;
         }
@@ -945,8 +969,8 @@ DEV void CCM_Dev::compute_taus(int& thread_index, int& last_click_rank, float (&
  * @param dataset_size The size of the dataset.
  */
 DEV void CCM_Dev::compute_tau_1(int& thread_index, float (&factor_values)[8], float& factor_sum, int& dataset_size) {
-    double numerator_update{(factor_values[5] + factor_values[7]) / factor_sum};
-    double denominator_update{numerator_update + ((factor_values[4] + factor_values[6]) / factor_sum)};
+    double numerator_update = (factor_values[5] + factor_values[7]) / factor_sum;
+    double denominator_update = numerator_update + ((factor_values[4] + factor_values[6]) / factor_sum);
     this->tau_tmp_parameters[thread_index].add_to_values(numerator_update, denominator_update);
 }
 
@@ -960,8 +984,8 @@ DEV void CCM_Dev::compute_tau_1(int& thread_index, float (&factor_values)[8], fl
  * @param dataset_size The size of the dataset.
  */
 DEV void CCM_Dev::compute_tau_2(int& thread_index, float (&factor_values)[8], float& factor_sum, int& dataset_size) {
-    double numerator_update{factor_values[5] / factor_sum};
-    double denominator_update{numerator_update + ((factor_values[4]) / factor_sum)};
+    double numerator_update = factor_values[5] / factor_sum;
+    double denominator_update = numerator_update + ((factor_values[4]) / factor_sum);
     this->tau_tmp_parameters[dataset_size + thread_index].add_to_values(numerator_update, denominator_update);
 }
 
@@ -975,8 +999,8 @@ DEV void CCM_Dev::compute_tau_2(int& thread_index, float (&factor_values)[8], fl
  * @param dataset_size The size of the dataset.
  */
 DEV void CCM_Dev::compute_tau_3(int& thread_index, float (&factor_values)[8], float& factor_sum, int& dataset_size) {
-    double numerator_update{factor_values[7] / factor_sum};
-    double denominator_update{numerator_update + ((factor_values[6]) / factor_sum)};
+    double numerator_update = factor_values[7] / factor_sum;
+    double denominator_update = numerator_update + ((factor_values[6]) / factor_sum);
     this->tau_tmp_parameters[2 * dataset_size + thread_index].add_to_values(numerator_update, denominator_update);
 }
 

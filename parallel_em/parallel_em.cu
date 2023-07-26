@@ -218,7 +218,6 @@ void em_parallel(const int model_type, const int node_id, const int n_nodes,
         else {
             // Retrieve avaliable memory in bytes.
             get_host_memory(fmem, tmem, 1);
-
             fmem_dev[device_id * 2] = 0; // Memory in use.
             fmem_dev[device_id * 2 + 1] = fmem; // Total available memory.
 
@@ -334,10 +333,6 @@ void em_parallel(const int model_type, const int node_id, const int n_nodes,
         for (int device_id = 0; device_id < (GPU_EXECUTION(exec_mode) ? n_devices : 0); device_id++) {
             CUDA_CHECK(cudaSetDevice(device_id));
             CUDA_CHECK(cudaDeviceSynchronize());
-        }
-
-        for (int device_id = 0; device_id < (GPU_EXECUTION(exec_mode) ? n_devices : 0); device_id++) {
-            CUDA_CHECK(cudaSetDevice(device_id));
             float time_ms;
             CUDA_CHECK(cudaEventElapsedTime(&time_ms, start_events[device_id], end_events[device_id]));
         }
@@ -357,11 +352,8 @@ void em_parallel(const int model_type, const int node_id, const int n_nodes,
 
         for (int device_id = 0; device_id < processing_units; device_id++) {
             if (GPU_EXECUTION(exec_mode)) { CUDA_CHECK(cudaSetDevice(device_id)); }
-
             timer.start("h2d");
-
             cm_hosts[device_id]->reset_parameters((GPU_EXECUTION(exec_mode)) ? true : false);
-
             timer.lap("h2d", false);
         }
 
@@ -388,17 +380,12 @@ void em_parallel(const int model_type, const int node_id, const int n_nodes,
 
             CUDA_CHECK(cudaEventRecord(start_events[device_id], 0));
             Kernel::update<<<grid_size, block_size, shr_mem_size>>>(dataset_dev[device_id], dataset_size);
-
             CUDA_CHECK(cudaEventRecord(end_events[device_id], 0));
         }
 
         for (int device_id = 0; device_id < (GPU_EXECUTION(exec_mode) ? n_devices : 0); device_id++) {
             CUDA_CHECK(cudaSetDevice(device_id));
             CUDA_CHECK(cudaDeviceSynchronize());
-        }
-
-        for (int device_id = 0; device_id < (GPU_EXECUTION(exec_mode) ? n_devices : 0); device_id++) {
-            CUDA_CHECK(cudaSetDevice(device_id));
             float time_ms;
             CUDA_CHECK(cudaEventElapsedTime(&time_ms, start_events[device_id], end_events[device_id]));
         }
@@ -541,77 +528,14 @@ void em_parallel(const int model_type, const int node_id, const int n_nodes,
     //-----------------------------------------------------------------------//
 
     if (!output_path.empty()) {
-        std::vector<QDP> qdp_output;
-        std::ofstream output_file;
+        std::cout << "\nWriting output to file..." << std::endl;
 
-        // Create a new text file for the output on the root node.
-        if (node_id == ROOT) {
-            output_file.open(output_path);
-            output_file << "query,document,probability" << std::endl;
+        std::pair<std::vector<std::string>, std::vector<std::string>> headers;
+        std::pair<std::vector<std::vector<Param> *>, std::vector<std::vector<Param> *>> parameters[processing_units];
+        for (int device_id = 0; device_id < processing_units; device_id++) {
+            cm_hosts[device_id]->get_parameter_information(headers, parameters[device_id]);
         }
-
-        // Fill the qdp_output vector with the query-document pairs.
-        auto get_qdp_output = [](std::vector<SERP_Hst>& dataset, std::vector<QDP>& qdp_output, ClickModel_Hst& cm_host, int start_idx, int stop_idx) {
-            qdp_output.resize((stop_idx - start_idx) * MAX_SERP);
-            float probabilities[MAX_SERP];
-            for (int i = start_idx, j = 0; i < stop_idx; i++) {
-                SERP_Hst query_session = dataset[i];
-                int query = query_session.get_query();
-                cm_host.get_serp_probability(query_session, probabilities);
-
-                #pragma unroll
-                for (int rank = 0; rank < MAX_SERP; rank++) {
-                    int document = query_session[rank].get_doc_id();
-                    qdp_output[j].query = query;
-                    qdp_output[j].document = document;
-                    qdp_output[j].probability = probabilities[rank];
-                    j++;
-                }
-            }
-        };
-
-        // Send the query-document pairs and their probability to the root node
-        // and write it there to the output file.
-        if (node_id == ROOT) {
-            std::cout << "\nWriting output to file..." << std::endl;
-
-            // Iterate over all nodes' results and write them to a file.
-            for (int nid = 1; nid < n_nodes; nid++) {
-                for (int did = 0; did < n_devices_network[nid]; did++) {
-                    // Receive the queries, documents, and probabilities from
-                    // the node.
-                    Communicate::gather_results(node_id, nid, qdp_output);
-
-                    // Write the received results to a file.
-                    for (auto QDP : qdp_output) {
-                        output_file << QDP.query << "," << QDP.document << "," << QDP.probability << std::endl;
-                    }
-                }
-            }
-        }
-
-        // Iterate over the datasets assigned to each of this node's devices.
-        for (int unit = 0; unit < processing_units; unit++) {
-            // Fill the qdp_output vector with the probability of each
-            // query-document pair in a part of the dataset being clicked.
-            get_qdp_output(std::get<0>(device_partitions[unit]), qdp_output,
-                            *cm_hosts[unit], 0, std::get<0>(device_partitions[unit]).size());
-
-            if (node_id != ROOT) { // Have the root node write the results to a file.
-                // Send the qdp_output vector to the root node.
-                Communicate::gather_results(node_id, ROOT, qdp_output);
-            }
-            else { // Write the resuts to a file on the root node.
-                for (auto QDP : qdp_output) {
-                    output_file << QDP.query << "," << QDP.document << "," << QDP.probability << std::endl;
-                }
-            }
-        }
-
-        // Close the file on the root node.
-        if (node_id == ROOT) {
-            output_file.close();
-        }
+        Communicate::output_parameters(node_id, processing_units, output_path, device_partitions, headers, parameters);
     }
 
 

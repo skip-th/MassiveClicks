@@ -40,69 +40,63 @@ HST DEV CCMFactor::CCMFactor(float (&click_probs)[MAX_SERP][MAX_SERP], float (&e
  * @param z The z input value for phi.
  */
 HST DEV float CCMFactor::compute(int x, int y, int z) {
-    float log_prob = 0.f;
+    #ifdef __CUDA_ARCH__
+        float log_prob = 0.f;
+        float log_attr = __logf(this->attr);
+        float log_attr_inv = __logf(1 - this->attr);
+        float log_tau_1 = __logf(this->tau_1);
+        float log_tau_1_inv = __logf(1 - this->tau_1);
+        float log_tau_2 = __logf(this->tau_2);
+        float log_tau_2_inv = __logf(1 - this->tau_2);
+        float log_tau_3 = __logf(this->tau_3);
+        float log_tau_3_inv = __logf(1 - this->tau_3);
 
-    if (this->click == 0) { // Use tau 1 in case the document has not been clicked.
-        if (y == 1) {
+        log_prob = (this->click == 0) * log_attr_inv + (this->click != 0) * log_attr;
+
+        log_prob += (x == 1) * ((z == 1) * (this->click == 0) * log_tau_1 + (z != 1) * (this->click == 0) * log_tau_1_inv);
+        log_prob += (y == 0) * (this->click != 0) * (log_attr_inv + (z == 1) * log_tau_2 + (z != 1) * log_tau_2_inv);
+        log_prob += (y != 0) * (this->click != 0) * (log_attr + (z == 1) * log_tau_3 + (z != 1) * log_tau_3_inv);
+
+        if ((z == 0 && this->last_click_rank >= this->rank + 1) || (this->click == 0 && y == 1) || (x == 0 && this->click != 0) || (x != 1 && z == 1 && this->click == 0)) {
             return 0.f;
         }
 
-        #ifdef __CUDA_ARCH__
-            log_prob += __logf(1 - this->attr);
-        #else
-            log_prob += std::log(1 - this->attr);
-        #endif
+        if (z != 0 && this->rank + 1 < MAX_SERP) {
+            for (int res_itr = 0; res_itr < MAX_SERP - this->rank - 1; res_itr++) {
+                log_prob += __logf(this->click_probs[this->rank + 1][res_itr]);
+            }
+        }
 
-        if (x == 1) {
-            #ifdef __CUDA_ARCH__
-                if (z == 1) {
-                    log_prob += __logf(this->tau_1);
-                }
-                else {
-                    log_prob += __logf(1 - this->tau_1);
-                }
-            #else
+        log_prob += __logf(((x == 1) * this->exam_probs[this->rank]) + ((x != 1) * (1 - this->exam_probs[this->rank])));
+
+        return __expf(log_prob);
+    #else
+        float log_prob = 0.f;
+
+        if (this->click == 0) { // Use tau 1 in case the document has not been clicked.
+            if (y == 1) {
+                return 0.f;
+            }
+
+            log_prob += std::log(1 - this->attr);
+
+            if (x == 1) {
                 if (z == 1) {
                     log_prob += std::log(this->tau_1);
                 }
                 else {
                     log_prob += std::log(1 - this->tau_1);
                 }
-            #endif
-        }
-        else if (z == 1) {
-            return 0.f;
-        }
-    }
-    else { // Use tau 2 or 3 in case the document has been clicked.
-        if (x == 0) {
-            return 0.f;
-        }
-
-        #ifdef __CUDA_ARCH__
-            log_prob += __logf(this->attr);
-
-            if (y == 0) {
-                log_prob += __logf(1 - this->attr);
-
-                if (z == 1) {
-                    log_prob += __logf(this->tau_2);
-                }
-                else {
-                    log_prob += __logf(1 - this->tau_2);
-                }
             }
-            else {
-                log_prob += __logf(this->attr);
-
-                if (z == 1) {
-                    log_prob += __logf(this->tau_3);
-                }
-                else {
-                    log_prob += __logf(1 - this->tau_3);
-                }
+            else if (z == 1) {
+                return 0.f;
             }
-        #else
+        }
+        else { // Use tau 2 or 3 in case the document has been clicked.
+            if (x == 0) {
+                return 0.f;
+            }
+
             log_prob += std::log(this->attr);
 
             if (y == 0) {
@@ -125,36 +119,19 @@ HST DEV float CCMFactor::compute(int x, int y, int z) {
                     log_prob += std::log(1 - this->tau_3);
                 }
             }
-        #endif
-    }
-
-    if (z == 0) {
-        if (this->last_click_rank >= this->rank + 1) {
-            return 0.f;
         }
-    }
-    else if (this->rank + 1 < MAX_SERP) {
-        #ifdef __CUDA_ARCH__
-            for (int res_itr = 0; res_itr < MAX_SERP - this->rank - 1; res_itr++) {
-                log_prob += __logf(this->click_probs[this->rank + 1][res_itr]);
+
+        if (z == 0) {
+            if (this->last_click_rank >= this->rank + 1) {
+                return 0.f;
             }
-        #else
+        }
+        else if (this->rank + 1 < MAX_SERP) {
             for (int res_itr = 0; res_itr < MAX_SERP - this->rank - 1; res_itr++) {
                 log_prob += std::log(this->click_probs[this->rank + 1][res_itr]);
             }
-        #endif
-    }
-
-    #ifdef __CUDA_ARCH__
-        if (x == 1) {
-            log_prob += __logf(this->exam_probs[this->rank]);
-        }
-        else {
-            log_prob += __logf(1 - this->exam_probs[this->rank]);
         }
 
-        return __expf(log_prob);
-    #else
         if (x == 1) {
             log_prob += std::log(this->exam_probs[this->rank]);
         }
@@ -198,65 +175,62 @@ HST DEV DBNFactor::DBNFactor(float (&click_probs)[MAX_SERP][MAX_SERP], float (&e
  * @param z The z input value for phi.
  */
 HST DEV float DBNFactor::compute(int x, int y, int z) {
-    float log_prob = 0.f;
+    #ifdef __CUDA_ARCH__
+        float log_prob = 0.f;
+        float log_attr = __logf(this->attr);
+        float log_attr_inv = __logf(1 - this->attr);
+        float log_gamma = __logf(this->gamma);
+        float log_gamma_inv = __logf(1 - this->gamma);
+        float log_sat = __logf(this->sat);
+        float log_sat_inv = __logf(1 - this->sat);
 
-    if (this->click == 0){
-        if (y == 1){
+        log_prob = (this->click == 0) * log_attr_inv + (this->click != 0) * log_attr;
+
+        log_prob += (x == 1) * ((z == 1) * (this->click == 0) * log_gamma + (z != 1) * (this->click == 0) * log_gamma_inv);
+        log_prob += (y == 0) * (this->click != 0) * (log_sat_inv + (z == 1) * log_gamma + (z != 1) * log_gamma_inv);
+        log_prob += (y != 0) * (this->click != 0) * (z != 1) * log_sat;
+
+        if ((z == 0 && this->last_click_rank >= this->rank + 1) || (this->click == 0 && y == 1) || (x == 0 && this->click != 0) || (x != 1 && z == 1 && this->click == 0) || (y != 0 && z == 1 && this->click != 0)) {
             return 0.f;
         }
 
-        #ifdef __CUDA_ARCH__
-            log_prob += __logf(1 - this->attr);
-        #else
-            log_prob += std::log(1 - this->attr);
-        #endif
+        if (z != 0 && this->rank + 1 < MAX_SERP) {
+            for (int res_itr = 0; res_itr < MAX_SERP - this->rank - 1; res_itr++) {
+                log_prob += __logf(this->click_probs[this->rank + 1][res_itr]);
+            }
+        }
 
-        if (x == 1) {
-            #ifdef __CUDA_ARCH__
-                if (z == 1) {
-                    log_prob += __logf(this->gamma);
-                }
-                else {
-                    log_prob += __logf(1 - this->gamma);
-                }
-            #else
+        float exam_val = this->exam_probs[this->rank];
+        log_prob += __logf(((x == 1) * exam_val) + ((x != 1) * (1 - exam_val)));
+
+        return __expf(log_prob);
+    #else
+        float log_prob = 0.f;
+
+        if (this->click == 0){
+            if (y == 1){
+                return 0.f;
+            }
+
+            log_prob += std::log(1 - this->attr);
+
+            if (x == 1) {
                 if (z == 1) {
                     log_prob += std::log(this->gamma);
                 }
                 else {
                     log_prob += std::log(1 - this->gamma);
                 }
-            #endif
-        }
-        else if (z == 1) {
-            return 0.f;
-        }
-    }
-    else {
-        if (x == 0) {
-            return 0.f;
-        }
-
-        #ifdef __CUDA_ARCH__
-            log_prob += __logf(this->attr);
-
-            if (y == 0) {
-                log_prob += __logf(1 - this->sat);
-                if (z == 1) {
-                    log_prob += __logf(this->gamma);
-                }
-                else {
-                    log_prob += __logf(1 - this->gamma);
-                }
             }
-            else {
-                if (z == 1) {
-                    return 0.f;
-                }
-
-                log_prob += __logf(this->sat);
+            else if (z == 1) {
+                return 0.f;
             }
-        #else
+        }
+        else {
+            if (x == 0) {
+                return 0.f;
+            }
+
             log_prob += std::log(this->attr);
 
             if (y == 0) {
@@ -275,38 +249,21 @@ HST DEV float DBNFactor::compute(int x, int y, int z) {
 
                 log_prob += std::log(this->sat);
             }
-        #endif
-    }
-
-    if (z == 0) {
-        if (this->last_click_rank >= this->rank + 1) {
-            return 0.f;
         }
-    }
-    else if (this->rank + 1 < MAX_SERP) {
-        #ifdef __CUDA_ARCH__
-            for (int res_itr = 0; res_itr < MAX_SERP - this->rank - 1; res_itr++) {
-                log_prob += __logf(this->click_probs[this->rank + 1][res_itr]);
+
+        if (z == 0) {
+            if (this->last_click_rank >= this->rank + 1) {
+                return 0.f;
             }
-        #else
+        }
+        else if (this->rank + 1 < MAX_SERP) {
             for (int res_itr = 0; res_itr < MAX_SERP - this->rank - 1; res_itr++) {
                 log_prob += std::log(this->click_probs[this->rank + 1][res_itr]);
             }
-        #endif
-    }
-
-    float exam_val = this->exam_probs[this->rank];
-
-    #ifdef __CUDA_ARCH__
-        if (x == 1) {
-            log_prob += __logf(exam_val);
-        }
-        else {
-            log_prob += __logf(1 - exam_val);
         }
 
-        return __expf(log_prob);
-    #else
+        float exam_val = this->exam_probs[this->rank];
+
         if (x == 1) {
             log_prob += std::log(exam_val);
         }

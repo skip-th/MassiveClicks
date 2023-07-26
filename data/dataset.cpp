@@ -151,6 +151,7 @@ bool Dataset::add_parameter_test(SERP_Hst& query_session, const int& node_id, co
     // Iterate over all ranks in the query session.
     std::unordered_map<int, std::unordered_map<int, int>>::iterator qitr;
     bool found_match = false;
+    #pragma unroll
     for (int rank = 0; rank < MAX_SERP; rank++) {
         qitr = local_params->find(query_session.get_query());
 
@@ -193,6 +194,7 @@ void Dataset::add_parameter_train(SERP_Hst& query_session, const int& node_id, c
 
     // Iterate over all ranks in the query session.
     std::unordered_map<int, std::unordered_map<int, int>>::iterator qitr;
+    #pragma unroll
     for (int rank = 0; rank < MAX_SERP; rank++) {
         qitr = local_params->find(query);
 

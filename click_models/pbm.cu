@@ -1,8 +1,13 @@
-/** PBM click model.
- * Pooya Khandel's ParClick is used as a reference implementation.
+/** PBM click model computation on the host and device.
  *
  * pbm.cu:
  *  - Defines the functions specific to creating a PBM CM.
+ *  - This file is separated into host-side (PBM_Hst) and defice-side (PBM_Dev)
+ *    functions.
+ *  - The host-side functions include several convenience functions for
+ *    allocating and freeing device-side memory, and for transferring data
+ *    between the host and device.
+ *  - The device-side functions only include CM computation-related functions.
  */
 
 #include "pbm.cuh"
@@ -108,6 +113,25 @@ HST void PBM_Hst::init_parameters(const std::tuple<std::vector<SERP_Hst>, std::v
 }
 
 /**
+ * @brief Get the name of the parameters of this click model.
+ *
+ * @return The public and private parameter names.
+ */
+HST void PBM_Hst::get_parameter_information(
+        std::pair<std::vector<std::string>, std::vector<std::string>> &headers,
+        std::pair<std::vector<std::vector<Param> *>, std::vector<std::vector<Param> *>> &parameters) {
+    // Set parameter headers.
+    std::vector<std::string> public_name = {"examination"};
+    std::vector<std::string> private_name = {"attractiveness"};
+    headers = std::make_pair(public_name, private_name);
+
+    // Set parameter values.
+    std::vector<std::vector<Param> *> public_parameters = {&this->exm_parameters};
+    std::vector<std::vector<Param> *> private_parameters = {&this->atr_parameters};
+    parameters = std::make_pair(public_parameters, private_parameters);
+}
+
+/**
  * @brief Get the references to the allocated device-side memory.
  *
  * @param param_refs An array containing the references to the device-side
@@ -174,6 +198,7 @@ HST void PBM_Hst::process_session(const std::vector<SERP_Hst>& dataset, const st
             SERP_Hst query_session = dataset[query_index];
 
             // Iterate over each search result in the query session.
+            #pragma unroll
             for (int rank = 0; rank < MAX_SERP; rank++) {
                 SearchResult_Hst sr = query_session[rank];
 
@@ -324,6 +349,7 @@ HST void PBM_Hst::set_parameters(std::vector<std::vector<Param>>& source, int pa
  * @param probabilities The probabilities of a click on each search result.
  */
 HST void PBM_Hst::get_serp_probability(SERP_Hst& query_session, float (&probablities)[MAX_SERP]) {
+    #pragma unroll
     for (int rank = 0; rank < MAX_SERP; rank++) {
         SearchResult_Hst sr = query_session[rank];
 
@@ -348,6 +374,7 @@ HST void PBM_Hst::get_serp_probability(SERP_Hst& query_session, float (&probabli
  * the document at each rank in the query session.
  */
 HST void PBM_Hst::get_log_conditional_click_probs(SERP_Hst& query_session, std::vector<float>& log_click_probs) {
+    #pragma unroll
     for (int rank = 0; rank < MAX_SERP; rank++) {
         SearchResult_Hst sr = query_session[rank];
 
@@ -384,6 +411,7 @@ HST void PBM_Hst::get_log_conditional_click_probs(SERP_Hst& query_session, std::
  */
 HST void PBM_Hst::get_full_click_probs(SERP_Hst& query_session, std::vector<float> &full_click_probs) {
     // Go through all ranks of the query session.
+    #pragma unroll
     for (int rank = 0; rank < MAX_SERP; rank++) {
         // Retrieve the search result at the current rank.
         SearchResult_Hst sr = query_session[rank];
@@ -495,6 +523,7 @@ DEV void PBM_Dev::set_parameters(Param**& parameter_ptr, int* parameter_sizes) {
  * @param pidx The parameter index of each rank of the query session.
  */
 DEV void PBM_Dev::process_session(SERP_Dev& query_session, int& thread_index, int& dataset_size, const char (&clicks)[BLOCK_SIZE * MAX_SERP], const int (&pidx)[BLOCK_SIZE * MAX_SERP]) {
+    #pragma unroll
     for (int rank = 0; rank < MAX_SERP; rank++) {
         // Get the attractiveness and examination parameters.
         float atr{this->atr_parameters[pidx[rank * BLOCK_SIZE + threadIdx.x]].value()};

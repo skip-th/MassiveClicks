@@ -27,6 +27,7 @@
 #include "../click_models/param.cuh"
 #include "../click_models/evaluation.h"
 #include "../data/dataset.h"
+#include "../click_models/base.cuh"
 
 struct QDP {
     int query;
@@ -51,7 +52,10 @@ namespace Communicate {
     void sync_parameters(std::vector<std::vector<std::vector<Param>>>& parameters);
     void gather_evaluations(std::map<int, std::array<float, 2>>& loglikelihood,
         std::map<int, Perplexity>& perplexity, const int n_nodes, const int node_id, const int* n_devices_network);
-    void gather_results(const int node_id, const int target_id, std::vector<QDP>& parameters);
+    void output_parameters(const int node_id, const int processing_units, const std::string file_path,
+        const std::vector<std::tuple<std::vector<SERP_Hst>, std::vector<SERP_Hst>, int>>& dataset_partitions,
+        const std::pair<std::vector<std::string>, std::vector<std::string>> &headers,
+        const std::pair<std::vector<std::vector<Param> *>, std::vector<std::vector<Param> *>> *parameters);
 }
 
 

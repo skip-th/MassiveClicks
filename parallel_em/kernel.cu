@@ -52,6 +52,8 @@ namespace Kernel {
         SERP_Dev query_session = SERP_Dev(dataset, dataset_size, thread_index);
         SHR char clicks[BLOCK_SIZE * MAX_SERP]; // Click per rank.
         SHR int pidx[BLOCK_SIZE * MAX_SERP]; // Parameter index.
+
+        #pragma unroll
         for (int rank = 0; rank < MAX_SERP; rank++) {
             clicks[rank * BLOCK_SIZE + threadIdx.x] = query_session[rank].get_click();
             pidx[rank * BLOCK_SIZE + threadIdx.x] = query_session[rank].get_param_index();
@@ -76,6 +78,8 @@ namespace Kernel {
         // Retrieve the parameter indices shared between similar qd-pairs from
         // the dataset.
         SHR int pidx[BLOCK_SIZE * MAX_SERP];
+
+        #pragma unroll
         for (int rank = 0; rank < MAX_SERP; rank++) {
             pidx[rank * BLOCK_SIZE + threadIdx.x] = dataset[rank * dataset_size + thread_index].get_param_index();
         }

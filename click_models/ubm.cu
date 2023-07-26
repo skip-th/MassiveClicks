@@ -108,6 +108,25 @@ HST void UBM_Hst::init_parameters(const std::tuple<std::vector<SERP_Hst>, std::v
 }
 
 /**
+ * @brief Get the name of the parameters of this click model.
+ *
+ * @return The public and private parameter names.
+ */
+HST void UBM_Hst::get_parameter_information(
+        std::pair<std::vector<std::string>, std::vector<std::string>> &headers,
+        std::pair<std::vector<std::vector<Param> *>, std::vector<std::vector<Param> *>> &parameters) {
+    // Set parameter headers.
+    std::vector<std::string> public_name = {"examination"};
+    std::vector<std::string> private_name = {"attractiveness"};
+    headers = std::make_pair(public_name, private_name);
+
+    // Set parameter values.
+    std::vector<std::vector<Param> *> public_parameters = {&this->exm_parameters};
+    std::vector<std::vector<Param> *> private_parameters = {&this->atr_parameters};
+    parameters = std::make_pair(public_parameters, private_parameters);
+}
+
+/**
  * @brief Get the references to the allocated device-side memory.
  *
  * @param param_refs An array containing the references to the device-side
@@ -174,7 +193,8 @@ HST void UBM_Hst::process_session(const std::vector<SERP_Hst>& dataset, const st
             int prev_click_rank[MAX_SERP] = { 0 };
             query_session.prev_clicked_rank(prev_click_rank);
 
-            for (int rank = 0; rank < MAX_SERP; rank++) {
+            #pragma unroll
+    for (int rank = 0; rank < MAX_SERP; rank++) {
                 SearchResult_Hst sr = query_session[rank];
 
                 // Get the attractiveness and examination parameters.
@@ -327,6 +347,7 @@ HST void UBM_Hst::get_serp_probability(SERP_Hst& query_session, float (&probabli
     int prev_click_rank[MAX_SERP] = { 0 };
     query_session.prev_clicked_rank(prev_click_rank);
 
+    #pragma unroll
     for (int rank = 0; rank < MAX_SERP; rank++) {
         SearchResult_Hst sr = query_session[rank];
 
@@ -354,6 +375,7 @@ HST void UBM_Hst::get_log_conditional_click_probs(SERP_Hst& query_session, std::
     int prev_click_rank[MAX_SERP] = { 0 };
     query_session.prev_clicked_rank(prev_click_rank);
 
+    #pragma unroll
     for (int rank = 0; rank < MAX_SERP; rank++) {
         SearchResult_Hst sr = query_session[rank];
 
@@ -392,6 +414,7 @@ HST void UBM_Hst::get_full_click_probs(SERP_Hst& query_session, std::vector<floa
     std::vector<float> temp_full_click_probs;
 
     // Go through all ranks of the query session.
+    #pragma unroll
     for (int rank = 0; rank < MAX_SERP; rank++) {
         // Retrieve the search result at the current rank.
         SearchResult_Hst sr = query_session[rank];
@@ -533,6 +556,7 @@ DEV void UBM_Dev::process_session(SERP_Dev& query_session, int& thread_index, in
     int prev_click_rank[MAX_SERP] = { 0 };
     query_session.prev_clicked_rank(prev_click_rank);
 
+    #pragma unroll
     for (int rank = 0; rank < MAX_SERP; rank++) {
         // Get the attractiveness and examination parameters.
         float atr{this->atr_parameters[pidx[rank * BLOCK_SIZE + threadIdx.x]].value()};

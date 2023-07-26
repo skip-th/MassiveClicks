@@ -352,44 +352,105 @@ namespace Communicate
     }
 
     /**
-     * @brief Communicate the query-document pairs and their corresponding
-     * probability to the root node.
+     * @brief Output the parameters to a file.
      *
      * @param node_id The ID of the current node.
-     * @param target_id The ID of the node sending or receiving the message.
-     * @param parameters The array to store the send/received parameters.
+     * @param processing_units The number of processing units on the current node.
+     * @param file_path The base path to the file to write the parameters to.
+     * @param dataset_partitions The dataset partitions for each processing unit.
+     * @param headers The names of the parameters.
+     * @param parameters The parameters to write to file.
      */
-    void gather_results(const int node_id, const int target_id, std::vector<QDP>& parameters) {
-        // Create QDP (Query-Document-Probability/Parameter) MPI datatype.
-        struct QDP tmp;
-        int lengths[3] = { 1, 1, 1 };
-        MPI_Datatype types[3] = { MPI_INT, MPI_INT, MPI_FLOAT };
-        MPI_Datatype MPI_QDP;
-        MPI_Aint displacements[3], base_address;
-        MPI_CHECK(MPI_Get_address(&tmp, &base_address));
-        MPI_CHECK(MPI_Get_address(&tmp.query, &displacements[0]));
-        MPI_CHECK(MPI_Get_address(&tmp.document, &displacements[1]));
-        MPI_CHECK(MPI_Get_address(&tmp.probability, &displacements[2]));
-        displacements[0] = MPI_Aint_diff(displacements[0], base_address);
-        displacements[1] = MPI_Aint_diff(displacements[1], base_address);
-        displacements[2] = MPI_Aint_diff(displacements[2], base_address);
+    void output_parameters(const int node_id, const int processing_units, const std::string file_path,
+        const std::vector<std::tuple<std::vector<SERP_Hst>, std::vector<SERP_Hst>, int>>& dataset_partitions,
+        const std::pair<std::vector<std::string>, std::vector<std::string>> &headers,
+        const std::pair<std::vector<std::vector<Param> *>, std::vector<std::vector<Param> *>> *parameters) {
 
-        MPI_CHECK(MPI_Type_create_struct(3, lengths, displacements, types, &MPI_QDP));
-        MPI_CHECK(MPI_Type_commit(&MPI_QDP));
+        // Write parameters shared by all nodes using only the root node.
+        if (node_id == ROOT) {
+            // Write public parameters to one or more files.
+            for (int public_param_num = 0; public_param_num < parameters[0].first.size(); public_param_num++) {
+                std::ofstream file; // Open file for current public parameter.
+                std::cout << "  Writing parameter " << headers.first[public_param_num] << " to " << file_path + "_" + headers.first[public_param_num] + ".csv" << std::endl;
+                file.open(file_path + "_" + headers.first[public_param_num] + ".csv");
+                file << "rank, " << headers.first[public_param_num] << std::endl; // Write header.
+                for (size_t rank = 0; rank < (*parameters[0].first[public_param_num]).size(); rank++) { // Write public parameters.
+                    file << rank << ", " << (*parameters[0].first[public_param_num])[rank].value() << std::endl;
+                }
+                file.close();
+            }
 
-        // Gather the device parameters on the root node.
-        if (node_id == ROOT) { // Receiver
-            // Receive parameters from a node.
-            MPI_Status status;
-            MPI_CHECK(MPI_Probe(target_id, 0, MPI_COMM_WORLD, &status));
-            int msg_len;
-            MPI_CHECK(MPI_Get_count(&status, MPI_QDP, &msg_len));
-            parameters.resize(msg_len);
-            MPI_CHECK(MPI_Recv(parameters.data(), parameters.size(), MPI_QDP, target_id, 0, MPI_COMM_WORLD, &status));
+            // Write private parameter headers to one or more files.
+            for (int private_param_num = 0; private_param_num < parameters[0].second.size(); private_param_num++) {
+                std::ofstream file; // Open file for current private parameter.
+                file.open(file_path + "_" + headers.second[private_param_num] + ".csv");
+                std::cout << "  Writing parameter " << headers.second[private_param_num] << " to " << file_path + "_" + headers.second[private_param_num] + ".csv" << std::endl;
+                file << "query, document, " << headers.second[private_param_num] << std::endl; // Write header.
+                file.close();
+            }
         }
-        else { // Sender
-            // Send parameters to root node.
-            MPI_CHECK(MPI_Send(parameters.data(), parameters.size(), MPI_QDP, target_id, 0, MPI_COMM_WORLD));
+
+        // Write private parameters to one or more files from all nodes.
+        for (int private_param_num = 0; private_param_num < parameters[0].second.size(); private_param_num++) {
+            // Retrieve highest number of required MPI_File_write_at_all calls using allreduce.
+            int current_write_call = 0;
+            int max_write_calls = processing_units;
+            MPI_CHECK(MPI_Allreduce(MPI_IN_PLACE, &max_write_calls, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD));
+
+            MPI_File file;
+            MPI_Status status;
+            MPI_Offset msg_offset;
+
+            // Open the file.
+            MPI_CHECK(MPI_File_open(MPI_COMM_WORLD, (file_path + "_" + headers.second[private_param_num] + ".csv").c_str(),
+                                    MPI_MODE_CREATE | MPI_MODE_WRONLY, MPI_INFO_NULL, &file));
+
+            // Iterate over all devices on the current node.
+            for (int did = 0; did < processing_units; did++) {
+                // Retrieve pointer to required dataset partition
+                std::string data = "";
+
+                for (int i = 0; i < std::get<0>(dataset_partitions[did]).size(); i++) {
+                    SERP_Hst query_session = std::get<0>(dataset_partitions[did])[i];
+                    int query = query_session.get_query();
+
+                    #pragma unroll
+                    for (int rank = 0; rank < MAX_SERP; rank++) {
+                        int document = query_session[rank].get_doc_id();
+                        SearchResult_Hst sr = query_session[rank];
+
+                        float def{(float) PARAM_DEF_NUM / (float) PARAM_DEF_DENOM};
+                        float val = sr.get_param_index() != -1 ? (*parameters[did].second[private_param_num])[sr.get_param_index()].value() : def;
+                        data += std::to_string(query) + ", " + std::to_string(document) + ", " + std::to_string(val) + "\n";
+                    }
+                }
+
+                // Compute the offset for each node.
+                int msg_size = data.size();
+                MPI_Exscan(&msg_size, &msg_offset, 1, MPI_OFFSET, MPI_SUM, MPI_COMM_WORLD);
+
+                // The first process does not participate in the exclusive scan, so it starts writing at the beginning of the file.
+                if (node_id == 0) msg_offset = 0;
+
+                // Write to the file (ordering is not preserved)
+                MPI_CHECK(MPI_File_write_at_all(file, msg_offset, data.data(), data.size(), MPI_CHAR, &status));
+                current_write_call++;
+            }
+
+            // Perform dummy writes to ensure all nodes have written the same number of times.
+            while (current_write_call < max_write_calls) {
+                // Compute the offset for each node
+                int msg_size = 0;
+                MPI_Exscan(&msg_size, &msg_offset, 1, MPI_OFFSET, MPI_SUM, MPI_COMM_WORLD);
+                // The first process does not participate in the exclusive scan, so it should start writing at the beginning of the file
+                if (node_id == 0) msg_offset = 0;
+                // Write dummy text to the file
+                MPI_CHECK(MPI_File_write_at_all(file, msg_offset, "", 0, MPI_CHAR, &status));
+                current_write_call++;
+            }
+
+            // Close the file
+            MPI_CHECK(MPI_File_close(&file));
         }
     }
 }
