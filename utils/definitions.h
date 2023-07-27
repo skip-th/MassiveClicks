@@ -27,7 +27,7 @@
 #define BLOCK_SIZE 128 // Threads per block. Can't be less than MAX_SERP.
 
 // Constants for MPI.
-#define ROOT 0 // The id of the root node.
+#define ROOT_RANK 0 // The id of the root node.
 
 // Constants for data transfer directions.
 #define D2H 0 // Device to host.

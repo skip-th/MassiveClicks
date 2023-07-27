@@ -151,7 +151,6 @@ bool Dataset::add_parameter_test(SERP_Hst& query_session, const int& node_id, co
     // Iterate over all ranks in the query session.
     std::unordered_map<int, std::unordered_map<int, int>>::iterator qitr;
     bool found_match = false;
-    #pragma unroll
     for (int rank = 0; rank < MAX_SERP; rank++) {
         qitr = local_params->find(query_session.get_query());
 
@@ -164,13 +163,7 @@ bool Dataset::add_parameter_test(SERP_Hst& query_session, const int& node_id, co
                 query_session.access_sr(rank).set_param_index(ditr->second);
                 found_match = true;
             }
-            // else { // ! Enable/disable these statements to set the filtering approach from query to query-document.
-            //     return false;
-            // }
         }
-        // else { // ! Enable/disable these statements to set the filtering approach from query to query-document.
-        //     return false;
-        // }
     }
 
     // Return true if at least one of the documents inside the query session
@@ -194,7 +187,6 @@ void Dataset::add_parameter_train(SERP_Hst& query_session, const int& node_id, c
 
     // Iterate over all ranks in the query session.
     std::unordered_map<int, std::unordered_map<int, int>>::iterator qitr;
-    #pragma unroll
     for (int rank = 0; rank < MAX_SERP; rank++) {
         qitr = local_params->find(query);
 
@@ -370,7 +362,7 @@ void Dataset::make_partitions(const DeviceLayout<std::vector<int>>& network_prop
             // Get the node id and device id of where the smallest training set exists.
             std::tie(node_id, device_id) = this->get_smallest_train(this->training_queries);
         }
-        else if (partitioning_type == 2) { // Resource-Aware Maximum Utilization
+        else if (partitioning_type == 2) { // Proportional Maximum Utilization
             // Get the node id and device id of where the smallest training set
             // relative to total device memory exists.
             std::tie(node_id, device_id) = this->get_smallest_relative_train(this->training_queries, network_properties);

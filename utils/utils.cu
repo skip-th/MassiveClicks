@@ -32,7 +32,6 @@ HST void get_number_devices(int *num_devices) {
 HST int get_compute_capability(const int device) {
     cudaDeviceProp dprop;
     CUDA_CHECK(cudaGetDeviceProperties(&dprop, device));
-
     return std::stoi(std::to_string(dprop.major) + std::to_string(dprop.minor));
 }
 
@@ -51,9 +50,7 @@ HST void get_device_memory(const int& device_id, size_t& free_memory, size_t& to
     CUDA_CHECK(cudaSetDevice(device_id));
 
     size_t free_bytes, total_bytes;
-
     CUDA_CHECK(cudaMemGetInfo(&free_bytes, &total_bytes));
-
     free_memory = free_bytes / rounding;
     total_memory = total_bytes / rounding;
 
@@ -73,13 +70,8 @@ HST void get_device_memory(const int& device_id, size_t& free_memory, size_t& to
  * @param rounding The number by which the free and total memory will be rounded.
  */
 HST void get_host_memory(size_t& free_memory, size_t& total_memory, const size_t rounding) {
-    size_t free_bytes, total_bytes;
-
-    total_bytes = sysconf(_SC_PHYS_PAGES) * sysconf(_SC_PAGE_SIZE);
-    free_bytes = sysconf(_SC_AVPHYS_PAGES) * sysconf(_SC_PAGE_SIZE);
-
-    total_memory = total_bytes / rounding;
-    free_memory = free_bytes / rounding;
+    total_memory = (sysconf(_SC_PHYS_PAGES) * sysconf(_SC_PAGE_SIZE)) / rounding;
+    free_memory = (sysconf(_SC_AVPHYS_PAGES) * sysconf(_SC_PAGE_SIZE)) / rounding;
 }
 
 /**
@@ -101,13 +93,13 @@ Options:
   -m, --model-type         Click model type to use. 0: PBM, 1: CCM, 2: DBN, 3: UBM.
   -p, --partition-type     Dataset partitioning scheme to use.
                            0: Round-Robin, 1: Maximum Utilization,
-                           2: Resource-Aware Maximum Utilization,
+                           2: Proportional Maximum Utilization,
                            3: Newest architecture first.
   -t, --test-share         Share of the dataset to use for testing.
   -j, --job-id             Job ID to use for logging.
   -e, --exec-mode          Execution mode. 0: GPU, 1: CPU, 2: Hybrid.
 )";
-//   -v, --verbose            Verbose mode.";
+//   -v, --verbose            Produce more output for diagnostic purposes.";
 
     std::cout << help_message << std::endl;
 }

@@ -24,5 +24,4 @@ HST void get_device_memory(const int& device_id, size_t& free_memory, size_t& to
 HST void show_help_msg(void);
 HST void get_host_memory(size_t& free_memory, size_t& total_memory, const size_t rounding);
 
-
 #endif // CLICK_MODEL_UTILS_H

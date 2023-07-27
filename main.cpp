@@ -43,7 +43,7 @@ char hostname[1024];
  */
 void check_valid_threads(int n_threads, int node_id) {
     if (n_threads < 1) {
-        if (node_id == ROOT) {
+        if (node_id == ROOT_RANK) {
             std::cerr << "[" << hostname << "] \033[12;31mError\033[0m: Invalid number of threads: " << n_threads << std::endl;
         }
         Communicate::finalize();
@@ -60,9 +60,8 @@ void check_valid_threads(int n_threads, int node_id) {
  * @param n_devices Number of devices on this node.
  * @param n_gpus Number of GPUs to use.
  * @param exec_mode Execution mode.
- * @param node_id MPI rank of this node.
  */
-void check_valid_devices(int n_devices, int n_gpus, int exec_mode, int node_id) {
+void check_valid_devices(int n_devices, int n_gpus, int exec_mode) {
     // Check if there are any GPU devices on this node to support the requested
     // GPU execution.
     if (exec_mode == 0 || exec_mode == 2) {
@@ -113,7 +112,7 @@ int main(int argc, char** argv) {
     std::map<int, std::string> partitioning_types {
         {0, "Round-Robin"},
         {1, "Maximum Utilization"},
-        {2, "Resource-Aware Maximum Utilization"},
+        {2, "Proportional Maximum Utilization"},
         {3, "Newest architecture first"},
     };
 
@@ -177,14 +176,14 @@ int main(int argc, char** argv) {
                 }
 
                 if (!handled && arg_name.rfind("-", 0) == 0) {
-                    if (node_id == ROOT) {
+                    if (node_id == ROOT_RANK) {
                         std::cerr << "[" << hostname << "] \033[12;31mError\033[0m: Did not recognize flag \'" << arg_name << "\'." << std::endl;
                     }
                     help = true;
                 }
             }
             catch (std::invalid_argument& e) {
-                if (node_id == ROOT) {
+                if (node_id == ROOT_RANK) {
                     std::cerr << "[" << hostname << "] \033[12;31mError\033[0m: Invalid argument \'" << arg_value << "\' for flag \'" << arg_name << "\'." << std::endl;
                 }
                 help = true;
@@ -199,7 +198,7 @@ int main(int argc, char** argv) {
 
     // Check if help is requested
     if (help) {
-        if (node_id == ROOT) {
+        if (node_id == ROOT_RANK) {
             show_help_msg();
         }
         Communicate::finalize();
@@ -207,12 +206,12 @@ int main(int argc, char** argv) {
     }
 
     // Check if execution mode is valid
-    if (node_id == ROOT && exec_mode == 2) {
+    if (node_id == ROOT_RANK && exec_mode == 2) {
         std::cerr << "[" << hostname << "] \033[12;33mWarning\033[0m: Hybrid execution is not yet supported. Defaulting to GPU-only." << std::endl;
     }
 
     // Check if devices are valid
-    check_valid_devices(n_devices, n_gpus, exec_mode, node_id);
+    check_valid_devices(n_devices, n_gpus, exec_mode);
 
     // Check if number of threads is valid
     check_valid_threads(n_threads, node_id);
@@ -263,7 +262,7 @@ int main(int argc, char** argv) {
     total_n_devices = std::accumulate(n_devices_network, n_devices_network + n_nodes, 0);
 
     // Show job information on the root node.
-    if (node_id == ROOT) {
+    if (node_id == ROOT_RANK) {
         std::cout << "Job ID: " << job_id <<
         "\nNumber of machines: " << n_nodes <<
         "\nNumber of devices in total: " << total_n_devices <<
@@ -299,7 +298,7 @@ int main(int argc, char** argv) {
 
     Dataset dataset;
 
-    if (node_id == ROOT) {
+    if (node_id == ROOT_RANK) {
         std::cout << "Parsing dataset." << std::endl;
 
         if (parse_dataset(dataset, raw_dataset_path, max_sessions)) {
@@ -320,7 +319,7 @@ int main(int argc, char** argv) {
 
     timer.start("Partitioning");
 
-    if (node_id == ROOT) {
+    if (node_id == ROOT_RANK) {
         // Split the dataset into partitions. One for each device on each node.
         dataset.make_splits(network_properties, test_share, partitioning_type, model_type);
     }
@@ -341,15 +340,15 @@ int main(int argc, char** argv) {
     Communicate::send_partitions(node_id, n_nodes, processing_units, total_n_devices, n_devices_network, dataset, device_partitions);
 
     // Show information about the distributed partitions on the root node.
-    if (node_id == ROOT) {
+    if (node_id == ROOT_RANK) {
         std::cout << "\nNode  Device  Train queries  Test queries  QD-pairs" << std::endl;
         for (int nid = 0; nid < n_nodes; nid++) {
             for (int did = 0; did < n_devices_network[nid]; did++) {
                 std::cout << std::left << std::setw(5) << "N" + std::to_string(nid) << " " <<
                 std::left << std::setw(7) << ((exec_mode == 0 || exec_mode == 2) ? "G" + std::to_string(did) : "C" + std::to_string(did)) << " " <<
-                std::left << std::setw(14) << (nid == ROOT ? std::get<0>(device_partitions[did]).size() : dataset.size_train(nid, did)) << " " <<
-                std::left << std::setw(13) << (nid == ROOT ? std::get<1>(device_partitions[did]).size() : dataset.size_test(nid, did)) << " " <<
-                (nid == ROOT ? std::get<2>(device_partitions[did]) : dataset.size_qd(nid, did)) << std::endl;
+                std::left << std::setw(14) << (nid == ROOT_RANK ? std::get<0>(device_partitions[did]).size() : dataset.size_train(nid, did)) << " " <<
+                std::left << std::setw(13) << (nid == ROOT_RANK ? std::get<1>(device_partitions[did]).size() : dataset.size_test(nid, did)) << " " <<
+                (nid == ROOT_RANK ? std::get<2>(device_partitions[did]) : dataset.size_qd(nid, did)) << std::endl;
             }
         }
     }
@@ -370,7 +369,7 @@ int main(int argc, char** argv) {
     if (exec_mode == 1 || exec_mode == 2) {
         // Sort the training sets for each device by query so a multiple sessions
         // with the same query can be assigned to a single cpu thread.
-        if (node_id == ROOT) {
+        if (node_id == ROOT_RANK) {
             std::cout << "\nSorting dataset partitions..." << std::endl;
         }
         sort_partitions(device_partitions, n_threads);
@@ -417,7 +416,7 @@ int main(int argc, char** argv) {
     };
 
     // Show timing metrics on the root node.
-    if (node_id == ROOT) {
+    if (node_id == ROOT_RANK) {
         std::vector<double> percent_preproc = { timer.elapsed("Parsing"), timer.elapsed("Partitioning"), timer.elapsed("Communication"), timer.elapsed("Sorting") };
         std::vector<double> percent_combined = { timer.elapsed("Preprocessing"), timer.elapsed("EM") };
         double preproc_total = std::accumulate(percent_preproc.begin(), percent_preproc.end(), 0.0);

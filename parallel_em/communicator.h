@@ -41,7 +41,7 @@ namespace Communicate {
     void send_partitions(const int& node_id, const int& n_nodes, const int& n_devices, const int& total_n_devices,
         const int* n_devices_network, Dataset& dataset, LocalPartitions& device_partitions);
     void exchange_parameters(std::vector<std::vector<std::vector<Param>>>& dest,
-        const std::vector<std::vector<Param>>& my_params, const int n_nodes, const int node_id);
+        const std::vector<std::vector<Param>>& my_params, const int n_nodes);
     void sync_parameters(std::vector<std::vector<std::vector<Param>>>& parameters);
     void gather_evaluations(std::map<int, std::array<float, 2>>& loglikelihood,
         std::map<int, Perplexity>& perplexity, const int n_nodes, const int node_id, const int* n_devices_network);

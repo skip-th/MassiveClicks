@@ -21,7 +21,7 @@ namespace Communicate
         // that only the master thread will make MPI calls (FUNNELED).
         int provided;
         MPI_CHECK(MPI_Init_thread(&argc, &argv, MPI_THREAD_FUNNELED, &provided));
-        if (node_id == ROOT && provided < MPI_THREAD_FUNNELED) {
+        if (node_id == ROOT_RANK && provided < MPI_THREAD_FUNNELED) {
             std::cerr << "\033[12;33mWarning\033[0m: MPI did not provide requested level of multithreading support. "
                       << "Multithreaded execution will be serialized. "
                       << "Has MPI been configured for multithreading usage?"
@@ -69,7 +69,7 @@ namespace Communicate
      * @param n_devices_network The number of devices on each node.
      */
     void get_n_devices(const int& n_devices, int* n_devices_network) {
-        MPI_CHECK(MPI_Gather(&n_devices, 1, MPI_INT, n_devices_network, 1, MPI_INT, ROOT, MPI_COMM_WORLD)); // Sender & Receiver
+        MPI_CHECK(MPI_Gather(&n_devices, 1, MPI_INT, n_devices_network, 1, MPI_INT, ROOT_RANK, MPI_COMM_WORLD)); // Sender & Receiver
     }
 
     /**
@@ -85,7 +85,7 @@ namespace Communicate
      * @param free_memory The free memory on each device on each node.
      */
     void gather_properties(const int& node_id, const int& n_nodes, const int& n_devices, int* n_devices_network, std::vector<std::vector<std::vector<int>>>& network_properties, const int* device_architecture, const int* free_memory) {
-        if (node_id == ROOT) { // Receiver
+        if (node_id == ROOT_RANK) { // Receiver
             // Calculate the displacements of each node's device information. Use
             // this to allow variable length received messages.
             int displacements[n_nodes], cumm = 0, t_devices = std::accumulate(n_devices_network, n_devices_network+n_nodes, 0);
@@ -96,8 +96,8 @@ namespace Communicate
 
             // Gather the device information from all nodes in the network.
             int darch_network[t_devices], fmem_network[t_devices];
-            MPI_CHECK(MPI_Gatherv(device_architecture, n_devices, MPI_INT, darch_network, n_devices_network, displacements, MPI_INT, ROOT, MPI_COMM_WORLD));
-            MPI_CHECK(MPI_Gatherv(free_memory, n_devices, MPI_INT, fmem_network, n_devices_network, displacements, MPI_INT, ROOT, MPI_COMM_WORLD));
+            MPI_CHECK(MPI_Gatherv(device_architecture, n_devices, MPI_INT, darch_network, n_devices_network, displacements, MPI_INT, ROOT_RANK, MPI_COMM_WORLD));
+            MPI_CHECK(MPI_Gatherv(free_memory, n_devices, MPI_INT, fmem_network, n_devices_network, displacements, MPI_INT, ROOT_RANK, MPI_COMM_WORLD));
 
             // Keep track of the network information using the network properties array.
             int ibuf = 0;
@@ -111,8 +111,8 @@ namespace Communicate
         }
         else { // Sender
             // Send the device architecture and free memory to the root node.
-            MPI_CHECK(MPI_Gatherv(device_architecture, n_devices, MPI_INT, NULL, NULL, NULL, MPI_INT, ROOT, MPI_COMM_WORLD));
-            MPI_CHECK(MPI_Gatherv(free_memory, n_devices, MPI_INT, NULL, NULL, NULL, MPI_INT, ROOT, MPI_COMM_WORLD));
+            MPI_CHECK(MPI_Gatherv(device_architecture, n_devices, MPI_INT, NULL, NULL, NULL, MPI_INT, ROOT_RANK, MPI_COMM_WORLD));
+            MPI_CHECK(MPI_Gatherv(free_memory, n_devices, MPI_INT, NULL, NULL, NULL, MPI_INT, ROOT_RANK, MPI_COMM_WORLD));
         }
     }
 
@@ -134,7 +134,7 @@ namespace Communicate
         MPI_CHECK(MPI_Type_commit(&MPI_SERP));
 
         // Communicate the training sets for each device to their node.
-        if (node_id == ROOT) { // Sender
+        if (node_id == ROOT_RANK) { // Sender
             std::cout << "\nCommunicating " << total_n_devices << " partitions to " << n_nodes << " machines." << std::endl;
             MPI_Request request = MPI_REQUEST_NULL;
 
@@ -170,7 +170,7 @@ namespace Communicate
 
                         // Probe for the size of the message.
                         MPI_Status status;
-                        MPI_CHECK(MPI_Probe(ROOT, MPI_ANY_TAG, MPI_COMM_WORLD, &status));
+                        MPI_CHECK(MPI_Probe(ROOT_RANK, MPI_ANY_TAG, MPI_COMM_WORLD, &status));
                         int msg_length;
                         MPI_CHECK(MPI_Get_count(&status, MPI_SERP, &msg_length));
 
@@ -184,11 +184,11 @@ namespace Communicate
                         // Allocate memory for the set.
                         dataset_ptr->resize(msg_length);
                         // Receive the set.
-                        MPI_CHECK(MPI_Recv(dataset_ptr->data(), msg_length, MPI_SERP, ROOT, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE));
+                        MPI_CHECK(MPI_Recv(dataset_ptr->data(), msg_length, MPI_SERP, ROOT_RANK, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE));
                     }
                     else if (msg_type == 2) { // Number of the query-document parameters.
                         // Receive the parameter size.
-                        MPI_CHECK(MPI_Recv(&std::get<2>(device_partitions[did]), 1, MPI_INT, ROOT, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE));
+                        MPI_CHECK(MPI_Recv(&std::get<2>(device_partitions[did]), 1, MPI_INT, ROOT_RANK, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE));
                     }
                 }
             }
@@ -214,7 +214,7 @@ namespace Communicate
      * @param n_nodes The number of nodes in the network.
      * @param node_id The MPI communication rank of this node.
      */
-    void exchange_parameters(std::vector<std::vector<std::vector<Param>>>& dest, const std::vector<std::vector<Param>>& my_params, const int n_nodes, const int node_id) {
+    void exchange_parameters(std::vector<std::vector<std::vector<Param>>>& dest, const std::vector<std::vector<Param>>& my_params, const int n_nodes) {
         // Create Param MPI datatype.
         MPI_Datatype MPI_PARAM;
         MPI_CHECK(MPI_Type_contiguous(sizeof(Param) / sizeof(float), MPI_FLOAT, &MPI_PARAM));
@@ -312,7 +312,7 @@ namespace Communicate
         }
 
         // Gather the log-likelihood and perplexity on the root node.
-        if (node_id == ROOT) { // Receiver
+        if (node_id == ROOT_RANK) { // Receiver
             // Calculate the displacements of each node's evaluations.
             int t_devices{0};
             for (int nid = 0; nid < n_nodes; nid++) { t_devices += n_devices_network[nid]; }
@@ -327,8 +327,8 @@ namespace Communicate
             std::array<float, sizeof(Perplexity) / sizeof(float)> ppl_vals[t_devices];
 
             // Gather the device information from all nodes in the network.
-            MPI_CHECK(MPI_Gatherv(tmp_llh_vals.data(), tmp_llh_vals.size(), MPI_LLH, llh_vals, n_devices_network, displacements, MPI_LLH, ROOT, MPI_COMM_WORLD));
-            MPI_CHECK(MPI_Gatherv(tmp_ppl_vals.data(), tmp_ppl_vals.size(), MPI_PPL, ppl_vals, n_devices_network, displacements, MPI_PPL, ROOT, MPI_COMM_WORLD));
+            MPI_CHECK(MPI_Gatherv(tmp_llh_vals.data(), tmp_llh_vals.size(), MPI_LLH, llh_vals, n_devices_network, displacements, MPI_LLH, ROOT_RANK, MPI_COMM_WORLD));
+            MPI_CHECK(MPI_Gatherv(tmp_ppl_vals.data(), tmp_ppl_vals.size(), MPI_PPL, ppl_vals, n_devices_network, displacements, MPI_PPL, ROOT_RANK, MPI_COMM_WORLD));
 
             // Deserialize the received results on the root node.
             for (int did = 0; did < t_devices; did++) {
@@ -346,8 +346,8 @@ namespace Communicate
         }
         else { // Sender
             // Send the device architecture and free memory to the root node.
-            MPI_CHECK(MPI_Gatherv(tmp_llh_vals.data(), tmp_llh_vals.size(), MPI_LLH, NULL, NULL, NULL, MPI_LLH, ROOT, MPI_COMM_WORLD));
-            MPI_CHECK(MPI_Gatherv(tmp_ppl_vals.data(), tmp_ppl_vals.size(), MPI_PPL, NULL, NULL, NULL, MPI_PPL, ROOT, MPI_COMM_WORLD));
+            MPI_CHECK(MPI_Gatherv(tmp_llh_vals.data(), tmp_llh_vals.size(), MPI_LLH, NULL, NULL, NULL, MPI_LLH, ROOT_RANK, MPI_COMM_WORLD));
+            MPI_CHECK(MPI_Gatherv(tmp_ppl_vals.data(), tmp_ppl_vals.size(), MPI_PPL, NULL, NULL, NULL, MPI_PPL, ROOT_RANK, MPI_COMM_WORLD));
         }
     }
 
@@ -367,9 +367,9 @@ namespace Communicate
         const std::pair<std::vector<std::vector<Param> *>, std::vector<std::vector<Param> *>> *parameters) {
 
         // Write parameters shared by all nodes using only the root node.
-        if (node_id == ROOT) {
+        if (node_id == ROOT_RANK) {
             // Write public parameters to one or more files.
-            for (int public_param_num = 0; public_param_num < parameters[0].first.size(); public_param_num++) {
+            for (size_t public_param_num = 0; public_param_num < parameters[0].first.size(); public_param_num++) {
                 std::ofstream file; // Open file for current public parameter.
                 std::cout << "  Writing parameter " << headers.first[public_param_num] << " to " << file_path + "_" + headers.first[public_param_num] + ".csv" << std::endl;
                 file.open(file_path + "_" + headers.first[public_param_num] + ".csv");
@@ -381,7 +381,7 @@ namespace Communicate
             }
 
             // Write private parameter headers to one or more files.
-            for (int private_param_num = 0; private_param_num < parameters[0].second.size(); private_param_num++) {
+            for (size_t private_param_num = 0; private_param_num < parameters[0].second.size(); private_param_num++) {
                 std::ofstream file; // Open file for current private parameter.
                 file.open(file_path + "_" + headers.second[private_param_num] + ".csv");
                 std::cout << "  Writing parameter " << headers.second[private_param_num] << " to " << file_path + "_" + headers.second[private_param_num] + ".csv" << std::endl;
@@ -391,7 +391,7 @@ namespace Communicate
         }
 
         // Write private parameters to one or more files from all nodes.
-        for (int private_param_num = 0; private_param_num < parameters[0].second.size(); private_param_num++) {
+        for (size_t private_param_num = 0; private_param_num < parameters[0].second.size(); private_param_num++) {
             // Retrieve highest number of required MPI_File_write_at_all calls using allreduce.
             int current_write_call = 0;
             int max_write_calls = processing_units;
@@ -406,16 +406,15 @@ namespace Communicate
                                     MPI_MODE_CREATE | MPI_MODE_WRONLY, MPI_INFO_NULL, &file));
 
             // Iterate over all devices on the current node.
-            for (int did = 0; did < processing_units; did++) {
+            for (size_t did = 0; did < processing_units; did++) {
                 // Retrieve pointer to required dataset partition
                 std::string data = "";
 
-                for (int i = 0; i < std::get<0>(dataset_partitions[did]).size(); i++) {
+                for (size_t i = 0; i < std::get<0>(dataset_partitions[did]).size(); i++) {
                     SERP_Hst query_session = std::get<0>(dataset_partitions[did])[i];
                     int query = query_session.get_query();
 
-                    #pragma unroll
-                    for (int rank = 0; rank < MAX_SERP; rank++) {
+                    for (size_t rank = 0; rank < MAX_SERP; rank++) {
                         int document = query_session[rank].get_doc_id();
                         SearchResult_Hst sr = query_session[rank];
 

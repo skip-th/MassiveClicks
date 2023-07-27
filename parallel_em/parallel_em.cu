@@ -214,7 +214,7 @@ void calculate_queries_per_thread(const ProcessingConfig& config, std::vector<st
 ) {
     Timer timer;
 
-    if (config.node_id == ROOT) {
+    if (config.node_id == ROOT_RANK) {
         std::cout << "\nExpectation Maximization (EM) in parallel ..." << std::endl;
     }
 
@@ -228,7 +228,7 @@ void calculate_queries_per_thread(const ProcessingConfig& config, std::vector<st
         // Initialize the click model.
         cm_hosts[unit] = create_cm_host(config.model_type);
         // Print a confirmation message on the first device of the root node.
-        if (config.node_id == ROOT && unit == 0) {
+        if (config.node_id == ROOT_RANK && unit == 0) {
             cm_hosts[unit]->say_hello();
         }
     }
@@ -381,7 +381,7 @@ void calculate_queries_per_thread(const ProcessingConfig& config, std::vector<st
         std::cout << "[" << hostname << ", " << did << "] kernel dimensions = <<<" << kernel_dims[did * 2] << ", " << kernel_dims[did * 2 + 1] << ">>>" << std::endl;
     }
 
-    if (config.node_id == ROOT) {
+    if (config.node_id == ROOT_RANK) {
         std::cout << "\nStarting " << config.iterations << " EM parameter estimation iterations..." << std::endl;
     }
 
@@ -506,7 +506,7 @@ void calculate_queries_per_thread(const ProcessingConfig& config, std::vector<st
         std::vector<std::vector<std::vector<Param>>> network_parameters(config.total_nodes,
             std::vector<std::vector<Param>>(public_parameters.size(),
             std::vector<Param>(public_parameters[0][0].size()))); // Node ID -> Parameter type -> Parameters.
-        Communicate::exchange_parameters(network_parameters, public_parameters[0], config.total_nodes, config.node_id);
+        Communicate::exchange_parameters(network_parameters, public_parameters[0], config.total_nodes);
 
         // Sychronize the public parameters received from other nodes.
         Communicate::sync_parameters(network_parameters);
@@ -528,7 +528,7 @@ void calculate_queries_per_thread(const ProcessingConfig& config, std::vector<st
         timer.lap("EM synchronization", false);
 
         // Show metrics on the root node.
-        if (config.node_id == ROOT) {
+        if (config.node_id == ROOT_RANK) {
             int itr_len = std::to_string(config.iterations).length();
             std::cout << "Itr: " << std::left << std::setw(itr_len) << itr <<
             " Itr-time: " << std::left << std::setw(10) << timer.lap("EM iteration") <<
@@ -622,7 +622,7 @@ void calculate_queries_per_thread(const ProcessingConfig& config, std::vector<st
     //-----------------------------------------------------------------------//
 
     // Show metrics on the root node.
-    if (config.node_id == ROOT) {
+    if (config.node_id == ROOT_RANK) {
         // Compute the total log-likelihood.
         float total_llh_sum = 0.0;
         float total_llh_sessions = 0.0;

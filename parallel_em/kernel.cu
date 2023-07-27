@@ -27,7 +27,7 @@ namespace Kernel {
         // Set the device parameter pointers for the click model.
         cm_dev->set_parameters(cm_param_ptr, parameter_sizes);
         // Print a confirmation message on the first device of the root node.
-        if (node_id == ROOT && device_id == 0) {
+        if (node_id == ROOT_RANK && device_id == 0) {
             cm_dev->say_hello();
         }
     }

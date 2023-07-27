@@ -15,12 +15,12 @@ find_package(CUDAToolkit REQUIRED)
 include_directories(${MPI_INCLUDE_PATH})
 include_directories(${CUDAToolkit_INCLUDE_DIRS})
 
-set(SRCS main.cpp data/dataset.cpp click_models/evaluation.cpp parallel_em/communicator.cpp utils/macros.cpp utils/timer.cpp)
+set(CXX_SRCS main.cpp data/dataset.cpp click_models/evaluation.cpp parallel_em/communicator.cpp utils/timer.cpp)
 set(CU_SRCS utils/utils.cu parallel_em/parallel_em.cu parallel_em/kernel.cu data/search.cu
             click_models/base.cu click_models/param.cu click_models/common.cu click_models/factor.cu
             click_models/pbm.cu click_models/ccm.cu click_models/dbn.cu click_models/ubm.cu)
 
-add_executable(${PROJECT_NAME} ${SRCS} ${CU_SRCS})
+add_executable(${PROJECT_NAME} ${CXX_SRCS} ${CU_SRCS})
 
 set_target_properties(${PROJECT_NAME} PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
 target_link_libraries(${PROJECT_NAME} PUBLIC MPI::MPI_CXX CUDA::cudart pthread)
