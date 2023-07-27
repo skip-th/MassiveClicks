@@ -201,7 +201,16 @@ void calculate_queries_per_thread(const ProcessingConfig& config, std::vector<st
 // Allocate memory.                                                          //
 //---------------------------------------------------------------------------//
 
-// Function to display memory usage.
+/**
+ * @brief Display memory usage.
+ *
+ * @param hostname The hostname of the node.
+ * @param device_id The ID of the device.
+ * @param config Processing configuration.
+ * @param fmem_dev The memory in use and total memory on each device.
+ * @param fmem The amount of free memory before allocation.
+ * @param fmem_new The amount of free memory after allocation.
+ */
 void show_memory_usage(const char* hostname, int device_id, const ProcessingConfig& config, size_t*& fmem_dev, size_t fmem, size_t fmem_new) {
     int device = (GPU_EXECUTION(config.exec_mode)) ? device_id : -1;
     float expected_mem_usage = fmem_dev[device_id * 2] / 1e6;
@@ -215,13 +224,28 @@ void show_memory_usage(const char* hostname, int device_id, const ProcessingConf
     std::cout << output.str() << std::endl;
 }
 
-// Function to initialize model parameters.
+/**
+ * @brief Initialize model parameters memory.
+ *
+ * @param cm_host The host-side click model.
+ * @param device_id The ID of the device.
+ * @param device_partition The dataset assigned to the device.
+ * @param fmem_dev The memory in use and total memory on each device.
+ * @param gpu Whether to initialize the parameters on the device or host.
+ */
 void init_model_parameters(ClickModel_Hst*& cm_host, int device_id, Partition& device_partition, size_t* fmem_dev, bool gpu) {
     cm_host->init_parameters(device_partition, fmem_dev[device_id * 2 + 1] - fmem_dev[device_id * 2], gpu);
     Communicate::error_check();
 }
 
-// Function to allocate dataset memory on device.
+/**
+ * @brief Allocate dataset memory on device.
+ *
+ * @param device_id The ID of the device.
+ * @param dataset_dev The device-side dataset.
+ * @param dataset_dev_tmp The reformatted host-side dataset.
+ * @param dataset_size The size of the dataset.
+ */
 void allocate_device_dataset_memory(int device_id, SearchResult_Dev*& dataset_dev, std::vector<SearchResult_Dev>& dataset_dev_tmp, double dataset_size) {
     CUDA_CHECK(cudaMalloc(&dataset_dev, dataset_size));
     CUDA_CHECK(cudaMemcpy(dataset_dev, dataset_dev_tmp.data(),
@@ -229,14 +253,32 @@ void allocate_device_dataset_memory(int device_id, SearchResult_Dev*& dataset_de
     dataset_dev_tmp.clear();
 }
 
-// Function to check device memory.
+/**
+ * @brief Check whether the dataset size does not exceed the available device
+ * memory.
+ *
+ * @param dataset_size The size of the dataset.
+ * @param fmem_dev The memory in use and total memory on each device.
+ * @param device_id The ID of the device.
+ * @param hostname The hostname of the node.
+ */
 void check_device_memory(double dataset_size, size_t* fmem_dev, int device_id, const char* hostname) {
     if (dataset_size * 1.001 > fmem_dev[device_id * 2 + 1]) {
         Communicate::error_check("[" + std::string(hostname) + "] \033[12;31mError\033[0m: Insufficient GPU memory!\n\tAllocating dataset requires an additional " + std::to_string((dataset_size - fmem_dev[device_id * 2 + 1]) / 1e6) + " MB of GPU memory.");
     }
 }
 
-// Function to allocate memory on device.
+/**
+ * @brief Allocate memory on the device.
+ *
+ * @param device_id The ID of the device.
+ * @param dataset_dev The device-side dataset.
+ * @param fmem_dev The memory in use and total memory on each device.
+ * @param config Processing configuration.
+ * @param device_partition The dataset assigned to the device.
+ * @param cm_host The host-side click model.
+ * @param hostname The hostname of the node.
+ */
 void allocate_memory_on_device(int device_id, SearchResult_Dev*& dataset_dev, size_t* fmem_dev, const ProcessingConfig& config, Partition& device_partition, ClickModel_Hst*& cm_host, const char* hostname) {
     size_t fmem, tmem, fmem_new, tmem_new;
 
@@ -267,8 +309,17 @@ void allocate_memory_on_device(int device_id, SearchResult_Dev*& dataset_dev, si
     show_memory_usage(hostname, device_id, config, fmem_dev, fmem, fmem_new);
 }
 
-// Function to allocate memory on host.
-void allocate_memory_on_host(int device_id, size_t* fmem_dev, const ProcessingConfig& config, Partition& device_partition, ClickModel_Hst* cm_host, const char* hostname) {
+/**
+ * @brief Allocate memory on the host.
+ *
+ * @param device_id The ID of the device.
+ * @param fmem_dev The memory in use and total memory on each device.
+ * @param config Processing configuration.
+ * @param host_partition The dataset assigned to the host.
+ * @param cm_host The host-side click model.
+ * @param hostname The hostname of the node.
+ */
+void allocate_memory_on_host(int device_id, size_t* fmem_dev, const ProcessingConfig& config, Partition& host_partition, ClickModel_Hst* cm_host, const char* hostname) {
     size_t fmem, tmem, fmem_new, tmem_new;
 
     // Retrieve available memory in bytes.
@@ -280,7 +331,7 @@ void allocate_memory_on_host(int device_id, size_t* fmem_dev, const ProcessingCo
     // already been allocated on the host.
 
     // Allocate memory for the query dependent parameters on both the current device and host.
-    init_model_parameters(cm_host, device_id, device_partition, fmem_dev, false);
+    init_model_parameters(cm_host, device_id, host_partition, fmem_dev, false);
     fmem_dev[device_id * 2] += cm_host->get_memory_usage();
 
     // Show memory usage.
