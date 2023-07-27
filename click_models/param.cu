@@ -1,5 +1,4 @@
 /** CM parameter.
- * Pooya Khandel's ParClick is used as a reference implementation.
  *
  * param.cu:
  *  - Defines the functions specific to processing the CM parameters.

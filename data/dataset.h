@@ -1,5 +1,4 @@
 /** Click model dataset class.
- * Pooya Khandel's ParClick is used as a reference implementation.
  *
  * dataset.h:
  *  - Declare the Dataset class and functions using this class.

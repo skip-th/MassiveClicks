@@ -1,5 +1,4 @@
 /** Click model session classes.
- * Pooya Khandel's ParClick is used as a reference implementation.
  *
  * session.h:
  *  - Declare the Session and SubSession classes.

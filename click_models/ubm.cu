@@ -1,5 +1,4 @@
 /** UBM click model.
- * Pooya Khandel's ParClick is used as a reference implementation.
  *
  * ubm.cu:
  *  - Defines the functions specific to creating a UBM CM.

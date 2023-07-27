@@ -1,5 +1,4 @@
 /** Click model session classes.
- * Pooya Khandel's ParClick is used as a reference implementation.
  *
  * session.cpp:
  *  - Defines the behaviour of the Session and SubSession classes.

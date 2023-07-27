@@ -1,5 +1,4 @@
 /** Parallelizing EM on GPU(s).
- * Pooya Khandel's ParClick is used as a reference implementation.
  *
  * parallel_em.cu:
  *  - Defines the functions used for initiating the EM process on the GPU.

@@ -1,5 +1,4 @@
 /** First implementation of a generalized CM base.
- * Pooya Khandel's ParClick is used as a reference implementation.
  *
  * base.cuh:
  *  - Defines the generalized click model functions.

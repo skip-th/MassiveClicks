@@ -1,9 +1,8 @@
-/**
- * @file types.h
- * @brief Defines commonly used types, templates, and aliases used throughout
- * the project.
- * @version 1.0
- * @date 2023-07-26
+/** Type definitions.
+ *
+ * types.h:
+ *  - Defines commonly used types, templates, and aliases used throughout
+ *    the project.
  */
 
 #ifndef TYPES_H

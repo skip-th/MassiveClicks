@@ -1,5 +1,4 @@
 /** DBN click model.
- * Pooya Khandel's ParClick is used as a reference implementation.
  *
  * dbn.cuh:
  *  - Defines the functions specific to creating a DBN CM.

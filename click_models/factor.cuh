@@ -1,5 +1,4 @@
 /** Click model factor.
- * Pooya Khandel's ParClick is used as a reference implementation.
  *
  * factor.cuh:
  *  - Defines the functions for processing the phi formula of CCM and DBN.

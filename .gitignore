@@ -3,9 +3,6 @@
 !*.*
 !*/
 
-# Exclude extensionless Makefiles from the ignore list.
-!Makefile
-
 # Specify files with extensions which should also be ignored.
 *.o
 *.a
@@ -23,8 +20,8 @@
 
 # Special cases.
 !*/CMakeLists.txt
-*/__pycache__
-*/CMakeFiles
+*/__pycache__/**
+*/CMakeFiles/**
 */CMakeCache.txt
 *.cmake
-*/build
+*/build/**

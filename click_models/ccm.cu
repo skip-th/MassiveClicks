@@ -1,5 +1,4 @@
 /** CCM click model.
- * Pooya Khandel's ParClick is used as a reference implementation.
  *
  * ccm.cu:
  *  - Defines the functions specific to creating a CCM CM.

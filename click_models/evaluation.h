@@ -1,5 +1,4 @@
 /** Click model evaluation.
- * Pooya Khandel's ParClick is used as a reference implementation.
  *
  * evaluation.h:
  *  - Defines the functions for evaluating a CM.
