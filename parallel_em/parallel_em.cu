@@ -10,7 +10,7 @@
 #define GPU_EXECUTION(exec_mode) (exec_mode == 0 || exec_mode == 2)
 
 //---------------------------------------------------------------------------//
-// Host-side computation.                                                    //
+// Assign queries to CPU threads.                                            //
 //---------------------------------------------------------------------------//
 
 /**
@@ -197,6 +197,99 @@ void calculate_queries_per_thread(const ProcessingConfig& config, std::vector<st
 }
 
 
+//---------------------------------------------------------------------------//
+// Allocate memory.                                                          //
+//---------------------------------------------------------------------------//
+
+// Function to display memory usage.
+void show_memory_usage(const char* hostname, int device_id, const ProcessingConfig& config, size_t*& fmem_dev, size_t fmem, size_t fmem_new) {
+    int device = (GPU_EXECUTION(config.exec_mode)) ? device_id : -1;
+    float expected_mem_usage = fmem_dev[device_id * 2] / 1e6;
+    float total_mem_capacity = fmem_dev[device_id * 2 + 1] / 1e6;
+    int expected_mem_percent = static_cast<int>(expected_mem_usage / total_mem_capacity * 100);
+    float measured_mem_usage = (fmem - fmem_new) / 1e6;
+    int measured_mem_percent = static_cast<int>(measured_mem_usage / total_mem_capacity * 100);
+
+    std::ostringstream output;
+    output << "[" << hostname << ", " << device << "], memory expected = " << expected_mem_usage << "/" << total_mem_capacity << " MB (" << expected_mem_percent << "%), measured = " << measured_mem_usage << "/" << total_mem_capacity << " MB (" << measured_mem_percent << "%)";
+    std::cout << output.str() << std::endl;
+}
+
+// Function to initialize model parameters.
+void init_model_parameters(ClickModel_Hst*& cm_host, int device_id, Partition& device_partition, size_t* fmem_dev, bool gpu) {
+    cm_host->init_parameters(device_partition, fmem_dev[device_id * 2 + 1] - fmem_dev[device_id * 2], gpu);
+    Communicate::error_check();
+}
+
+// Function to allocate dataset memory on device.
+void allocate_device_dataset_memory(int device_id, SearchResult_Dev*& dataset_dev, std::vector<SearchResult_Dev>& dataset_dev_tmp, double dataset_size) {
+    CUDA_CHECK(cudaMalloc(&dataset_dev, dataset_size));
+    CUDA_CHECK(cudaMemcpy(dataset_dev, dataset_dev_tmp.data(),
+                          dataset_size, cudaMemcpyHostToDevice));
+    dataset_dev_tmp.clear();
+}
+
+// Function to check device memory.
+void check_device_memory(double dataset_size, size_t* fmem_dev, int device_id, const char* hostname) {
+    if (dataset_size * 1.001 > fmem_dev[device_id * 2 + 1]) {
+        Communicate::error_check("[" + std::string(hostname) + "] \033[12;31mError\033[0m: Insufficient GPU memory!\n\tAllocating dataset requires an additional " + std::to_string((dataset_size - fmem_dev[device_id * 2 + 1]) / 1e6) + " MB of GPU memory.");
+    }
+}
+
+// Function to allocate memory on device.
+void allocate_memory_on_device(int device_id, SearchResult_Dev*& dataset_dev, size_t* fmem_dev, const ProcessingConfig& config, Partition& device_partition, ClickModel_Hst*& cm_host, const char* hostname) {
+    size_t fmem, tmem, fmem_new, tmem_new;
+
+    // Retrieve available memory in bytes.
+    get_device_memory(device_id, fmem, tmem, 1);
+    fmem_dev[device_id * 2] = 0; // Memory in use.
+    fmem_dev[device_id * 2 + 1] = fmem; // Total available memory.
+
+    // Convert the host-side dataset to a smaller device-side dataset.
+    std::vector<SearchResult_Dev> dataset_dev_tmp;
+    convert_to_device(std::get<0>(device_partition), dataset_dev_tmp);
+
+    // Check whether the current device has enough free memory available.
+    double dataset_size = dataset_dev_tmp.size() * sizeof(SearchResult_Dev);
+    check_device_memory(dataset_size, fmem_dev, device_id, hostname);
+
+    // Allocate memory for the dataset on the current device.
+    allocate_device_dataset_memory(device_id, dataset_dev, dataset_dev_tmp, dataset_size);
+    fmem_dev[device_id * 2] += dataset_size;
+
+    // Allocate memory for the query dependent parameters on both the current device and host.
+    init_model_parameters(cm_host, device_id, device_partition, fmem_dev, true);
+    fmem_dev[device_id * 2] += cm_host->get_memory_usage();
+
+    // Show memory usage.
+    get_device_memory(device_id, fmem_new, tmem_new, 1);
+
+    show_memory_usage(hostname, device_id, config, fmem_dev, fmem, fmem_new);
+}
+
+// Function to allocate memory on host.
+void allocate_memory_on_host(int device_id, size_t* fmem_dev, const ProcessingConfig& config, Partition& device_partition, ClickModel_Hst* cm_host, const char* hostname) {
+    size_t fmem, tmem, fmem_new, tmem_new;
+
+    // Retrieve available memory in bytes.
+    get_host_memory(fmem, tmem, 1);
+    fmem_dev[device_id * 2] = 0; // Memory in use.
+    fmem_dev[device_id * 2 + 1] = fmem; // Total available memory.
+
+    // Dataset size does not need to be checked, since the dataset has
+    // already been allocated on the host.
+
+    // Allocate memory for the query dependent parameters on both the current device and host.
+    init_model_parameters(cm_host, device_id, device_partition, fmem_dev, false);
+    fmem_dev[device_id * 2] += cm_host->get_memory_usage();
+
+    // Show memory usage.
+    get_host_memory(fmem_new, tmem_new, 1);
+
+    show_memory_usage(hostname, device_id, config, fmem_dev, fmem, fmem_new);
+}
+
+
 /**
  * @brief Execute the EM algorithm in parallel.
  *
@@ -244,7 +337,6 @@ void calculate_queries_per_thread(const ProcessingConfig& config, std::vector<st
         calculate_queries_per_thread(config, thread_start_idx, device_partitions);
     }
 
-
     //-----------------------------------------------------------------------//
     // Allocate memory.                                                      //
     //-----------------------------------------------------------------------//
@@ -255,73 +347,12 @@ void calculate_queries_per_thread(const ProcessingConfig& config, std::vector<st
     SearchResult_Dev* dataset_dev[config.device_count];
     size_t fmem_dev[config.unit_count * 2];
     for (int device_id = 0; device_id < config.unit_count; device_id++) {
-        size_t fmem, tmem, fmem_new, tmem_new;
-
-        // Allocate memory on either the device or the host.
         if (GPU_EXECUTION(config.exec_mode)) {
             CUDA_CHECK(cudaSetDevice(device_id));
-
-            // Retrieve avaliable memory in bytes.
-            get_device_memory(device_id, fmem, tmem, 1);
-            fmem_dev[device_id * 2] = 0; // Memory in use.
-            fmem_dev[device_id * 2 + 1] = fmem; // Total available memory.
-
-            // Convert the host-side dataset to a smaller device-side dataset.
-            std::vector<SearchResult_Dev> dataset_dev_tmp;
-            convert_to_device(std::get<0>(device_partitions[device_id]), dataset_dev_tmp);
-
-            // Check whether the current device has enough free memory available.
-            double dataset_size = dataset_dev_tmp.size() * sizeof(SearchResult_Dev);
-            if (dataset_size * 1.001 > fmem) {
-                Communicate::error_check("[" + std::string(hostname) + "] \033[12;31mError\033[0m: Insufficient GPU memory!\n\tAllocating dataset requires an additional " + std::to_string((dataset_size - fmem_dev[device_id * 2 + 1]) / 1e6) + " MB of GPU memory.");
-            }
-
-            // Allocate memory for the dataset on the current device.
-            CUDA_CHECK(cudaMalloc(&dataset_dev[device_id], dataset_size));
-            CUDA_CHECK(cudaMemcpy(dataset_dev[device_id], dataset_dev_tmp.data(),
-                                dataset_size, cudaMemcpyHostToDevice));
-            dataset_dev_tmp.clear();
-
-            fmem_dev[device_id * 2] += dataset_size;
-
-            // Allocate memory for the query dependent parameters on both the current device and host.
-            cm_hosts[device_id]->init_parameters(device_partitions[device_id], fmem_dev[device_id * 2 + 1] - fmem_dev[device_id * 2], true);
-            Communicate::error_check();
-            fmem_dev[device_id * 2] += cm_hosts[device_id]->get_memory_usage();
-
-            // Show memory usage.
-            get_device_memory(device_id, fmem_new, tmem_new, 1);
+            allocate_memory_on_device(device_id, dataset_dev[device_id], fmem_dev, config, device_partitions[device_id], cm_hosts[device_id], hostname);
+        } else {
+            allocate_memory_on_host(device_id, fmem_dev, config, device_partitions[device_id], cm_hosts[device_id], hostname);
         }
-        else {
-            // Retrieve avaliable memory in bytes.
-            get_host_memory(fmem, tmem, 1);
-            fmem_dev[device_id * 2] = 0; // Memory in use.
-            fmem_dev[device_id * 2 + 1] = fmem; // Total available memory.
-
-            // Dataset size does not need to be checked, since the dataset has
-            // already been allocated on the host.
-
-            // Allocate memory for the query dependent parameters on both the current device and host.
-            cm_hosts[device_id]->init_parameters(device_partitions[device_id], fmem_dev[device_id * 2 + 1] - fmem_dev[device_id * 2], false);
-            Communicate::error_check();
-            fmem_dev[device_id * 2] += cm_hosts[device_id]->get_memory_usage();
-
-            // Show memory usage.
-            get_host_memory(fmem_new, tmem_new, 1);
-        }
-
-        // Show memory usage.
-        int device = (GPU_EXECUTION(config.exec_mode)) ? device_id : -1;
-        float expected_mem_usage = fmem_dev[device_id * 2] / 1e6;
-        float total_mem_capacity = fmem_dev[device_id * 2 + 1] / 1e6;
-        int expected_mem_percent = static_cast<int>(expected_mem_usage / total_mem_capacity * 100);
-
-        float measured_mem_usage = (fmem - fmem_new) / 1e6;
-        int measured_mem_percent = static_cast<int>(measured_mem_usage / total_mem_capacity * 100);
-
-        std::ostringstream output;
-        output << "[" << hostname << ", " << device << "], memory expected = " << expected_mem_usage << "/" << total_mem_capacity << " MB (" << expected_mem_percent << "%), measured = " << measured_mem_usage << "/" << total_mem_capacity << " MB (" << measured_mem_percent << "%)";
-        std::cout << output.str() << std::endl;
     }
 
     // Wait for all nodes to finish allocating memory and check if any node
@@ -330,7 +361,6 @@ void calculate_queries_per_thread(const ProcessingConfig& config, std::vector<st
     Communicate::barrier();
 
     timer.stop("h2d_init");
-
 
     //-----------------------------------------------------------------------//
     // Initate device-side click model.                                      //
@@ -350,7 +380,6 @@ void calculate_queries_per_thread(const ProcessingConfig& config, std::vector<st
 
         CUDA_CHECK(cudaDeviceSynchronize());
     }
-
 
     //-----------------------------------------------------------------------//
     // Estimate CM parameters n_itr times.                                   //
