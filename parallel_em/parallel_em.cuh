@@ -4,7 +4,6 @@
  *  - Defines the functions used for initiating the EM process on the GPU.
  */
 
-// Use header guards to prevent the header from being included multiple times.
 #ifndef CLICK_MODEL_PARALLEL_EM_H
 #define CLICK_MODEL_PARALLEL_EM_H
 

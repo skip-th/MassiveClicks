@@ -208,15 +208,14 @@ void calculate_queries_per_thread(const ProcessingConfig& config, std::vector<st
  * @param device_id The ID of the device.
  * @param config Processing configuration.
  * @param fmem_dev The memory in use and total memory on each device.
- * @param fmem The amount of free memory before allocation.
- * @param fmem_new The amount of free memory after allocation.
+ * @param mem_use The amount of memory currently in use.
  */
-void show_memory_usage(const char* hostname, int device_id, const ProcessingConfig& config, size_t*& fmem_dev, size_t fmem, size_t fmem_new) {
+void show_memory_usage(const char* hostname, int device_id, const ProcessingConfig& config, size_t*& fmem_dev, size_t mem_use) {
     int device = (GPU_EXECUTION(config.exec_mode)) ? device_id : -1;
     float expected_mem_usage = fmem_dev[device_id * 2] / 1e6;
     float total_mem_capacity = fmem_dev[device_id * 2 + 1] / 1e6;
     int expected_mem_percent = static_cast<int>(expected_mem_usage / total_mem_capacity * 100);
-    float measured_mem_usage = (fmem - fmem_new) / 1e6;
+    float measured_mem_usage = mem_use / 1e6;
     int measured_mem_percent = static_cast<int>(measured_mem_usage / total_mem_capacity * 100);
 
     std::ostringstream output;
@@ -306,7 +305,7 @@ void allocate_memory_on_device(int device_id, SearchResult_Dev*& dataset_dev, si
     // Show memory usage.
     get_device_memory(device_id, fmem_new, tmem_new, 1);
 
-    show_memory_usage(hostname, device_id, config, fmem_dev, fmem, fmem_new);
+    show_memory_usage(hostname, device_id, config, fmem_dev, fmem - fmem_new);
 }
 
 /**
@@ -337,7 +336,7 @@ void allocate_memory_on_host(int device_id, size_t* fmem_dev, const ProcessingCo
     // Show memory usage.
     get_host_memory(fmem_new, tmem_new, 1);
 
-    show_memory_usage(hostname, device_id, config, fmem_dev, fmem, fmem_new);
+    show_memory_usage(hostname, device_id, config, fmem_dev, fmem - fmem_new);
 }
 
 

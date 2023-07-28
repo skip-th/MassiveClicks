@@ -4,7 +4,6 @@
  *  - Defines the functions specific to creating a UBM CM.
  */
 
-// Use header guards to prevent the header from being included multiple times.
 #ifndef CLICK_MODEL_UBM_H
 #define CLICK_MODEL_UBM_H
 

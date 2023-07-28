@@ -4,7 +4,6 @@
  *  - Defines the functions specific to processing the CM parameters.
  */
 
-// Use header guards to prevent the header from being included multiple times.
 #ifndef CLICK_MODEL_PARAMETERS_H
 #define CLICK_MODEL_PARAMETERS_H
 

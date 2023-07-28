@@ -4,7 +4,6 @@
  *  - Defines the functions specific to creating a CCM CM.
  */
 
-// Use header guards to prevent the header from being included multiple times.
 #ifndef CLICK_MODEL_CCM_H
 #define CLICK_MODEL_CCM_H
 

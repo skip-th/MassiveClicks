@@ -305,7 +305,7 @@ int main(int argc, char** argv) {
             Communicate::error_check("[" + std::string(hostname) + "] \033[12;31mError\033[0m: Unable to open the raw dataset.");
         }
 
-        std::cout << "Found " << dataset.size_queries() << " query sessions." << std::endl;
+        std::cout << "Found " << dataset.get_num_queries() << " query sessions." << std::endl;
     }
     // Check if parsing failed on the root node.
     Communicate::error_check();
@@ -321,7 +321,7 @@ int main(int argc, char** argv) {
 
     if (node_id == ROOT_RANK) {
         // Split the dataset into partitions. One for each device on each node.
-        dataset.make_splits(network_properties, test_share, partitioning_type, model_type);
+        dataset.split_data(network_properties, test_share, partitioning_type, model_type);
     }
 
     timer.stop("Partitioning");
@@ -346,9 +346,9 @@ int main(int argc, char** argv) {
             for (int did = 0; did < n_devices_network[nid]; did++) {
                 std::cout << std::left << std::setw(5) << "N" + std::to_string(nid) << " " <<
                 std::left << std::setw(7) << ((exec_mode == 0 || exec_mode == 2) ? "G" + std::to_string(did) : "C" + std::to_string(did)) << " " <<
-                std::left << std::setw(14) << (nid == ROOT_RANK ? std::get<0>(device_partitions[did]).size() : dataset.size_train(nid, did)) << " " <<
-                std::left << std::setw(13) << (nid == ROOT_RANK ? std::get<1>(device_partitions[did]).size() : dataset.size_test(nid, did)) << " " <<
-                (nid == ROOT_RANK ? std::get<2>(device_partitions[did]) : dataset.size_qd(nid, did)) << std::endl;
+                std::left << std::setw(14) << (nid == ROOT_RANK ? std::get<0>(device_partitions[did]).size() : dataset.get_test_set_size(nid, did)) << " " <<
+                std::left << std::setw(13) << (nid == ROOT_RANK ? std::get<1>(device_partitions[did]).size() : dataset.get_test_set_size(nid, did)) << " " <<
+                (nid == ROOT_RANK ? std::get<2>(device_partitions[did]) : dataset.get_query_doc_pair_size(nid, did)) << std::endl;
             }
         }
     }

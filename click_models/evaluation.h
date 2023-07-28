@@ -4,7 +4,6 @@
  *  - Defines the functions for evaluating a CM.
  */
 
-// Use header guards to prevent the header from being included multiple times.
 #ifndef CLICK_MODEL_EVALUATION
 #define CLICK_MODEL_EVALUATION
 

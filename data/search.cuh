@@ -4,7 +4,6 @@
  *  - Declare the Session and SubSession classes.
  */
 
-// Use header guards to prevent the header from being included multiple times.
 #ifndef CLICK_MODEL_SESSION_H
 #define CLICK_MODEL_SESSION_H
 

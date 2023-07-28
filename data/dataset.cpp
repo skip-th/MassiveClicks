@@ -21,50 +21,8 @@ Dataset::Dataset() = default;
  *
  * @return The number of sessions present in the parsed dataset.
  */
-int Dataset::size_sessions(void) const{
+int Dataset::get_num_sessions(void) const{
     return this->sessions.size();
-}
-
-/**
- * @brief The number of queries present in the parsed dataset.
- *
- * @return The number of queries present in the parsed dataset.
- */
-int Dataset::size_queries(void) const{
-    return this->n_queries;
-}
-
-/**
- * @brief The number of training query sessions assigned to a node's device.
- *
- * @param node_id The id of the node.
- * @param device_id The id of the device on the node.
- * @return The number of training query sessions assigned to the node's device.
- */
-int Dataset::size_train(const int& nid, const int& did) const{
-    return this->training_queries[nid][did].size();
-}
-
-/**
- * @brief The number of testing query sessions assigned to a node's device.
- *
- * @param node_id The id of the node.
- * @param device_id The id of the device on the node.
- * @return The number of training query sessions assigned to the node's device.
- */
-int Dataset::size_test(const int& nid, const int& did) const{
-    return this->testing_queries[nid][did].size();
-}
-
-/**
- * @brief The number of unique query-document pairs assigned to a node's device.
- *
- * @param node_id The id of the node.
- * @param device_id The id of the device on the node.
- * @return The number of unique query-document pairs assigned to a node's device.
- */
-int Dataset::size_qd(const int& nid, const int& did) const{
-    return this->qd_parameters_sz[nid][did];
 }
 
 /**
@@ -81,6 +39,24 @@ void Dataset::add_session(const int session_id, const UnassignedSet& session) {
 }
 
 /**
+ * @brief The number of queries present in the parsed dataset.
+ *
+ * @return The number of queries present in the parsed dataset.
+ */
+int Dataset::get_num_queries(void) const{
+    return this->num_queries;
+}
+
+/**
+ * @brief Increments the number of queries in the dataset by a given amount.
+ *
+ * @param value The value by which to increment the number of queries.
+ */
+void Dataset::increment_num_queries(const int& value) {
+    this->num_queries += value;
+}
+
+/**
  * @brief Add the given query session to the dataset.
  *
  * @param query_session The query session which will be added.
@@ -91,12 +67,36 @@ void Dataset::add_query_session(const SERP_Hst& query_session) {
 }
 
 /**
- * @brief Increments the number of queries in the dataset by a given amount.
+ * @brief The number of training query sessions assigned to a node's device.
  *
- * @param value The value by which to increment the number of queries.
+ * @param node_id The id of the node.
+ * @param device_id The id of the device on the node.
+ * @return The number of training query sessions assigned to the node's device.
  */
-void Dataset::increment_queries(const int& value) {
-    this->n_queries += value;
+int Dataset::get_train_set_size(const int& nid, const int& did) const{
+    return this->training_queries[nid][did].size();
+}
+
+/**
+ * @brief The number of testing query sessions assigned to a node's device.
+ *
+ * @param node_id The id of the node.
+ * @param device_id The id of the device on the node.
+ * @return The number of training query sessions assigned to the node's device.
+ */
+int Dataset::get_test_set_size(const int& nid, const int& did) const{
+    return this->testing_queries[nid][did].size();
+}
+
+/**
+ * @brief The number of unique query-document pairs assigned to a node's device.
+ *
+ * @param node_id The id of the node.
+ * @param device_id The id of the device on the node.
+ * @return The number of unique query-document pairs assigned to a node's device.
+ */
+int Dataset::get_query_doc_pair_size(const int& nid, const int& did) const{
+    return this->qd_parameters_size[nid][did];
 }
 
 /**
@@ -144,7 +144,7 @@ std::unordered_map<int, std::unordered_map<int, int>>* Dataset::get_mapping(cons
  * @return true, if all query-document pairs were successfully assigned a
  * parameter index, false otherwise.
  */
-bool Dataset::add_parameter_test(SERP_Hst& query_session, const int& node_id, const int& device_id) {
+bool Dataset::add_parameter_to_test_set(SERP_Hst& query_session, const int& node_id, const int& device_id) {
     std::unordered_map<int, std::unordered_map<int, int>>* local_params = &this->qd_parameters[node_id][device_id];
 
     // Iterate over all ranks in the query session.
@@ -179,9 +179,9 @@ bool Dataset::add_parameter_test(SERP_Hst& query_session, const int& node_id, co
  * @param node_id The id of the node.
  * @param device_id The id of the device on the node.
  */
-void Dataset::add_parameter_train(SERP_Hst& query_session, const int& node_id, const int& device_id) {
+void Dataset::add_parameter_to_train_set(SERP_Hst& query_session, const int& node_id, const int& device_id) {
     std::unordered_map<int, std::unordered_map<int, int>>* local_params = &this->qd_parameters[node_id][device_id];
-    int* local_params_sz = &this->qd_parameters_sz[node_id][device_id];
+    int* local_params_sz = &this->qd_parameters_size[node_id][device_id];
     int query = query_session.get_query();
 
     // Iterate over all ranks in the query session.
@@ -224,7 +224,7 @@ void Dataset::add_parameter_train(SERP_Hst& query_session, const int& node_id, c
  *
  * @return The node id and device id of smallest training vector.
  */
-std::pair<int,int> Dataset::get_smallest_train(const DeviceLayout<TrainSet>& training_queries) {
+std::pair<int,int> Dataset::get_smallest_train_set(const DeviceLayout<TrainSet>& training_queries) {
     int smallest{std::numeric_limits<int>::max()}, small_nid{0}, small_did{0};
 
     for (size_t nid = 0; nid < training_queries.size(); nid++) {
@@ -250,7 +250,7 @@ std::pair<int,int> Dataset::get_smallest_train(const DeviceLayout<TrainSet>& tra
  * @return The node id and device id of smallest training
  * vector relative to memory size.
  */
-std::pair<int,int> Dataset::get_smallest_relative_train(const DeviceLayout<TrainSet>& training_queries, const DeviceLayout<std::vector<int>>& network_properties) {
+std::pair<int,int> Dataset::get_smallest_relative_train_set(const DeviceLayout<TrainSet>& training_queries, const DeviceLayout<std::vector<int>>& network_properties) {
     int small_nid{0}, small_did{0};
     float smallest{std::numeric_limits<float>::max()}, occupancy{0};
 
@@ -278,13 +278,13 @@ std::pair<int,int> Dataset::get_smallest_relative_train(const DeviceLayout<Train
  * @return The node id and device id of smallest training
  * vector with the highest device architecture.
  */
-std::pair<int,int> Dataset::get_smallest_arch_train(const DeviceLayout<TrainSet>& training_queries, const DeviceLayout<std::vector<int>>& network_properties) {
+std::pair<int,int> Dataset::get_smallest_arch_train_set(const DeviceLayout<TrainSet>& training_queries, const DeviceLayout<std::vector<int>>& network_properties) {
     int small_new_nid{0}, small_new_did{0}, arch, prev_arch{0};
     float memory_footprint, occupancy, smallest_occupancy{std::numeric_limits<float>::max()};
 
     for (size_t nid = 0; nid < training_queries.size(); nid++) {
         for (size_t did = 0; did < training_queries[nid].size(); did++) {
-            memory_footprint = cm->compute_memory_footprint(training_queries[nid][did].size(), this->qd_parameters_sz[nid][did]) / 1e6;
+            memory_footprint = click_model->compute_memory_footprint(training_queries[nid][did].size(), this->qd_parameters_size[nid][did]) / 1e6;
             // Calculate the occupancy of the device with a margin of error of 0.1%.
             occupancy = memory_footprint * 1.001 / (float) network_properties[nid][did][1];
 
@@ -318,16 +318,16 @@ std::pair<int,int> Dataset::get_smallest_arch_train(const DeviceLayout<TrainSet>
  * @param model_type The type of click model to measure the memory footprint
  * with (e.g., 0 = PBM, 1 = CCM).
  */
-void Dataset::make_partitions(const DeviceLayout<std::vector<int>>& network_properties, const float test_share, const int partitioning_type, const int model_type) {
+void Dataset::partition_data(const DeviceLayout<std::vector<int>>& network_properties, const float test_share, const int partitioning_type, const int model_type) {
     int node_id{0}, device_id{0}, n_nodes = static_cast<int>(network_properties.size());
-    this->cm = create_cm_host(model_type);
+    this->click_model = create_cm_host(model_type);
 
     // Calculate the length of the training set using the test share. The
     // training set length is rounded to the nearest integer.
-    int n_train{static_cast<int>(this->n_queries * (1 - test_share) - 0.5) + 1};
+    int n_train{static_cast<int>(this->num_queries * (1 - test_share) - 0.5) + 1};
 
-    std::cout << "\nPartitioning " << this->n_queries << " queries into " <<
-    n_train << " training and " << this->n_queries - n_train <<
+    std::cout << "\nPartitioning " << this->num_queries << " queries into " <<
+    n_train << " training and " << this->num_queries - n_train <<
     " testing sessions.\n(1/3) Grouping training query sessions..." << std::endl;
 
     // Group the indices of the query sessions inside the sessions designated
@@ -335,7 +335,7 @@ void Dataset::make_partitions(const DeviceLayout<std::vector<int>>& network_prop
     std::unordered_map<int, std::vector<int>> grouped_train_queries; // Query ID -> [Session ID, Subsession index]
     std::unordered_map<int, std::vector<int>> grouped_test_queries; // Query ID -> [Session ID, Subsession index]
     int ses_index{0};
-    while (ses_index < this->n_queries) {
+    while (ses_index < this->num_queries) {
         if (ses_index < n_train) {
             grouped_train_queries[this->sessions[ses_index].get_query()].push_back(ses_index);
         }
@@ -359,17 +359,17 @@ void Dataset::make_partitions(const DeviceLayout<std::vector<int>>& network_prop
         }
         else if (partitioning_type == 1) { // Maximum Utilization
             // Get the node id and device id of where the smallest training set exists.
-            std::tie(node_id, device_id) = this->get_smallest_train(this->training_queries);
+            std::tie(node_id, device_id) = this->get_smallest_train_set(this->training_queries);
         }
         else if (partitioning_type == 2) { // Proportional Maximum Utilization
             // Get the node id and device id of where the smallest training set
             // relative to total device memory exists.
-            std::tie(node_id, device_id) = this->get_smallest_relative_train(this->training_queries, network_properties);
+            std::tie(node_id, device_id) = this->get_smallest_relative_train_set(this->training_queries, network_properties);
         }
         else if (partitioning_type == 3) { // Prefer Newer Architectures
             // Get the node id and device id of where the smallest training set
             // relative to total device memory exists.
-            std::tie(node_id, device_id) = this->get_smallest_arch_train(this->training_queries, network_properties);
+            std::tie(node_id, device_id) = this->get_smallest_arch_train_set(this->training_queries, network_properties);
         }
 
         // For each document in a query group's query session, get the
@@ -377,7 +377,7 @@ void Dataset::make_partitions(const DeviceLayout<std::vector<int>>& network_prop
         // session to the training array of the device.
         for (int ses_i : grp_itr->second) {
             SERP_Hst serp = this->sessions[ses_i];
-            this->add_parameter_train(serp, node_id, device_id);
+            this->add_parameter_to_train_set(serp, node_id, device_id);
             this->training_queries[node_id][device_id].push_back(serp);
         }
     }
@@ -396,7 +396,7 @@ void Dataset::make_partitions(const DeviceLayout<std::vector<int>>& network_prop
                 for (int did = 0; did < static_cast<int>(this->qd_parameters[nid].size()); did++) {
                     // Check if all query-document pairs from this SERP_Hst exist
                     // in the qd_parameters of this device.
-                    if (this->add_parameter_test(qry, nid, did)) {
+                    if (this->add_parameter_to_test_set(qry, nid, did)) {
                         // Add the query session to the device's testing set.
                         this->testing_queries[nid][did].push_back(qry);
                         goto next_qry;
@@ -411,21 +411,38 @@ void Dataset::make_partitions(const DeviceLayout<std::vector<int>>& network_prop
 
 /**
  * @brief Initializes the given multi-dimensional vectors by matching their
+ * shape to the given device layout.
+ *
+ * @tparam A The type of the source vector.
+ * @tparam B The type of the destination vector.
+ * @param src The source vector.
+ * @param dst The destination vector.
+ */
+template<typename A, typename B>
+void Dataset::init_layout(DeviceLayout<A>& src, const DeviceLayout<B>& dst) {
+    src.resize(dst.size());
+    for (size_t node_id = 0; node_id < dst.size(); node_id++) {
+        src[node_id].resize(dst[node_id].size());
+    }
+}
+
+/**
+ * @brief Initializes the given multi-dimensional vectors by matching their
  * shape to the given network map.
  *
  * @param network_properties The network map containing the properties of the
  * devices within the network.
  */
 void Dataset::reshape_pvar(const DeviceLayout<std::vector<int>>& network_properties) {
-    this->init_network(this->training_queries, network_properties);
-    this->init_network(this->testing_queries, network_properties);
-    this->init_network(this->qd_parameters, network_properties);
-    this->init_network(this->qd_parameters_sz, network_properties);
+    this->init_layout(this->training_queries, network_properties);
+    this->init_layout(this->testing_queries, network_properties);
+    this->init_layout(this->qd_parameters, network_properties);
+    this->init_layout(this->qd_parameters_size, network_properties);
 
     // Initialize qd parameter size at 0.
     for (size_t nid = 0; nid < network_properties.size(); nid++) {
         for (size_t did = 0; did < network_properties[nid].size(); did++) {
-            this->qd_parameters_sz[nid][did] = 0;
+            this->qd_parameters_size[nid][did] = 0;
         }
     }
 }
@@ -441,15 +458,16 @@ void Dataset::reshape_pvar(const DeviceLayout<std::vector<int>>& network_propert
  * @param model_type The type of click model to measure the memory footprint
  * with (e.g., 0 = PBM, 1 = CCM).
  */
-void Dataset::make_splits(const DeviceLayout<std::vector<int>>& network_properties, const float test_share, const int partitioning_type, const int model_type) {
+void Dataset::split_data(const DeviceLayout<std::vector<int>>& network_properties, const float test_share, const int partitioning_type, const int model_type) {
     // Shape the multi-dimensional arrays training, testing and parameter arrays
     // according to the network topology beforehand.
     this->reshape_pvar(network_properties);
 
     // Assign query groups from the dataset to different partitions according to
     // the chosen partitioning approach.
-    make_partitions(network_properties, test_share, partitioning_type, model_type);
+    partition_data(network_properties, test_share, partitioning_type, model_type);
 }
+
 
 //---------------------------------------------------------------------------//
 // Sort dataset partition                                                    //
@@ -577,7 +595,7 @@ int parse_dataset(Dataset &dataset, const std::string& raw_dataset_path, int max
         return 1;
     }
 
-    dataset.increment_queries(n_queries);
+    dataset.increment_num_queries(n_queries);
     std::cout << "\rRead " << n_lines << " lines." << std::string(15, ' ') << std::endl;
     return 0;
 }

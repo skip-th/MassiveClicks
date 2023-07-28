@@ -4,7 +4,6 @@
  *  - Defines several CUDA kernels usable when training a click model.
  */
 
-// Use header guards to prevent the header from being included multiple times.
 #ifndef CLICK_MODEL_KERNEL_H
 #define CLICK_MODEL_KERNEL_H
 

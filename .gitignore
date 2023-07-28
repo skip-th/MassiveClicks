@@ -21,7 +21,7 @@
 # Special cases.
 !*/CMakeLists.txt
 */__pycache__/**
-*/CMakeFiles/**
-*/CMakeCache.txt
+CMakeFiles/**
+CMakeCache.txt
 *.cmake
-*/build/**
+build/**

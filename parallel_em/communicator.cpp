@@ -142,7 +142,7 @@ namespace Communicate
             for (int nid = 1; nid < n_nodes; nid++) {
                 for (int did = 0; did < n_devices_network[nid]; did++) {
                     // Send the train set to the node.
-                    int size_qd = dataset.size_qd(nid, did);
+                    int size_qd = dataset.get_query_doc_pair_size(nid, did);
                     MPI_CHECK(MPI_Isend(dataset.get_train_set(nid, did)->data(), (int) dataset.get_train_set(nid, did)->size(), MPI_SERP, nid, 0, MPI_COMM_WORLD, &request));
                     MPI_CHECK(MPI_Isend(dataset.get_test_set(nid, did)->data(), (int) dataset.get_test_set(nid, did)->size(), MPI_SERP, nid, 0, MPI_COMM_WORLD, &request));
                     MPI_CHECK(MPI_Isend(&size_qd, 1, MPI_INT, nid, 0, MPI_COMM_WORLD, &request));
@@ -157,7 +157,7 @@ namespace Communicate
                 (*dataset.get_train_set(node_id, did)).erase(std::begin(*dataset.get_train_set(node_id, did)), std::end(*dataset.get_train_set(node_id, did)));
                 std::get<1>(device_partitions[did]) = std::move(*dataset.get_test_set(node_id, did));
                 (*dataset.get_test_set(node_id, did)).erase(std::begin(*dataset.get_test_set(node_id, did)), std::end(*dataset.get_test_set(node_id, did)));
-                std::get<2>(device_partitions[did]) = dataset.size_qd(node_id, did);
+                std::get<2>(device_partitions[did]) = dataset.get_query_doc_pair_size(node_id, did);
             }
         }
         else { // Receiver

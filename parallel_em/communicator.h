@@ -4,7 +4,6 @@
  *  - Defines several MPI functions used to communicate across different machines.
  */
 
-// Use header guards to prevent the header from being included multiple times.
 #ifndef CLICK_MODEL_MPI_H
 #define CLICK_MODEL_MPI_H
 
