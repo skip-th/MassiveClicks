@@ -18,6 +18,7 @@
 #include <climits>
 #include <iostream>
 #include <fstream>
+#include <string>
 
 // User include.
 #include "../utils/definitions.h"
@@ -34,17 +35,18 @@ namespace Communicate {
     void error_check(std::string err_msg = "");
     void barrier(void);
     void get_n_devices(const int& n_devices, int* n_devices_network);
-    void gather_properties(const int& node_id, const int& n_nodes, const int& n_devices, int* n_devices_network,
+    void gather_properties(const int& n_devices, int* n_devices_network,
         std::vector<std::vector<std::vector<int>>>& network_properties, const int* device_architecture,
         const int* free_memory);
-    void send_partitions(const int& node_id, const int& n_nodes, const int& n_devices, const int& total_n_devices,
+    ClusterProperties gather_properties_all(NodeProperties local_node_properties);
+    void send_partitions(const int& n_devices, const int& total_n_devices,
         const int* n_devices_network, Dataset& dataset, LocalPartitions& device_partitions);
     void exchange_parameters(std::vector<std::vector<std::vector<Param>>>& dest,
-        const std::vector<std::vector<Param>>& my_params, const int n_nodes);
+        const std::vector<std::vector<Param>>& my_params);
     void sync_parameters(std::vector<std::vector<std::vector<Param>>>& parameters);
     void gather_evaluations(std::map<int, std::array<float, 2>>& loglikelihood,
-        std::map<int, Perplexity>& perplexity, const int n_nodes, const int node_id, const int* n_devices_network);
-    void output_parameters(const int node_id, const int processing_units, const std::string file_path,
+        std::map<int, Perplexity>& perplexity, const int* n_devices_network);
+    void output_parameters(const int processing_units, const std::string file_path,
         const LocalPartitions& dataset_partitions,
         const std::pair<std::vector<std::string>, std::vector<std::string>> &headers,
         const std::pair<std::vector<std::vector<Param> *>, std::vector<std::vector<Param> *>> *parameters);

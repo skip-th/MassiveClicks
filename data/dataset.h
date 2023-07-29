@@ -45,7 +45,7 @@ public:
     int get_query_doc_pair_size(const int& node_id, const int& device_id) const;
 
     // Split data into training and testing sets.
-    void split_data(const DeviceLayout<std::vector<int>>& network_properties, const float test_share, const int partitioning_type, const int model_type);
+    void split_data(const ClusterProperties cluster_properties, const DeviceLayout<std::vector<int>>& network_properties, const float test_share, const int partitioning_type, const int model_type);
 
     // Accessors for training and testing sets.
     TrainSet* get_train_set(const int& node_id, const int& device_id);
@@ -56,7 +56,7 @@ public:
 
 private:
     // Partition data.
-    void partition_data(const DeviceLayout<std::vector<int>>& network_properties, const float test_share, const int partitioning_type, const int model_type);
+    void partition_data(const ClusterProperties cluster_properties, const DeviceLayout<std::vector<int>>& network_properties, const float test_share, const int partitioning_type, const int model_type);
 
     // Helper method for reshaping.
     void reshape_pvar(const DeviceLayout<std::vector<int>>& network_properties);
@@ -69,6 +69,8 @@ private:
     std::pair<int,int> get_smallest_train_set(const DeviceLayout<TrainSet>& training_queries);
     std::pair<int,int> get_smallest_relative_train_set(const DeviceLayout<TrainSet>& training_queries, const DeviceLayout<std::vector<int>>& network_properties);
     std::pair<int,int> get_smallest_arch_train_set(const DeviceLayout<TrainSet>& training_queries, const DeviceLayout<std::vector<int>>& network_properties);
+    std::pair<int,int> get_smallest_core_train_set(const DeviceLayout<TrainSet>& training_queries, const ClusterProperties& cluster_properties);
+    std::pair<int,int> get_smallest_perf_train_set(const DeviceLayout<TrainSet>& training_queries, const ClusterProperties& cluster_properties);
 
     // Device layout initialization method.
     template<typename A, typename B>

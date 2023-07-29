@@ -84,7 +84,12 @@ namespace Communicate
      * each node.
      * @param free_memory The free memory on each device on each node.
      */
-    void gather_properties(const int& node_id, const int& n_nodes, const int& n_devices, int* n_devices_network, std::vector<std::vector<std::vector<int>>>& network_properties, const int* device_architecture, const int* free_memory) {
+    void gather_properties(const int& n_devices, int* n_devices_network, std::vector<std::vector<std::vector<int>>>& network_properties, const int* device_architecture, const int* free_memory) {
+        // Get the number of nodes and the current node rank.
+        int node_id, n_nodes;
+        MPI_CHECK(MPI_Comm_rank(MPI_COMM_WORLD, &node_id));
+        MPI_CHECK(MPI_Comm_size(MPI_COMM_WORLD, &n_nodes));
+
         if (node_id == ROOT_RANK) { // Receiver
             // Calculate the displacements of each node's device information. Use
             // this to allow variable length received messages.
@@ -117,6 +122,105 @@ namespace Communicate
     }
 
     /**
+     * @brief Gather the properties of all nodes in the cluster.
+     *
+     * @param local_node_properties The properties of the local node.
+     * @return ClusterProperties The properties of all nodes in the cluster.
+     */
+    ClusterProperties gather_properties_all(NodeProperties local_node_properties) {
+        // Get the number of nodes and the current node rank.
+        int node_id, n_nodes;
+        MPI_CHECK(MPI_Comm_rank(MPI_COMM_WORLD, &node_id));
+        MPI_CHECK(MPI_Comm_size(MPI_COMM_WORLD, &n_nodes));
+
+        // Communicate the number of devices on each node to all nodes.
+        int devices_per_node[n_nodes];
+        MPI_CHECK(MPI_Allgather(&local_node_properties.host.device_count, 1, MPI_INT, devices_per_node, 1, MPI_INT, MPI_COMM_WORLD));
+
+        // Create an MPI datatype for the HostProperties struct.
+        std::vector<HostProperties> host_properties(n_nodes);
+        int n_members_hst = 6;
+        int block_lengths_hst[6] = {1, 1, 1, 1, 1, HOST_NAME_MAX};
+        MPI_Datatype types_hst[6] = {MPI_INT, MPI_INT, MPI_INT, MPI_UNSIGNED_LONG, MPI_UNSIGNED_LONG, MPI_CHAR};
+        MPI_Datatype MPI_HST_PROP;
+        MPI_Aint offsets_hst[6];
+
+        offsets_hst[0] = offsetof(HostProperties, node_id);
+        offsets_hst[1] = offsetof(HostProperties, device_count);
+        offsets_hst[2] = offsetof(HostProperties, thread_count);
+        offsets_hst[3] = offsetof(HostProperties, free_memory);
+        offsets_hst[4] = offsetof(HostProperties, total_memory);
+        offsets_hst[5] = offsetof(HostProperties, host_name);
+
+        MPI_Type_create_struct(n_members_hst, block_lengths_hst, offsets_hst, types_hst, &MPI_HST_PROP);
+        MPI_Type_commit(&MPI_HST_PROP);
+
+        // Communicate the host properties to all nodes.
+        MPI_CHECK(MPI_Allgather(&local_node_properties.host, 1, MPI_HST_PROP, host_properties.data(), 1, MPI_HST_PROP, MPI_COMM_WORLD));
+
+        // Create an MPI datatype for the DeviceProperties struct.
+        std::vector<DeviceProperties> device_properties(
+            std::accumulate(devices_per_node, devices_per_node + n_nodes, 0));
+        int n_members_dev = 17;
+        int block_lengths_dev[17] = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 256};
+        MPI_Datatype types_dev[17] = {MPI_INT, MPI_INT, MPI_INT, MPI_INT, MPI_INT, MPI_INT, MPI_INT, MPI_INT, MPI_INT, MPI_INT, MPI_INT, MPI_UNSIGNED_LONG, MPI_UNSIGNED_LONG, MPI_UNSIGNED_LONG, MPI_UNSIGNED_LONG, MPI_UNSIGNED_LONG, MPI_CHAR};
+        MPI_Datatype MPI_DEV_PROP;
+        MPI_Aint offsets_dev[17];
+
+        offsets_dev[0] = offsetof(DeviceProperties, device_id);
+        offsets_dev[1] = offsetof(DeviceProperties, compute_capability);
+        offsets_dev[2] = offsetof(DeviceProperties, registers_per_block);
+        offsets_dev[3] = offsetof(DeviceProperties, registers_per_sm);
+        offsets_dev[4] = offsetof(DeviceProperties, threads_per_block);
+        offsets_dev[5] = offsetof(DeviceProperties, threads_per_sm);
+        offsets_dev[6] = offsetof(DeviceProperties, warp_size);
+        offsets_dev[7] = offsetof(DeviceProperties, memory_clock_rate);
+        offsets_dev[8] = offsetof(DeviceProperties, memory_bus_width);
+        offsets_dev[9] = offsetof(DeviceProperties, cores_per_sm);
+        offsets_dev[10] = offsetof(DeviceProperties, clock_rate);
+        offsets_dev[11] = offsetof(DeviceProperties, multiprocessor_count);
+        offsets_dev[12] = offsetof(DeviceProperties, total_global_memory);
+        offsets_dev[13] = offsetof(DeviceProperties, shared_memory_per_block);
+        offsets_dev[14] = offsetof(DeviceProperties, total_constant_memory);
+        offsets_dev[15] = offsetof(DeviceProperties, peak_performance);
+        offsets_dev[16] = offsetof(DeviceProperties, device_name);
+
+        MPI_Type_create_struct(n_members_dev, block_lengths_dev, offsets_dev, types_dev, &MPI_DEV_PROP);
+        MPI_Type_commit(&MPI_DEV_PROP);
+
+        // Calculate displacement necessary to receive varying numbers of devices.
+        int displacements[n_nodes];
+        displacements[0] = 0; // The first displacement is always 0.
+        for (int i = 1; i < n_nodes; i++) { // Calculate the displacements for the remaining nodes.
+            displacements[i] = displacements[i-1] + devices_per_node[i-1];
+        }
+
+        // Communicate the device properties to all nodes.
+        MPI_CHECK(MPI_Allgatherv(local_node_properties.devices.data(), local_node_properties.devices.size(), MPI_DEV_PROP, device_properties.data(), devices_per_node, displacements, MPI_DEV_PROP, MPI_COMM_WORLD));
+
+        // Populate cluster properties struct.
+        ClusterProperties cluster_properties;
+        cluster_properties.node_count = n_nodes;
+        cluster_properties.device_count = std::accumulate(devices_per_node, devices_per_node + n_nodes, 0);
+        cluster_properties.nodes = std::vector<NodeProperties>(n_nodes);
+
+        // Populate node properties struct.
+        for (int nid = 0; nid < n_nodes; nid++) {
+            cluster_properties.nodes[nid].host = host_properties[nid];
+            cluster_properties.nodes[nid].devices = std::vector<DeviceProperties>(devices_per_node[nid]);
+            for (int did = 0; did < devices_per_node[nid]; did++) {
+                cluster_properties.nodes[nid].devices[did] = device_properties[displacements[nid] + did];
+            }
+        }
+
+        // Free the MPI datatypes.
+        MPI_Type_free(&MPI_HST_PROP);
+        MPI_Type_free(&MPI_DEV_PROP);
+
+        return cluster_properties;
+    }
+
+    /**
      * @brief Communicate the training sets for each device to their node.
      *
      * @param node_id The ID of the current node.
@@ -127,7 +231,12 @@ namespace Communicate
      * @param device_partitions The destination training set partitions for
      * each device.
      */
-    void send_partitions(const int& node_id, const int& n_nodes, const int& n_devices, const int& total_n_devices, const int* n_devices_network, Dataset& dataset, LocalPartitions& device_partitions) {
+    void send_partitions(const int& n_devices, const int& total_n_devices, const int* n_devices_network, Dataset& dataset, LocalPartitions& device_partitions) {
+        // Get the number of nodes and the current node rank.
+        int node_id, n_nodes;
+        MPI_CHECK(MPI_Comm_rank(MPI_COMM_WORLD, &node_id));
+        MPI_CHECK(MPI_Comm_size(MPI_COMM_WORLD, &n_nodes));
+
         // Create SERP_Hst MPI datatype.
         MPI_Datatype MPI_SERP;
         MPI_CHECK(MPI_Type_contiguous(sizeof(SERP_Hst) / sizeof(int), MPI_INT, &MPI_SERP));
@@ -214,7 +323,11 @@ namespace Communicate
      * @param n_nodes The number of nodes in the network.
      * @param node_id The MPI communication rank of this node.
      */
-    void exchange_parameters(std::vector<std::vector<std::vector<Param>>>& dest, const std::vector<std::vector<Param>>& my_params, const int n_nodes) {
+    void exchange_parameters(std::vector<std::vector<std::vector<Param>>>& dest, const std::vector<std::vector<Param>>& my_params) {
+        // Get the number of nodes.
+        int n_nodes;
+        MPI_CHECK(MPI_Comm_size(MPI_COMM_WORLD, &n_nodes));
+
         // Create Param MPI datatype.
         MPI_Datatype MPI_PARAM;
         MPI_CHECK(MPI_Type_contiguous(sizeof(Param) / sizeof(float), MPI_FLOAT, &MPI_PARAM));
@@ -284,7 +397,12 @@ namespace Communicate
      * @param node_id The MPI communication rank of this node.
      * @param n_devices_network The number of devices per node in the network.
      */
-    void gather_evaluations(std::map<int, std::array<float, 2>>& loglikelihood, std::map<int, Perplexity>& perplexity, const int n_nodes, const int node_id, const int* n_devices_network) {
+    void gather_evaluations(std::map<int, std::array<float, 2>>& loglikelihood, std::map<int, Perplexity>& perplexity, const int* n_devices_network) {
+        // Get the number of nodes and the current node rank.
+        int node_id, n_nodes;
+        MPI_CHECK(MPI_Comm_rank(MPI_COMM_WORLD, &node_id));
+        MPI_CHECK(MPI_Comm_size(MPI_COMM_WORLD, &n_nodes));
+
         // Create log-likelihood MPI datatype.
         MPI_Datatype MPI_LLH;
         MPI_CHECK(MPI_Type_contiguous(sizeof(std::array<float, 2>) / sizeof(float), MPI_FLOAT, &MPI_LLH));
@@ -361,10 +479,13 @@ namespace Communicate
      * @param headers The names of the parameters.
      * @param parameters The parameters to write to file.
      */
-    void output_parameters(const int node_id, const int processing_units, const std::string file_path,
+    void output_parameters(const int processing_units, const std::string file_path,
         const LocalPartitions& dataset_partitions,
         const std::pair<std::vector<std::string>, std::vector<std::string>> &headers,
         const std::pair<std::vector<std::vector<Param> *>, std::vector<std::vector<Param> *>> *parameters) {
+        // Get the current node rank.
+        int node_id;
+        MPI_CHECK(MPI_Comm_rank(MPI_COMM_WORLD, &node_id));
 
         // Write parameters shared by all nodes using only the root node.
         if (node_id == ROOT_RANK) {

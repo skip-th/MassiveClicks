@@ -584,7 +584,7 @@ void allocate_memory_on_host(int device_id, size_t* fmem_dev, const ProcessingCo
         std::vector<std::vector<std::vector<Param>>> network_parameters(config.total_nodes,
             std::vector<std::vector<Param>>(public_parameters.size(),
             std::vector<Param>(public_parameters[0][0].size()))); // Node ID -> Parameter type -> Parameters.
-        Communicate::exchange_parameters(network_parameters, public_parameters[0], config.total_nodes);
+        Communicate::exchange_parameters(network_parameters, public_parameters[0]);
 
         // Sychronize the public parameters received from other nodes.
         Communicate::sync_parameters(network_parameters);
@@ -662,7 +662,7 @@ void allocate_memory_on_host(int device_id, size_t* fmem_dev, const ProcessingCo
     }
 
     // Gather the log-likelihood and perplexity of all nodes on the root node.
-    Communicate::gather_evaluations(llh_device, ppl_device, config.total_nodes, config.node_id, config.devices_per_node);
+    Communicate::gather_evaluations(llh_device, ppl_device, config.devices_per_node);
 
     timer.stop("EM evaluation");
 
@@ -691,7 +691,7 @@ void allocate_memory_on_host(int device_id, size_t* fmem_dev, const ProcessingCo
         for (int device_id = 0; device_id < config.unit_count; device_id++) {
             cm_hosts[device_id]->get_parameter_information(headers, parameters[device_id]);
         }
-        Communicate::output_parameters(config.node_id, config.unit_count, output_path, device_partitions, headers, parameters);
+        Communicate::output_parameters(config.unit_count, output_path, device_partitions, headers, parameters);
     }
 
 

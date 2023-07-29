@@ -308,6 +308,60 @@ std::pair<int,int> Dataset::get_smallest_arch_train_set(const DeviceLayout<Train
 }
 
 /**
+ * @brief Finds the device with the least filled training query vector relative
+ * to the number of CUDA cores on the device.
+ *
+ * @param training_queries A vector containing SERP_Hsts grouped by query.
+ * @param cluster_properties The properties of the devices within the network.
+ *
+ * @return std::pair<int,int>
+ */
+std::pair<int,int> Dataset::get_smallest_core_train_set(const DeviceLayout<TrainSet>& training_queries, const ClusterProperties& cluster_properties) {
+    int small_nid{0}, small_did{0};
+    float smallest{std::numeric_limits<float>::max()}, occupancy{0};
+
+    for (size_t nid = 0; nid < training_queries.size(); nid++) {
+        for (size_t did = 0; did < training_queries[nid].size(); did++) {
+            occupancy = (float) training_queries[nid][did].size() / (float) (cluster_properties.nodes[nid].devices[did].cores_per_sm * cluster_properties.nodes[nid].devices[did].multiprocessor_count);
+            if (occupancy <= smallest) {
+                smallest = occupancy;
+                small_nid = nid;
+                small_did = did;
+            }
+        }
+    }
+
+    return std::make_pair(small_nid, small_did);
+}
+
+/**
+ * @brief Finds the device with the least filled training query vector relative
+ * to its theoretical peak performance.
+ *
+ * @param training_queries A vector containing SERP_Hsts grouped by query.
+ * @param cluster_properties The properties of the devices within the network.
+ *
+ * @return std::pair<int,int>
+ */
+std::pair<int,int> Dataset::get_smallest_perf_train_set(const DeviceLayout<TrainSet>& training_queries, const ClusterProperties& cluster_properties) {
+    int small_nid{0}, small_did{0};
+    float smallest{std::numeric_limits<float>::max()}, occupancy{0};
+
+    for (size_t nid = 0; nid < training_queries.size(); nid++) {
+        for (size_t did = 0; did < training_queries[nid].size(); did++) {
+            occupancy = (float) training_queries[nid][did].size() / (float) cluster_properties.nodes[nid].devices[did].peak_performance;
+            if (occupancy <= smallest) {
+                smallest = occupancy;
+                small_nid = nid;
+                small_did = did;
+            }
+        }
+    }
+
+    return std::make_pair(small_nid, small_did);
+}
+
+/**
  * @brief Partitions the parsed dataset into training and testing sets
  * according to a given partitioning scheme. The resulting sets are assigned
  * to the available devices on different nodes.
@@ -318,7 +372,7 @@ std::pair<int,int> Dataset::get_smallest_arch_train_set(const DeviceLayout<Train
  * @param model_type The type of click model to measure the memory footprint
  * with (e.g., 0 = PBM, 1 = CCM).
  */
-void Dataset::partition_data(const DeviceLayout<std::vector<int>>& network_properties, const float test_share, const int partitioning_type, const int model_type) {
+void Dataset::partition_data(const ClusterProperties cluster_properties, const DeviceLayout<std::vector<int>>& network_properties, const float test_share, const int partitioning_type, const int model_type) {
     int node_id{0}, device_id{0}, n_nodes = static_cast<int>(network_properties.size());
     this->click_model = create_cm_host(model_type);
 
@@ -350,26 +404,35 @@ void Dataset::partition_data(const DeviceLayout<std::vector<int>>& network_prope
     std::unordered_map<int, std::vector<int>>::iterator grp_itr = std::begin(grouped_train_queries);
     for (; grp_itr != std::end(grouped_train_queries); grp_itr++, device_id++) {
         // Get the next training set according to the partitioning type.
-        if (partitioning_type == 0) { // Round-Robin
-            // Get the next device from the corresponding node in Round-Robin fashion.
-            if (device_id >= static_cast<int>(this->training_queries[node_id].size())) {
-                node_id = (node_id + 1) % n_nodes;
-                device_id = 0;
-            }
-        }
-        else if (partitioning_type == 1) { // Maximum Utilization
-            // Get the node id and device id of where the smallest training set exists.
-            std::tie(node_id, device_id) = this->get_smallest_train_set(this->training_queries);
-        }
-        else if (partitioning_type == 2) { // Proportional Maximum Utilization
-            // Get the node id and device id of where the smallest training set
-            // relative to total device memory exists.
-            std::tie(node_id, device_id) = this->get_smallest_relative_train_set(this->training_queries, network_properties);
-        }
-        else if (partitioning_type == 3) { // Prefer Newer Architectures
-            // Get the node id and device id of where the smallest training set
-            // relative to total device memory exists.
-            std::tie(node_id, device_id) = this->get_smallest_arch_train_set(this->training_queries, network_properties);
+        switch (partitioning_type) {
+            case 0: // Round-Robin
+            default: // Round-Robin is the default
+                // Get the next device from the corresponding node in Round-Robin fashion.
+                if (device_id >= static_cast<int>(this->training_queries[node_id].size())) {
+                    node_id = (node_id + 1) % n_nodes;
+                    device_id = 0;
+                }
+                break;
+            case 1: // Maximum Utilization
+                // Get the node id and device id of where the smallest training set exists.
+                std::tie(node_id, device_id) = this->get_smallest_train_set(this->training_queries);
+                break;
+            case 2: // Proportional Maximum Utilization
+                // Get the node id and device id of where the smallest training set relative to total device memory exists.
+                std::tie(node_id, device_id) = this->get_smallest_relative_train_set(this->training_queries, network_properties);
+                break;
+            case 3: // Newest Architecture First
+                // Get the node id and device id of where the smallest training set relative to the newest architecture exists.
+                std::tie(node_id, device_id) = this->get_smallest_arch_train_set(this->training_queries, network_properties);
+                break;
+            case 4: // Relative CUDA cores
+                // Get the node id and device id of where the smallest training set relative to the number of CUDA cores exists.
+                std::tie(node_id, device_id) = this->get_smallest_core_train_set(this->training_queries, cluster_properties);
+                break;
+            case 5: // Relative peak performance
+                // Get the node id and device id of where the smallest training set relative to the device's peak performance exists.
+                std::tie(node_id, device_id) = this->get_smallest_perf_train_set(this->training_queries, cluster_properties);
+                break;
         }
 
         // For each document in a query group's query session, get the
@@ -458,14 +521,14 @@ void Dataset::reshape_pvar(const DeviceLayout<std::vector<int>>& network_propert
  * @param model_type The type of click model to measure the memory footprint
  * with (e.g., 0 = PBM, 1 = CCM).
  */
-void Dataset::split_data(const DeviceLayout<std::vector<int>>& network_properties, const float test_share, const int partitioning_type, const int model_type) {
+void Dataset::split_data(const ClusterProperties cluster_properties, const DeviceLayout<std::vector<int>>& network_properties, const float test_share, const int partitioning_type, const int model_type) {
     // Shape the multi-dimensional arrays training, testing and parameter arrays
     // according to the network topology beforehand.
     this->reshape_pvar(network_properties);
 
     // Assign query groups from the dataset to different partitions according to
     // the chosen partitioning approach.
-    partition_data(network_properties, test_share, partitioning_type, model_type);
+    partition_data(cluster_properties, network_properties, test_share, partitioning_type, model_type);
 }
 
 
@@ -578,7 +641,7 @@ int parse_dataset(Dataset &dataset, const std::string& raw_dataset_path, int max
             // If this line contains any other number of elements, then the
             // associated action type is unknown.
             else {
-                std::cout << "\nInValid data: " << line << std::endl;
+                std::cout << "\nInvalid data: " << line << std::endl;
             }
 
             session_id_prev = session_id_curr;

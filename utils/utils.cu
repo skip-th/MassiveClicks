@@ -1,15 +1,10 @@
 /** Several utility functions.
  *
  * utils.cu:
- *  - Defines several host- and device-side (CUDA) utility functions.
+ *  (Defines several host- and device-side (CUDA) utility functions.)
  */
 
 #include "utils.cuh"
-
-
-//---------------------------------------------------------------------------//
-// Host-side CUDA utility functions.                                         //
-//---------------------------------------------------------------------------//
 
 /**
  * @brief Get the number of GPU devices available on this machine.
@@ -57,10 +52,100 @@ HST void get_device_memory(const int& device_id, size_t& free_memory, size_t& to
     CUDA_CHECK(cudaSetDevice(old_device));
 }
 
+/**
+ * @brief Get the number of CUDA cores per SM based on the compute capability.
+ *
+ * @param cc_major The major compute capability.
+ * @return int The number of CUDA cores per SM.
+ */
+HST int get_cores_per_SM(int cc_major) {
+    switch (cc_major) {
+        case 1: // Tesla
+            return 8;
+        case 2: // Fermi
+            return 32;
+        case 3: // Kepler
+            return 192;
+        case 5: // Maxwell
+            return 128;
+        case 6: // Pascal
+            return 64;
+        case 7: // Volta and Turing
+            return 64;
+        case 8: // Ampere
+            return 128;
+        default: // Unknown architecture
+            return 128; // Assume newer than Ampere
+    }
+}
 
-//---------------------------------------------------------------------------//
-// Host-side utility functions.                                              //
-//---------------------------------------------------------------------------//
+/**
+ * @brief Get the device properties object.
+ *
+ * @param device_id The ID of the GPU device.
+ * @return DeviceProperties The properties of the GPU device.
+ */
+HST DeviceProperties get_device_properties(const int device_id) {
+    DeviceProperties properties;
+    cudaDeviceProp dprop;
+    CUDA_CHECK(cudaGetDeviceProperties(&dprop, device_id));
+    properties.device_id = device_id;
+    properties.compute_capability = dprop.major * 10 + dprop.minor; // e.g., 52 = 5.2
+    properties.total_global_memory = dprop.totalGlobalMem; // bytes
+    properties.shared_memory_per_block = dprop.sharedMemPerBlock; // bytes
+    properties.total_constant_memory = dprop.totalConstMem; // bytes
+    properties.registers_per_block = dprop.regsPerBlock;
+    properties.registers_per_sm = dprop.regsPerMultiprocessor;
+    properties.threads_per_block = dprop.maxThreadsPerBlock;
+    properties.threads_per_sm = dprop.maxThreadsPerMultiProcessor;
+    properties.warp_size = dprop.warpSize;
+    properties.memory_clock_rate = (size_t) dprop.memoryClockRate * 1000; // Hz
+    properties.memory_bus_width = dprop.memoryBusWidth; // bits
+    properties.cores_per_sm = get_cores_per_SM(dprop.major);
+    properties.clock_rate = dprop.clockRate * 1000; // Hz
+    properties.multiprocessor_count = dprop.multiProcessorCount;
+    properties.peak_performance = ((size_t) properties.cores_per_sm * (size_t) properties.multiprocessor_count) // CUDA cores
+                                  * ((size_t) properties.clock_rate) // Clock rate (Hz)
+                                  * 2.f; // FMA
+    strcpy(properties.device_name, dprop.name);
+    return properties;
+}
+
+/**
+ * @brief Get the host properties object.
+ *
+ * @param node_id The ID of the node.
+ * @return HostProperties The properties of the host.
+ */
+HST HostProperties get_host_properties(const int node_id) {
+    HostProperties properties;
+    properties.node_id = node_id;
+    properties.thread_count = std::thread::hardware_concurrency();
+    properties.free_memory = (sysconf(_SC_AVPHYS_PAGES) * sysconf(_SC_PAGE_SIZE));
+    properties.total_memory = (sysconf(_SC_PHYS_PAGES) * sysconf(_SC_PAGE_SIZE));
+    gethostname(properties.host_name, HOST_NAME_MAX);
+    return properties;
+}
+
+/**
+ * @brief Get the node properties object.
+ *
+ * @param node_id The MPI rank of the node.
+ * @return NodeProperties The properties of the current node.
+ */
+HST NodeProperties get_node_properties(const int node_id) {
+    NodeProperties properties;
+    properties.host = get_host_properties(node_id);
+
+    if (cudaGetDeviceCount(&properties.host.device_count) != cudaSuccess) {
+        properties.host.device_count = 0;
+    }
+
+    for (int device_id = 0; device_id < properties.host.device_count; device_id++) {
+        properties.devices.push_back(get_device_properties(device_id));
+    }
+    return properties;
+}
 
 /**
  * @brief Get the memory usage of the host machine.

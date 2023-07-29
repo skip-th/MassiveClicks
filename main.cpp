@@ -33,7 +33,7 @@
 #include "data/dataset.h"
 #include "click_models/base.cuh"
 
-char hostname[1024];
+char hostname[HOST_NAME_MAX];
 
 /**
  * @brief Check if the given number of threads is valid.
@@ -75,6 +75,18 @@ void check_valid_devices(int n_devices, int n_gpus, int exec_mode) {
     Communicate::error_check();
 }
 
+void check_valid_partitioning(int partitioning_type, int node_id) {
+    // Check if the provided partitioning scheme exists.
+    if (partitioning_type < 0 || partitioning_type > 5) {
+        if (node_id == ROOT_RANK) {
+            std::cerr << "[" << hostname << "] \033[12;31mError\033[0m: Invalid partitioning scheme: " << partitioning_type << std::endl;
+        }
+        Communicate::finalize();
+        exit(EXIT_SUCCESS);
+    }
+    Communicate::error_check();
+}
+
 
 int main(int argc, char** argv) {
     Timer timer;
@@ -88,13 +100,16 @@ int main(int argc, char** argv) {
     // Initialize MPI and get this node's rank and the number of nodes.
     int n_nodes, node_id;
     Communicate::initiate(argc, argv, n_nodes, node_id);
-    gethostname(hostname, 1024);
+    gethostname(hostname, HOST_NAME_MAX);
+
+    // Get the properties of all nodes and their devices.
+    ClusterProperties cluster_properties = \
+        Communicate::gather_properties_all(get_node_properties(node_id));
 
     // Get number of devices on this node and their compute capability.
-    int n_devices{0};
     int n_devices_network[n_nodes];
     std::vector<std::vector<std::vector<int>>> network_properties(n_nodes); // Node, Device, [Architecture, Free memory].
-    get_number_devices(&n_devices);
+    int n_devices = cluster_properties.nodes[node_id].devices.size();
     int processing_units = n_devices > 0 ? n_devices : 1;
 
 
@@ -113,7 +128,9 @@ int main(int argc, char** argv) {
         {0, "Round-Robin"},
         {1, "Maximum Utilization"},
         {2, "Proportional Maximum Utilization"},
-        {3, "Newest architecture first"},
+        {3, "Newest Architecture First"},
+        {4, "Relative CUDA Cores"},
+        {5, "Relative Peak Performance"},
     };
 
     std::map<int, std::string> execution_modes {
@@ -125,14 +142,14 @@ int main(int argc, char** argv) {
     std::string raw_dataset_path = "YandexRelPredChallenge100k.txt";
     std::string output_path      = "";
     int n_threads                = static_cast<int>(std::thread::hardware_concurrency());
-    int n_gpus                   = n_devices;
+    int n_gpus                   = cluster_properties.nodes[node_id].devices.size();
     int n_iterations             = 50;
     int max_sessions             = 40000;
     int model_type               = 0;
     int partitioning_type        = 0;
     int job_id                   = 0;
     int total_n_devices          = 0;
-    int exec_mode                = n_devices > 0 ? 0 : 1; // GPU-only: 0, CPU-only: 1.
+    int exec_mode                = cluster_properties.nodes[node_id].devices.size() > 0 ? 0 : 1; // GPU-only: 0, CPU-only: 1.
     float test_share             = 0.2;
     bool help                    = false;
 
@@ -222,6 +239,12 @@ int main(int argc, char** argv) {
         processing_units = 1;
     }
 
+    // Check if partitioning scheme is valid.
+    check_valid_partitioning(partitioning_type, node_id);
+    if (partitioning_type >= 0 && partitioning_type < partitioning_types.size()) {
+
+    }
+
 
     //-----------------------------------------------------------------------//
     // Communicate system properties                                         //
@@ -258,7 +281,7 @@ int main(int argc, char** argv) {
     }
 
     // Gather the compute architectures and free memory on the root node.
-    Communicate::gather_properties(node_id, n_nodes, processing_units, n_devices_network, network_properties, device_architecture, free_memory);
+    Communicate::gather_properties(processing_units, n_devices_network, network_properties, device_architecture, free_memory);
     total_n_devices = std::accumulate(n_devices_network, n_devices_network + n_nodes, 0);
 
     // Show job information on the root node.
@@ -321,7 +344,7 @@ int main(int argc, char** argv) {
 
     if (node_id == ROOT_RANK) {
         // Split the dataset into partitions. One for each device on each node.
-        dataset.split_data(network_properties, test_share, partitioning_type, model_type);
+        dataset.split_data(cluster_properties, network_properties, test_share, partitioning_type, model_type);
     }
 
     timer.stop("Partitioning");
@@ -337,7 +360,7 @@ int main(int argc, char** argv) {
     LocalPartitions device_partitions(processing_units); // Device ID -> [train set, test set, size qd pairs]
 
     // Communicate the training sets for each device to their node.
-    Communicate::send_partitions(node_id, n_nodes, processing_units, total_n_devices, n_devices_network, dataset, device_partitions);
+    Communicate::send_partitions(processing_units, total_n_devices, n_devices_network, dataset, device_partitions);
 
     // Show information about the distributed partitions on the root node.
     if (node_id == ROOT_RANK) {
