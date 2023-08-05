@@ -351,10 +351,10 @@ void allocate_memory_on_host(int device_id, size_t* fmem_dev, const ProcessingCo
     LocalPartitions& device_partitions
 ) {
     Timer timer;
+    ConditionalStream RCOUT(config, ROOT_RANK, std::cout);
+    ConditionalStream RCERR(config, ROOT_RANK, std::cerr);
 
-    if (config.node_id == ROOT_RANK) {
-        std::cout << "\nExpectation Maximization (EM) in parallel ..." << std::endl;
-    }
+    RCOUT << "\nExpectation Maximization (EM) in parallel ..." << std::endl;
 
     //-----------------------------------------------------------------------//
     // Initate host-side click model.                                        //
@@ -455,9 +455,7 @@ void allocate_memory_on_host(int device_id, size_t* fmem_dev, const ProcessingCo
         std::cout << "[" << config.host_name << ", " << did << "] kernel dimensions = <<<" << kernel_dims[did * 2] << ", " << kernel_dims[did * 2 + 1] << ">>>" << std::endl;
     }
 
-    if (config.node_id == ROOT_RANK) {
-        std::cout << "\nStarting " << config.iterations << " EM parameter estimation iterations..." << std::endl;
-    }
+    RCOUT << "\nStarting " << config.iterations << " EM parameter estimation iterations..." << std::endl;
 
     // Perform n_itr Expectation-Maximization iterations.
     timer.start("EM iteration");
@@ -602,14 +600,12 @@ void allocate_memory_on_host(int device_id, size_t* fmem_dev, const ProcessingCo
         timer.lap("EM synchronization", false);
 
         // Show metrics on the root node.
-        if (config.node_id == ROOT_RANK) {
-            int itr_len = std::to_string(config.iterations).length();
-            std::cout << "Itr: " << std::left << std::setw(itr_len) << itr <<
-            " Itr-time: " << std::left << std::setw(10) << timer.lap("EM iteration") <<
-            " Itr-EM_COMP: " << std::left << std::setw(11) << timer.elapsed("EM computation") <<
-            " Itr-EM_UPDATE: " << std::left << std::setw(10) << timer.elapsed("EM update") <<
-            " Itr-Sync: " << std::left << std::setw(12) << timer.elapsed("EM synchronization") << std::endl;
-        }
+        int itr_len = std::to_string(config.iterations).length() + 1;
+        RCOUT << "Itr: " << std::left << std::setw(itr_len) << itr
+              << " Itr-time: " << std::left << std::setw(11) << timer.lap("EM iteration")
+              << " Itr-EM_COMP: " << std::left << std::setw(11) << timer.elapsed("EM computation")
+              << " Itr-EM_UPDATE: " << std::left << std::setw(11) << timer.elapsed("EM update")
+              << " Itr-Sync: " << std::left << std::setw(12) << timer.elapsed("EM synchronization") << std::endl;
     }
 
     // Destroy CUDA timer events.
@@ -680,7 +676,7 @@ void allocate_memory_on_host(int device_id, size_t* fmem_dev, const ProcessingCo
     //-----------------------------------------------------------------------//
 
     if (!config.output_path.empty()) {
-        std::cout << "\nWriting output to file..." << std::endl;
+        RCOUT << "\nWriting output to file..." << std::endl;
 
         std::pair<std::vector<std::string>, std::vector<std::string>> headers;
         std::pair<std::vector<std::vector<Param> *>, std::vector<std::vector<Param> *>> parameters[config.worker_count];
@@ -705,7 +701,7 @@ void allocate_memory_on_host(int device_id, size_t* fmem_dev, const ProcessingCo
             total_llh_sessions += llh_task.second[1];
         });
 
-        std::cout << "\nTotal Log likelihood is: " << total_llh_sum / total_llh_sessions << std::endl;
+        RCOUT << "\nTotal Log likelihood is: " << total_llh_sum / total_llh_sessions << std::endl;
 
         float total_task_size{0.0};
         std::array<float, 10> temp_task_rank_perplexities{0.0};
@@ -722,23 +718,23 @@ void allocate_memory_on_host(int device_id, size_t* fmem_dev, const ProcessingCo
         float ppl_value;
         for (int i{0}; i < 10; i++){
             ppl_per_rank[i] = std::pow(2, (-1 * temp_task_rank_perplexities[i])/total_task_size);
-            std::cout << "Perplexity at rank " << i << " is: " << ppl_per_rank[i] << std::endl;
+            RCOUT << "Perplexity at rank " << i << " is: " << ppl_per_rank[i] << std::endl;
         }
         ppl_value = std::accumulate(ppl_per_rank.begin(), ppl_per_rank.end(), 0.0) / 10.0;
-        std::cout << "Perplexity is: " << ppl_value << std::endl;
+        RCOUT << "Perplexity is: " << ppl_value << std::endl;
 
         // Show the timing measurements of the EM algorithm.
         if (GPU_EXECUTION(config.exec_mode)) {
-            std::cout << "\nHost to Device dataset transfer time: " << timer.elapsed("h2d_init") <<
-            "\nAverage Host to Device parameter transfer time: " << timer.avg("h2d") / 2 <<
-            "\nAverage Device to Host parameter transfer time: " << timer.avg("d2h") << std::endl;
+            RCOUT << "\nHost to Device dataset transfer time: " << timer.elapsed("h2d_init")
+                      << "\nAverage Host to Device parameter transfer time: " << timer.avg("h2d") / 2
+                      << "\nAverage Device to Host parameter transfer time: " << timer.avg("d2h") << std::endl;
         }
-        std::cout << "\nAverage time per iteration: " << timer.avg("EM iteration") <<
-        "\nAverage time per computation in each iteration: " << timer.avg("EM computation") <<
-        "\nAverage time per update in each iteration: " << timer.avg("EM update") <<
-        "\nAverage time per synchronization in each iteration: " << timer.avg("EM synchronization") <<
-        "\nTotal time of training: " << timer.total("EM iteration") <<
-        "\nEvaluation time: " << timer.elapsed("EM evaluation") << std::endl;
+        RCOUT << "\nAverage time per iteration: " << timer.avg("EM iteration")
+                  << "\nAverage time per computation in each iteration: " << timer.avg("EM computation")
+                  << "\nAverage time per update in each iteration: " << timer.avg("EM update")
+                  << "\nAverage time per synchronization in each iteration: " << timer.avg("EM synchronization")
+                  << "\nTotal time of training: " << timer.total("EM iteration")
+                  << "\nEvaluation time: " << timer.elapsed("EM evaluation") << std::endl;
     }
 
     // Destroy all allocations on all available devices as part of the shutdown

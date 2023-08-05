@@ -218,6 +218,49 @@ namespace Communicate
     }
 
     /**
+     * @brief Get the properties of the datasets on each node.
+     *
+     * @param cluster_properties The properties of the datasets on each node.
+     * @param layout The layout of the devices on each node.
+     */
+    void gather_partition_properties(ClusterProperties& cluster_properties, ProcessingConfig& config, DeviceLayout2D<std::tuple<int,int,int>>& layout, LocalPartitions& my_partitions) {
+        // Iterate over all nodes.
+        for (size_t nid = 0; nid < cluster_properties.node_count; nid++) {
+            int n_devices = cluster_properties.nodes[nid].devices.size();
+            layout[nid].resize((n_devices != 0 ? n_devices : 1));
+
+            // Iterate over all devices on each node.
+            for (size_t did = 0; did < (n_devices != 0 ? n_devices : 1) ; did++) {
+                if (nid != config.node_id) { // Current node is the receiver.
+                    // Receive properties from other node and add to layout.
+                    MPI_CHECK(MPI_Recv(&std::get<0>(layout[nid][did]), 1, MPI_INT, nid, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE));
+                    MPI_CHECK(MPI_Recv(&std::get<1>(layout[nid][did]), 1, MPI_INT, nid, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE));
+                    MPI_CHECK(MPI_Recv(&std::get<2>(layout[nid][did]), 1, MPI_INT, nid, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE));
+                }
+                else { // Current node is the sender.
+                    int n_train = std::get<0>(my_partitions[did]).size();
+                    int n_test = std::get<1>(my_partitions[did]).size();
+                    int n_qd = std::get<2>(my_partitions[did]);
+
+                    // Send the properties to all other nodes.
+                    for (size_t recv_nid = 0; recv_nid < cluster_properties.node_count; recv_nid++) {
+                        if (recv_nid != config.node_id) { // Don't send to self
+                            MPI_CHECK(MPI_Send(&n_train, 1, MPI_INT, recv_nid, 0, MPI_COMM_WORLD));
+                            MPI_CHECK(MPI_Send(&n_test, 1, MPI_INT, recv_nid, 0, MPI_COMM_WORLD));
+                            MPI_CHECK(MPI_Send(&n_qd, 1, MPI_INT, recv_nid, 0, MPI_COMM_WORLD));
+                        }
+                        else { // Add the local partition to the layout.
+                            std::get<0>(layout[nid][did]) = n_train;
+                            std::get<1>(layout[nid][did]) = n_test;
+                            std::get<2>(layout[nid][did]) = n_qd;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /**
      * @brief Blocks execution until all processes have reached this function.
      */
     void barrier(void) {

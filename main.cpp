@@ -16,6 +16,7 @@
 #include <iostream>
 #include <map>
 #include <string>
+#include <cstring>
 #include <cstddef>
 #include <iomanip>
 #include <cmath>
@@ -38,11 +39,9 @@
  *
  * @param config Processing configuration.
  */
-void check_valid_threads(ProcessingConfig& config) {
+void check_valid_threads(ProcessingConfig& config, ConditionalStream& RCERR) {
     if (config.thread_count < 1) {
-        if (config.node_id == ROOT_RANK) {
-            std::cerr << "[" << config.host_name << "] \033[12;31mError\033[0m: Invalid number of threads: " << config.thread_count << std::endl;
-        }
+        RCERR << "[" << config.host_name << "] \033[12;31mError\033[0m: Invalid number of threads: " << config.thread_count << std::endl;
         Communicate::finalize();
         exit(EXIT_SUCCESS);
     }
@@ -75,18 +74,77 @@ void check_valid_devices(ProcessingConfig& config) {
  *
  * @param config Processing configuration.
  */
-void check_valid_partitioning(ProcessingConfig& config) {
+void check_valid_partitioning(ProcessingConfig& config, ConditionalStream& RCERR) {
     // Check if the provided partitioning scheme exists.
     if (config.partitioning_type < 0 || config.partitioning_type > 5) {
-        if (config.node_id == ROOT_RANK) {
-            std::cerr << "[" << config.host_name << "] \033[12;31mError\033[0m: Invalid partitioning scheme: " << config.partitioning_type << std::endl;
-        }
+        RCERR << "[" << config.host_name << "] \033[12;31mError\033[0m: Invalid partitioning scheme: " << config.partitioning_type << std::endl;
         Communicate::finalize();
         exit(EXIT_SUCCESS);
     }
     Communicate::error_check();
 }
 
+/**
+ * @brief Get the max host name length.
+ *
+ * @param cluster The cluster properties.
+ * @return int The maximum host name length.
+ */
+int get_max_host_name_length(const ClusterProperties& cluster, std::string column_header) {
+    return std::max(static_cast<int>(std::strlen(std::max_element(cluster.nodes.begin(), cluster.nodes.end(), [](const NodeProperties& a, const NodeProperties& b) {
+            return std::strlen(a.host.host_name) < std::strlen(b.host.host_name);
+        })->host.host_name)),
+        static_cast<int>(column_header.size()));
+}
+
+/**
+ * @brief Get the max device name length.
+ *
+ * @param cluster The cluster properties.
+ * @return int The maximum device name length.
+ */
+int get_max_device_name_length(const ClusterProperties& cluster, std::string column_header) {
+    return std::accumulate(cluster.nodes.begin(), cluster.nodes.end(), static_cast<int>(column_header.size()), [](int max_len, const NodeProperties& node) {
+        return std::max(max_len, static_cast<int>(std::strlen(std::max_element(node.devices.begin(), node.devices.end(), [](const DeviceProperties& a, const DeviceProperties& b) {
+            return std::strlen(a.device_name) < std::strlen(b.device_name);
+        })->device_name)));
+    });
+}
+
+/**
+ * @brief Get the max memory length.
+ *
+ * @param cluster The cluster properties.
+ * @param column_header The column header.
+ * @return int The maximum memory length.
+ */
+int get_max_mem_length(const ClusterProperties& cluster, std::string column_header) {
+    return std::accumulate(cluster.nodes.begin(), cluster.nodes.end(), static_cast<int>(column_header.size()), [](int max_len, const NodeProperties& node) {
+        if (node.devices.empty())
+            return std::max(max_len, static_cast<int>(std::to_string(node.host.free_memory / 1e6).size()));
+        return std::max(max_len, std::accumulate(node.devices.begin(), node.devices.end(), 0, [](int max_len, const DeviceProperties& device) {
+            return std::max(max_len, static_cast<int>(std::to_string(device.available_memory / 1e6).size()));
+        }));
+    });
+}
+
+/**
+ * @brief Get the length of the largest digit as a string.
+ *
+ * @param layout The layout of the partitions.
+ * @param index The index of the tuple element to check.
+ * @param column_header The column header.
+ * @return int The length of the largest digit as a string.
+ */
+int get_max_digit_length(const DeviceLayout2D<std::tuple<int,int,int>>& layout, int index, std::string column_header) {
+    int max_val = std::numeric_limits<int>::min();
+    for(const auto& node_layout : layout) {
+        for(const auto& t : node_layout) {
+            max_val = (index == 0 ? std::max(max_val, std::get<0>(t)) : (index == 1 ? std::max(max_val, std::get<1>(t)) : std::max(max_val, std::get<2>(t))));
+        }
+    }
+    return static_cast<int>(std::max(std::to_string(max_val).size(), column_header.size()));
+}
 
 int main(int argc, char** argv) {
     Timer timer;
@@ -108,6 +166,10 @@ int main(int argc, char** argv) {
     // Get number of devices on this node and their compute capability.
     config.device_count = cluster_properties.nodes[config.node_id].devices.size();
     int workers = config.device_count > 0 ? config.device_count : 1;
+
+    // Setup conditional print stream for root.
+    ConditionalStream RCOUT(config, ROOT_RANK, std::cout);
+    ConditionalStream RCERR(config, ROOT_RANK, std::cerr);
 
     //-----------------------------------------------------------------------//
     // Declare and retrieve input parameters                                 //
@@ -190,16 +252,12 @@ int main(int argc, char** argv) {
                 }
 
                 if (!handled && arg_name.rfind("-", 0) == 0) {
-                    if (config.node_id == ROOT_RANK) {
-                        std::cerr << "[" << config.host_name << "] \033[12;31mError\033[0m: Did not recognize flag \'" << arg_name << "\'." << std::endl;
-                    }
+                    RCERR << "[" << config.host_name << "] \033[12;31mError\033[0m: Did not recognize flag \'" << arg_name << "\'." << std::endl;
                     config.help = true;
                 }
             }
             catch (std::invalid_argument& e) {
-                if (config.node_id == ROOT_RANK) {
-                    std::cerr << "[" << config.host_name << "] \033[12;31mError\033[0m: Invalid argument \'" << arg_value << "\' for flag \'" << arg_name << "\'." << std::endl;
-                }
+                RCERR << "[" << config.host_name << "] \033[12;31mError\033[0m: Invalid argument \'" << arg_value << "\' for flag \'" << arg_name << "\'." << std::endl;
                 config.help = true;
             }
         }
@@ -220,14 +278,14 @@ int main(int argc, char** argv) {
     }
 
     // Check if execution mode is valid
-    if (config.node_id == ROOT_RANK && config.exec_mode == 2) {
-        std::cerr << "[" << config.host_name << "] \033[12;33mWarning\033[0m: Hybrid execution is not yet supported. Defaulting to GPU-only." << std::endl;
+    if (config.exec_mode == 2) {
+        RCERR << "[" << config.host_name << "] \033[12;33mWarning\033[0m: Hybrid execution is not yet supported. Defaulting to GPU-only." << std::endl;
     }
 
     // Check device, thread, and partitioning validity.
     check_valid_devices(config);
-    check_valid_threads(config);
-    check_valid_partitioning(config);
+    check_valid_threads(config, RCERR);
+    check_valid_partitioning(config, RCERR);
 
     // Set the number of GPU devices to 0 when CPU-only execution is requested.
     int workers_per_node[config.total_nodes];
@@ -266,30 +324,46 @@ int main(int argc, char** argv) {
              [](int sum, const NodeProperties& node) { return sum + node.devices.size(); }) : config.total_nodes;
 
     // Show job information on the root node.
-    if (config.node_id == ROOT_RANK) {
-        std::cout <<   "Job ID: "                         << config.job_id
-                  << "\nNumber of machines: "             << config.total_nodes
-                  << "\nNumber of devices in total: "     << total_workers
-                  << "\nNumber of threads: "              << config.thread_count
-                  << "\nExecution mode: "                 << execution_modes[config.exec_mode]
-                  << "\nRaw data path: "                  << config.dataset_path
-                  << "\nNumber of EM iterations: "        << config.iterations
-                  << "\nShare of data used for testing: " << config.test_share * 100 << "%"
-                  << "\nMax number of sessions: "         << config.max_sessions
-                  << "\nPartitioning type: "              << partitioning_types[config.partitioning_type]
-                  << "\nModel type: "                     << supported_click_models[config.model_type] << std::endl << std::endl;
-        std::cout << "Node  Device  Arch  Free memory" << std::endl;
-        for (int nid = 0; nid < config.total_nodes; nid++) {
-            for (int did = 0; did < (config.exec_mode == 0 || config.exec_mode == 2 ? cluster_properties.nodes[nid].devices.size() : 1); did++) {
-                int architecture = (config.exec_mode == 0 || config.exec_mode == 2 ? cluster_properties.nodes[nid].devices[did].compute_capability : -1);
-                size_t memory = (config.exec_mode == 0 || config.exec_mode == 2 ? cluster_properties.nodes[nid].devices[did].available_memory : cluster_properties.nodes[nid].host.free_memory);
-                std::cout << std::left << std::setw(5) << "N" + std::to_string(nid) << " "
-                          << std::left << std::setw(7) << ((config.exec_mode == 0 || config.exec_mode == 2) ? "G" + std::to_string(did) : "C" + std::to_string(did)) << " "
-                          << std::left << std::setw(5) << (architecture == -1 ? " " : std::to_string(architecture)) << " " << memory / 1e6 << std::endl;
+    RCOUT <<   "Job ID: "                         << config.job_id
+          << "\nNumber of machines: "             << config.total_nodes
+          << "\nNumber of workers: "              << total_workers
+          << "\nNumber of threads: "              << config.thread_count
+          << "\nExecution mode: "                 << execution_modes[config.exec_mode]
+          << "\nRaw data path: "                  << config.dataset_path
+          << "\nNumber of EM iterations: "        << config.iterations
+          << "\nShare of data used for testing: " << config.test_share * 100 << "%"
+          << "\nMax number of sessions: "         << config.max_sessions
+          << "\nPartitioning type: "              << partitioning_types[config.partitioning_type]
+          << "\nModel type: "                     << supported_click_models[config.model_type] << std::endl << std::endl;
+
+    // Get the maximum column lengths.
+    int max_hst_len = get_max_host_name_length(cluster_properties, "Node");
+    int max_dev_len = get_max_device_name_length(cluster_properties, "Device");
+    int max_arch_len = std::string("Arch").size();
+    int max_mem_len = get_max_mem_length(cluster_properties, "Memory (MB)");
+
+    // Print the table header.
+    RCOUT << std::setw(max_hst_len+2) << std::left << "Node";
+    if (config.exec_mode == 0 || config.exec_mode == 2)
+        RCOUT << std::left << std::setw(max_dev_len)  << "Device"
+              << std::right << std::setw(max_arch_len+2) << "Arch";
+    RCOUT << std::right << std::setw(max_mem_len+1) << "Memory (MB)" << std::endl;
+
+    // Print the table body.
+    for (const auto& node : cluster_properties.nodes) {
+        if (config.exec_mode == 0 || config.exec_mode == 2) {
+            for (const auto& device : node.devices) {
+                RCOUT << std::left  << std::setw(max_hst_len+2)  << node.host.host_name
+                      << std::left  << std::setw(max_dev_len)    << device.device_name
+                      << std::right << std::setw(max_arch_len+2) << device.compute_capability
+                      << std::right << std::setw(max_mem_len+1)  << std::setprecision(2) << std::fixed << device.available_memory / 1e6 << std::endl;
             }
+        } else if (config.exec_mode == 1) {
+            RCOUT << std::left  << std::setw(max_hst_len+2) << node.host.host_name
+                  << std::right << std::setw(max_mem_len+1)   << std::setprecision(2) << std::fixed << node.host.free_memory / 1e6 << std::endl;
         }
-        std::cout << std::endl;
     }
+    RCOUT << std::setprecision(8) << std::endl;
 
 
     //-----------------------------------------------------------------------//
@@ -299,20 +373,37 @@ int main(int argc, char** argv) {
     timer.start("Preprocessing");
 
     LocalPartitions device_partitions(workers); // Device ID -> [train set, test set, size qd pairs]
-    if (config.node_id == ROOT_RANK) { // Send partitions
-        std::cout << "Parsing dataset..." << std::endl;
 
-        if (parse_dataset(cluster_properties, config, device_partitions)) {
-            Communicate::error_check("[" + std::string(config.host_name) + "] \033[12;31mError\033[0m: Unable to open the raw dataset.");
-        }
-    }
-    else { // Receive partitions.
-        if (parse_dataset(cluster_properties, config, device_partitions)) {
-            Communicate::error_check("[" + std::string(config.host_name) + "] \033[12;31mError\033[0m: Parsing failed.");
-        }
+    RCOUT << "Parsing dataset..." << std::endl;
+
+    if (Dataset::parse_dataset(cluster_properties, config, device_partitions)) {
+        Communicate::error_check("[" + std::string(config.host_name) + "] \033[12;31mError\033[0m: Unable to open the raw dataset.");
     }
     // Check if parsing failed on the root node.
     Communicate::error_check();
+
+    // Gather the properties of the partitions on each node.
+    DeviceLayout2D<std::tuple<int,int,int>> partition_properties(cluster_properties.node_count);
+    Communicate::gather_partition_properties(cluster_properties, config, partition_properties, device_partitions);
+
+    // Get maximum column lengths.
+    int max_d0_len = get_max_digit_length(partition_properties, 0, "Train");
+    int max_d1_len = get_max_digit_length(partition_properties, 1, "Test");
+    int max_d2_len = get_max_digit_length(partition_properties, 2, "QD Pairs");
+
+    // Print the properties of the partitions.
+    RCOUT << std::setw(max_hst_len)  << std::left  << "Node"
+          << std::setw(max_d0_len+2) << std::right << "Train"
+          << std::setw(max_d1_len+2) << std::right << "Test"
+          << std::setw(max_d2_len+2) << std::right << "QD Pairs" << std::endl;
+    for (int nid = 0; nid < partition_properties.size(); nid++) {
+        for (int did = 0; did < partition_properties[nid].size(); did++) {
+            RCOUT << std::setw(max_hst_len)  << std::left  << cluster_properties.nodes[nid].host.host_name
+                  << std::setw(max_d0_len+2) << std::right << std::get<0>(partition_properties[nid][did])
+                  << std::setw(max_d1_len+2) << std::right << std::get<1>(partition_properties[nid][did])
+                  << std::setw(max_d2_len+2) << std::right << std::get<2>(partition_properties[nid][did]) << std::endl;
+        }
+    }
 
     timer.stop("Preprocessing");
 
@@ -335,22 +426,20 @@ int main(int argc, char** argv) {
 
     timer.stop("Total");
 
-    auto print_time_metrics = [](const std::string& metric_name, double metric_value, double total_value) {
+    auto print_time_metrics = [](ConditionalStream& RCOUT, const std::string& metric_name, double metric_value, double total_value) {
         auto percent = metric_value / total_value * 100;
-        std::cout << std::left << std::setw(27) << metric_name << std::left << std::setw(7) << std::fixed << std::setprecision(7)
+        RCOUT << std::left << std::setw(27) << metric_name << std::left << std::setw(7) << std::fixed << std::setprecision(7)
                   << metric_value << " seconds, " << std::right << std::setw(3) << std::setprecision(0) << std::round(percent) << " %" << std::endl;
     };
 
     // Show timing metrics on the root node.
-    if (config.node_id == ROOT_RANK) {
-        std::vector<double> percent_combined = { timer.elapsed("Preprocessing"), timer.elapsed("EM") };
-        double combined_total = std::accumulate(percent_combined.begin(), percent_combined.end(), 0.0);
-        std::cout << std::endl;
-        print_time_metrics("Pre-processing time: ", timer.elapsed("Preprocessing"), combined_total);
-        print_time_metrics("Parameter estimation time: ", timer.elapsed("EM"), combined_total);
-        print_time_metrics("Total elapsed time: ", timer.elapsed("Total"), timer.elapsed("Total"));
-        std::cout << std::endl;
-    }
+    std::vector<double> percent_combined = { timer.elapsed("Preprocessing"), timer.elapsed("EM") };
+    double combined_total = std::accumulate(percent_combined.begin(), percent_combined.end(), 0.0);
+    RCOUT << std::endl;
+    print_time_metrics(RCOUT, "Pre-processing time: ", timer.elapsed("Preprocessing"), combined_total);
+    print_time_metrics(RCOUT, "Parameter estimation time: ", timer.elapsed("EM"), combined_total);
+    print_time_metrics(RCOUT, "Total elapsed time: ", timer.elapsed("Total"), timer.elapsed("Total"));
+    RCOUT << std::endl;
 
     // End MPI communication.
     Communicate::finalize();

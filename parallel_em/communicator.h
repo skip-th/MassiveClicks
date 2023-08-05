@@ -29,15 +29,15 @@
 #include "../data/dataset.h"
 #include "../click_models/base.cuh"
 
-// MPI Datatypes
-extern MPI_Datatype MPI_SERP;
-extern MPI_Datatype MPI_HST_PROP;
-extern MPI_Datatype MPI_DEV_PROP;
-extern MPI_Datatype MPI_PARAM;
-extern MPI_Datatype MPI_LLH;
-extern MPI_Datatype MPI_PPL;
-
 namespace Communicate {
+    // MPI Datatypes
+    extern MPI_Datatype MPI_SERP;
+    extern MPI_Datatype MPI_HST_PROP;
+    extern MPI_Datatype MPI_DEV_PROP;
+    extern MPI_Datatype MPI_PARAM;
+    extern MPI_Datatype MPI_LLH;
+    extern MPI_Datatype MPI_PPL;
+
     // Initiates the communication module.
     void initiate(int& argc, char**& argv, int& n_nodes, int& node_id);
 
@@ -58,6 +58,12 @@ namespace Communicate {
 
     // Receives sessions from a specific source.
     int recv_sessions(const int src, LocalPartitions& my_partitions);
+
+    // Get the properties of the datasets on each node.
+    void gather_partition_properties(ClusterProperties& cluster_properties,
+                                     ProcessingConfig& config,
+                                     DeviceLayout2D<std::tuple<int,int,int>>& layout,
+                                     LocalPartitions& my_partitions);
 
     // Exchanges parameters between nodes.
     void exchange_parameters(std::vector<std::vector<std::vector<Param>>>& dest,
