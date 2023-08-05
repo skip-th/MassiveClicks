@@ -18,6 +18,7 @@ single-node click model training, [ParClick](https://github.com/uva-sne/ParClick
 
 * CUDA version: 12.1
 * MPI version: 3.1
+* C++ version: C++11 or higher
 
 ## Installation
 

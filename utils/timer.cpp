@@ -8,6 +8,7 @@
 
 void Timer::start(const std::string& label) {
     start_times[label] = std::chrono::high_resolution_clock::now();
+    elapsed_times[label] = std::chrono::duration<double>(0);
 }
 
 void Timer::stop(const std::string& label) {
@@ -36,10 +37,11 @@ double Timer::lap(const std::string& label, bool restart) {
     stop(label);
     if (elapsed_times.find(label) != elapsed_times.end()) {
         laps[label].push_back(elapsed_times[label]);
+        double elapsed_time = elapsed_times[label].count();
         if (restart) {
             start(label); // Restart the timer
         }
-        return elapsed(label);
+        return elapsed_time;
     } else {
         throw std::invalid_argument("Timer with label " + label + " was not stopped or does not exist");
     }

@@ -83,7 +83,7 @@ void reassign_unused_threads(int device_id, int unused_threads, const Processing
     if (unused_threads > 0) {
         thread_start_idx[device_id].resize(thread_start_idx[device_id].size() - unused_threads);
         // Add the removed threads to the next partition.
-        if (device_id < config.unit_count - 1) {
+        if (device_id < config.worker_count - 1) {
             thread_start_idx[device_id + 1].resize(thread_start_idx[device_id + 1].size() + unused_threads, -1);
         }
     }
@@ -165,7 +165,7 @@ void allocate_threads_to_devices(const ProcessingConfig& config, std::vector<std
             thread_start_idx[device_id].push_back(-1);
             --available_threads;
         }
-        device_id = (device_id + 1) % config.unit_count; // Select next device.
+        device_id = (device_id + 1) % config.worker_count; // Select next device.
     }
 }
 
@@ -178,7 +178,7 @@ void allocate_threads_to_devices(const ProcessingConfig& config, std::vector<std
  */
 void calculate_queries_per_thread(const ProcessingConfig& config, std::vector<std::vector<int>>& thread_start_idx,
                                   const LocalPartitions& device_partitions) {
-    for (int device_id = 0; device_id < config.unit_count; ++device_id) {
+    for (int device_id = 0; device_id < config.worker_count; ++device_id) {
         int partition_query_count = std::get<0>(device_partitions[device_id]).size();
         int threads_per_device = thread_start_idx[device_id].size();
         int stride = partition_query_count / threads_per_device; // Approximate number of queries per thread.
@@ -345,14 +345,10 @@ void allocate_memory_on_host(int device_id, size_t* fmem_dev, const ProcessingCo
  *
  * @param config Processing configuration.
  * @param device_partitions The dataset assigned to each of the node's devices.
- * @param output_path The path where to store the output.
- * @param hostname The hostname of the device.
  */
  void em_parallel(
     const ProcessingConfig& config,
-    LocalPartitions& device_partitions,
-    const std::string& output_path,
-    const char* hostname
+    LocalPartitions& device_partitions
 ) {
     Timer timer;
 
@@ -365,8 +361,8 @@ void allocate_memory_on_host(int device_id, size_t* fmem_dev, const ProcessingCo
     //-----------------------------------------------------------------------//
 
     // Initiate a host-side click model for each device or for the host.
-    ClickModel_Hst* cm_hosts[config.unit_count];
-    for (int unit = 0; unit < config.unit_count; unit++) {
+    ClickModel_Hst* cm_hosts[config.worker_count];
+    for (int unit = 0; unit < config.worker_count; unit++) {
         // Initialize the click model.
         cm_hosts[unit] = create_cm_host(config.model_type);
         // Print a confirmation message on the first device of the root node.
@@ -379,7 +375,7 @@ void allocate_memory_on_host(int device_id, size_t* fmem_dev, const ProcessingCo
     // Assign queries to CPU threads.                                        //
     //-----------------------------------------------------------------------//
 
-    std::vector<std::vector<int>> thread_start_idx(config.unit_count);
+    std::vector<std::vector<int>> thread_start_idx(config.worker_count);
 
     if (config.exec_mode != 0) {
         allocate_threads_to_devices(config, thread_start_idx, device_partitions,
@@ -395,13 +391,13 @@ void allocate_memory_on_host(int device_id, size_t* fmem_dev, const ProcessingCo
 
     // Allocate memory on the device.
     SearchResult_Dev* dataset_dev[config.device_count];
-    size_t fmem_dev[config.unit_count * 2];
-    for (int device_id = 0; device_id < config.unit_count; device_id++) {
+    size_t fmem_dev[config.worker_count * 2];
+    for (int device_id = 0; device_id < config.worker_count; device_id++) {
         if (GPU_EXECUTION(config.exec_mode)) {
             CUDA_CHECK(cudaSetDevice(device_id));
-            allocate_memory_on_device(device_id, dataset_dev[device_id], fmem_dev, config, device_partitions[device_id], cm_hosts[device_id], hostname);
+            allocate_memory_on_device(device_id, dataset_dev[device_id], fmem_dev, config, device_partitions[device_id], cm_hosts[device_id], config.host_name);
         } else {
-            allocate_memory_on_host(device_id, fmem_dev, config, device_partitions[device_id], cm_hosts[device_id], hostname);
+            allocate_memory_on_host(device_id, fmem_dev, config, device_partitions[device_id], cm_hosts[device_id], config.host_name);
         }
     }
 
@@ -456,7 +452,7 @@ void allocate_memory_on_host(int device_id, size_t* fmem_dev, const ProcessingCo
         kernel_dims[did * 2] = (n_queries + (block_size - 1)) / block_size;
         kernel_dims[did * 2 + 1] = block_size;
 
-        std::cout << "[" << hostname << ", " << did << "] kernel dimensions = <<<" << kernel_dims[did * 2] << ", " << kernel_dims[did * 2 + 1] << ">>>" << std::endl;
+        std::cout << "[" << config.host_name << ", " << did << "] kernel dimensions = <<<" << kernel_dims[did * 2] << ", " << kernel_dims[did * 2 + 1] << ">>>" << std::endl;
     }
 
     if (config.node_id == ROOT_RANK) {
@@ -494,7 +490,7 @@ void allocate_memory_on_host(int device_id, size_t* fmem_dev, const ProcessingCo
         }
 
         if (config.exec_mode == 1) { // CPU-only.
-            for (int unit = 0; unit < config.unit_count; unit++) {
+            for (int unit = 0; unit < config.worker_count; unit++) {
                 cm_hosts[unit]->process_session(std::get<0>(device_partitions[unit]), thread_start_idx[unit]);
             }
         }
@@ -506,7 +502,7 @@ void allocate_memory_on_host(int device_id, size_t* fmem_dev, const ProcessingCo
         // Wipe previous parameter results.                                  //
         //-------------------------------------------------------------------//
 
-        for (int device_id = 0; device_id < config.unit_count; device_id++) {
+        for (int device_id = 0; device_id < config.worker_count; device_id++) {
             if (GPU_EXECUTION(config.exec_mode)) { CUDA_CHECK(cudaSetDevice(device_id)); }
             timer.start("h2d");
             cm_hosts[device_id]->reset_parameters((GPU_EXECUTION(config.exec_mode)) ? true : false);
@@ -547,7 +543,7 @@ void allocate_memory_on_host(int device_id, size_t* fmem_dev, const ProcessingCo
         }
 
         if (config.exec_mode == 1) { // CPU-only.
-            for (int unit = 0; unit < config.unit_count; unit++) {
+            for (int unit = 0; unit < config.worker_count; unit++) {
                 cm_hosts[unit]->update_parameters(std::get<0>(device_partitions[unit]), thread_start_idx[unit]);
             }
         }
@@ -562,10 +558,10 @@ void allocate_memory_on_host(int device_id, size_t* fmem_dev, const ProcessingCo
         timer.start("EM synchronization");
         timer.start("d2h");
 
-        std::vector<std::vector<std::vector<Param>>> public_parameters(config.unit_count); // Device ID -> Parameter type -> Parameters.
+        std::vector<std::vector<std::vector<Param>>> public_parameters(config.worker_count); // Device ID -> Parameter type -> Parameters.
 
         // Retrieve all types of public parameters from each device.
-        for (int device_id = 0; device_id < config.unit_count; device_id++) {
+        for (int device_id = 0; device_id < config.worker_count; device_id++) {
             if (GPU_EXECUTION(config.exec_mode)) {
                 CUDA_CHECK(cudaSetDevice(device_id));
                 cm_hosts[device_id]->transfer_parameters(PUBLIC, D2H, false);
@@ -590,7 +586,7 @@ void allocate_memory_on_host(int device_id, size_t* fmem_dev, const ProcessingCo
         Communicate::sync_parameters(network_parameters);
 
         // Move all types of synchronized public parameters back to each device.
-        for (int device_id = 0; device_id < config.unit_count; device_id++) {
+        for (int device_id = 0; device_id < config.worker_count; device_id++) {
             cm_hosts[device_id]->set_parameters(network_parameters[0], PUBLIC);
 
             timer.start("h2d");
@@ -647,7 +643,7 @@ void allocate_memory_on_host(int device_id, size_t* fmem_dev, const ProcessingCo
     // Calculate node-local log-likelihood and perplexity.
     std::map<int, std::array<float, 2>> llh_device;
     std::map<int, Perplexity> ppl_device;
-    for (int device_id = 0; device_id < config.unit_count; device_id++) {
+    for (int device_id = 0; device_id < config.worker_count; device_id++) {
         // Compute the log-likelihood.
         LogLikelihood llh(cm_hosts[device_id]);
         float llh_val = llh.evaluate(std::get<1>(device_partitions[device_id]));
@@ -683,15 +679,15 @@ void allocate_memory_on_host(int device_id, size_t* fmem_dev, const ProcessingCo
     // Output trained click model.                                           //
     //-----------------------------------------------------------------------//
 
-    if (!output_path.empty()) {
+    if (!config.output_path.empty()) {
         std::cout << "\nWriting output to file..." << std::endl;
 
         std::pair<std::vector<std::string>, std::vector<std::string>> headers;
-        std::pair<std::vector<std::vector<Param> *>, std::vector<std::vector<Param> *>> parameters[config.unit_count];
-        for (int device_id = 0; device_id < config.unit_count; device_id++) {
+        std::pair<std::vector<std::vector<Param> *>, std::vector<std::vector<Param> *>> parameters[config.worker_count];
+        for (int device_id = 0; device_id < config.worker_count; device_id++) {
             cm_hosts[device_id]->get_parameter_information(headers, parameters[device_id]);
         }
-        Communicate::output_parameters(config.unit_count, output_path, device_partitions, headers, parameters);
+        Communicate::output_parameters(config.worker_count, config.output_path, device_partitions, headers, parameters);
     }
 
 
@@ -737,7 +733,6 @@ void allocate_memory_on_host(int device_id, size_t* fmem_dev, const ProcessingCo
             "\nAverage Host to Device parameter transfer time: " << timer.avg("h2d") / 2 <<
             "\nAverage Device to Host parameter transfer time: " << timer.avg("d2h") << std::endl;
         }
-
         std::cout << "\nAverage time per iteration: " << timer.avg("EM iteration") <<
         "\nAverage time per computation in each iteration: " << timer.avg("EM computation") <<
         "\nAverage time per update in each iteration: " << timer.avg("EM update") <<

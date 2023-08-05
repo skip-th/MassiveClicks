@@ -22,7 +22,6 @@
 #include "../utils/macros.cuh"
 #include "param.cuh"
 #include "../parallel_em/kernel.cuh"
-#include "../data/dataset.h"
 
 //---------------------------------------------------------------------------//
 // Host-side click model.                                                    //

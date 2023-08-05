@@ -19,6 +19,7 @@
 // User include.
 #include "../utils/definitions.h"
 #include "../utils/macros.cuh"
+#include "../utils/types.h"
 #include "../utils/utils.cuh"
 #include "../utils/timer.h"
 #include "../click_models/base.cuh"
@@ -29,35 +30,15 @@
 #include "communicator.h"
 #include "kernel.cuh"
 
-// ProcessingConfig encapsulates various parameters needed for executing the
-// EM algorithm in parallel. This includes identifiers for the model and node,
-// the number of nodes, threads, iterations, and devices, the execution mode,
-// and an information of other devices in the cluster.
-struct ProcessingConfig {
-    int model_type;        // The type of click model (e.g., 0 = PBM).
-    int node_id;           // The MPI communication rank of this node.
-    int total_nodes;       // The number of nodes in the network.
-    int thread_count;      // The number of CPU threads on this node.
-    int* devices_per_node; // The number of devices per node in the network.
-    int iterations;        // The number of iterations for which the EM algorithm should run.
-    int exec_mode;         // The mode of execution (e.g., 0 = CPU, 1 = GPU).
-    int device_count;      // The number of GPU devices on this node.
-    int unit_count;        // The number of compute devices on this node (incuding CPU depending on the execution mode).
-};
-
 /**
  * @brief Execute EM algorithm in parallel.
  *
  * @param config: Processing configuration.
  * @param device_partitions: The datasets assigned to the node's devices.
- * @param output_path: The path where to store the output.
- * @param hostname: The hostname of the device.
  */
  void em_parallel(
     const ProcessingConfig& config,
-    LocalPartitions& device_partitions,
-    const std::string& output_path,
-    const char* hostname
+    LocalPartitions& device_partitions
 );
 
 #endif // CLICK_MODEL_PARALLEL_EM_H

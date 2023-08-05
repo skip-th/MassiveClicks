@@ -7,30 +7,6 @@
 #include "utils.cuh"
 
 /**
- * @brief Get the number of GPU devices available on this machine.
- *
- * @param num_devices Integer used to store the number of GPU devices.
- */
-HST void get_number_devices(int *num_devices) {
-    cudaError_t err = cudaGetDeviceCount(num_devices);
-    if (err != cudaSuccess) {
-        *num_devices = 0;
-    }
-}
-
-/**
- * @brief Get the compute capability of a specific GPU device.
- *
- * @param device The ID of the GPU device.
- * @return The compute capability of the GPU device (e.g., 5.2 = 52).
- */
-HST int get_compute_capability(const int device) {
-    cudaDeviceProp dprop;
-    CUDA_CHECK(cudaGetDeviceProperties(&dprop, device));
-    return std::stoi(std::to_string(dprop.major) + std::to_string(dprop.minor));
-}
-
-/**
  * @brief Get the memory usage of a specific GPU device.
  *
  * @param device_id The ID of the GPU device.
@@ -86,12 +62,15 @@ HST int get_cores_per_SM(int cc_major) {
  * @return DeviceProperties The properties of the GPU device.
  */
 HST DeviceProperties get_device_properties(const int device_id) {
+    int old_device;
+    CUDA_CHECK(cudaGetDevice(&old_device));
+    CUDA_CHECK(cudaSetDevice(device_id));
     DeviceProperties properties;
     cudaDeviceProp dprop;
     CUDA_CHECK(cudaGetDeviceProperties(&dprop, device_id));
+    CUDA_CHECK(cudaMemGetInfo(&properties.available_memory, &properties.total_global_memory)); // bytes
     properties.device_id = device_id;
     properties.compute_capability = dprop.major * 10 + dprop.minor; // e.g., 52 = 5.2
-    properties.total_global_memory = dprop.totalGlobalMem; // bytes
     properties.shared_memory_per_block = dprop.sharedMemPerBlock; // bytes
     properties.total_constant_memory = dprop.totalConstMem; // bytes
     properties.registers_per_block = dprop.regsPerBlock;
@@ -108,6 +87,7 @@ HST DeviceProperties get_device_properties(const int device_id) {
                                   * ((size_t) properties.clock_rate) // Clock rate (Hz)
                                   * 2.f; // FMA
     strcpy(properties.device_name, dprop.name);
+    CUDA_CHECK(cudaSetDevice(old_device));
     return properties;
 }
 

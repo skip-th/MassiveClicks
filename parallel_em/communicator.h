@@ -29,28 +29,54 @@
 #include "../data/dataset.h"
 #include "../click_models/base.cuh"
 
-namespace Communicate {
-    void initiate(int& argc, char**& argv, int& n_nodes, int& node_id);
-    void finalize(void);
-    void error_check(std::string err_msg = "");
-    void barrier(void);
-    void get_n_devices(const int& n_devices, int* n_devices_network);
-    void gather_properties(const int& n_devices, int* n_devices_network,
-        std::vector<std::vector<std::vector<int>>>& network_properties, const int* device_architecture,
-        const int* free_memory);
-    ClusterProperties gather_properties_all(NodeProperties local_node_properties);
-    void send_partitions(const int& n_devices, const int& total_n_devices,
-        const int* n_devices_network, Dataset& dataset, LocalPartitions& device_partitions);
-    void exchange_parameters(std::vector<std::vector<std::vector<Param>>>& dest,
-        const std::vector<std::vector<Param>>& my_params);
-    void sync_parameters(std::vector<std::vector<std::vector<Param>>>& parameters);
-    void gather_evaluations(std::map<int, std::array<float, 2>>& loglikelihood,
-        std::map<int, Perplexity>& perplexity, const int* n_devices_network);
-    void output_parameters(const int processing_units, const std::string file_path,
-        const LocalPartitions& dataset_partitions,
-        const std::pair<std::vector<std::string>, std::vector<std::string>> &headers,
-        const std::pair<std::vector<std::vector<Param> *>, std::vector<std::vector<Param> *>> *parameters);
-}
+// MPI Datatypes
+extern MPI_Datatype MPI_SERP;
+extern MPI_Datatype MPI_HST_PROP;
+extern MPI_Datatype MPI_DEV_PROP;
+extern MPI_Datatype MPI_PARAM;
+extern MPI_Datatype MPI_LLH;
+extern MPI_Datatype MPI_PPL;
 
+namespace Communicate {
+    // Initiates the communication module.
+    void initiate(int& argc, char**& argv, int& n_nodes, int& node_id);
+
+    // Finalizes the communication module.
+    void finalize();
+
+    // Performs error checking, with optional error message.
+    void error_check(std::string err_msg = "");
+
+    // Synchronizes all processes to a point.
+    void barrier();
+
+    // Gathers properties from all nodes.
+    ClusterProperties gather_properties(NodeProperties local_node_properties);
+
+    // Sends sessions to a specific destination.
+    void send_sessions(const int dst, int device, SERP_Hst& session);
+
+    // Receives sessions from a specific source.
+    int recv_sessions(const int src, LocalPartitions& my_partitions);
+
+    // Exchanges parameters between nodes.
+    void exchange_parameters(std::vector<std::vector<std::vector<Param>>>& dest,
+                             const std::vector<std::vector<Param>>& my_params);
+
+    // Synchronizes parameters across all nodes and their devices.
+    void sync_parameters(DeviceLayout2D<std::vector<Param>>& parameters);
+
+    // Gathers evaluation results from all nodes.
+    void gather_evaluations(std::map<int, std::array<float, 2>>& loglikelihood,
+                            std::map<int, Perplexity>& perplexity,
+                            const int* n_devices_network);
+
+    // Outputs parameters to separate files.
+    void output_parameters(const int workers,
+                           const std::string file_path,
+                           const LocalPartitions& dataset_partitions,
+                           const std::pair<std::vector<std::string>, std::vector<std::string>> &headers,
+                           const std::pair<std::vector<std::vector<Param> *>, std::vector<std::vector<Param> *>> *parameters);
+}
 
 #endif // CLICK_MODEL_MPI_H
